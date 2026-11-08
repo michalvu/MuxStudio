@@ -294,50 +294,50 @@ Báo cáo không dùng cho hoàn tác vẫn giữ: SF `fetch_*.csv`, SP `health_
 | 17 | `Get-TimingRelation` (461) | `timing.timing_relation` | gộp |
 | 18 | `Format-SrtStamp` (485) | `srt.format_stamp` | gộp, **sửa lỗi giờ** (TĐ-01) |
 | 19 | `Convert-PgsToTimingSrt` (492) | `pgs.pgs_to_timing_srt` | gộp |
-| 20 | `Find-RefInFolder` (538) | `subfetch.find_ref_in_folder` | lọc tập trước, rồi điểm tên ≥ 0,35 (+1 nếu đúng tập); nhận `.sup` → chuyển SRT mốc |
+| 20 | `Find-RefInFolder` (538) | `subfetch.RefProvider._find_in_folder` | lọc tập trước, rồi điểm tên ≥ 0,35 (+1 nếu đúng tập); nhận `.sup` → chuyển SRT mốc |
 | 21 | `Get-RefTimes` (579) | `subfetch.RefProvider.get` | thứ tự mới: `srt_goc` trước, rồi mới trích MKV (TĐ-08); giữ đuôi thật `.ass` (TĐ-09) |
 | 22 | `Get-PoolLang` (685) | `naming.lang_tag_of_file` | gộp (3.6) |
 | 23 | `ConvertTo-PoolLangCode` (703) | `naming.lang_from_word` | gộp |
-| 24 | `Initialize-Pool` (720) | `pool.PoolIndex.build` | bỏ file Forced/SDH theo tên; `PoolDefaultLang` |
-| 25 | `Invoke-Sub` (757) | `subsource.SubSourceClient._get` | `X-API-Key`, nghỉ `ApiPauseMs` giữa lượt, 429 → chờ 20 s, 4xx → dừng, lỗi mạng thử 3 lần |
+| 24 | `Initialize-Pool` (720) | `pool.build_index` | bỏ file Forced/SDH theo tên; `PoolDefaultLang` |
+| 25 | `Invoke-Sub` (757) | `subsource.SubSourceClient.get` | `X-API-Key`, nghỉ `ApiPauseMs` giữa lượt, 429 → chờ 20 s, 4xx → dừng, lỗi mạng thử 3 lần |
 | 26 | `Get-ImdbId` (797) | `tmdb.TmdbClient.imdb_id` | dùng chung TMDB (hỗ trợ `eyJ…`, chọn series có tập) (TĐ-10) |
 | 27 | `Get-ImdbIdCached` (819) | `tmdb` + `RunCache` | |
-| 28 | `Find-Entry` (828) | `subsource.find_entry` | IMDb trước, rồi text; lọc season / năm ±1; giống tên nhất |
-| 29 | `Get-AllSubs` (880) | `subsource.list_all` | **không lọc phía máy chủ**; `limit=100` → lùi 20; tối đa `MaxPages` |
+| 28 | `Find-Entry` (828) | `SubSourceClient.find_entry` | IMDb trước, rồi text; lọc season / năm ±1; giống tên nhất |
+| 29 | `Get-AllSubs` (880) | `SubSourceClient.list_all` | **không lọc phía máy chủ**; `limit=100` → lùi 20; tối đa `MaxPages` |
 | 30 | `Test-SubLang` (905) | `subsource.lang_matches` | so tên đầy đủ/mã/biến thể `viet*`, `vi-*`… (mở rộng cho mọi ngôn ngữ trong bảng chung) |
-| 31 | `Get-SubList` (919) | `subsource.list_for_lang` | |
+| 31 | `Get-SubList` (919) | `SubSourceClient.list_for_lang` | |
 | 32 | `Get-LangSummary` (926) | `subsource.lang_summary` | hiện "SubSource có: english(40), vietnamese(3)…" |
 | 33 | `Get-FpsTier` (941) | `subfetch.fps_tier` | chênh lệch FPS khai báo và FPS video < 0,05 → hạng 1 |
-| 34 | `Get-FpsTierText` (949) | `subfetch.fps_tier_text` | không được gọi trong .bat; GUI dùng cho cột FPS |
+| 34 | `Get-FpsTierText` (949) | `subfetch.Candidate.fps_label` | không được gọi trong .bat; GUI dùng cho cột FPS |
 | 35 | `Get-CandidateScore` (957) | bỏ | **không được gọi** trong .bat; việc này do `title_score` làm |
 | 36 | `Get-ErrBody` (980) | bỏ | `requests` trả thẳng nội dung phản hồi lỗi |
-| 37 | `Invoke-Os` (998) | `opensubs.OpenSubtitlesClient._request` | `Api-Key`, User-Agent cấu hình được, token Bearer, máy chủ theo `base_url`; 403 `user-agent` → tắt nguồn; 401 → đăng nhập lại tối đa 2 lần; 429 → chờ 5 s |
-| 38 | `Connect-OpenSubtitles` (1078) | `opensubs.login` + `infos_user` | |
-| 39 | `Test-OsQuota` (1113) | `opensubs.quota_state` | còn ≤ `OsStopRemaining` → ngừng; ≤ `OsWarnRemaining` → cảnh báo (dùng `≤` như .bat) |
-| 40 | `Get-OsCandidates` (1130) | `opensubs.search` | 3 lần thử: IMDb + `order_by` → bỏ sắp xếp → theo tên + năm |
+| 37 | `Invoke-Os` (998) | `opensubs.OpenSubtitlesClient.request` | `Api-Key`, User-Agent cấu hình được, token Bearer, máy chủ theo `base_url`; 403 `user-agent` → tắt nguồn; 401 → đăng nhập lại tối đa 2 lần; 429 → chờ 5 s |
+| 38 | `Connect-OpenSubtitles` (1078) | `OpenSubtitlesClient.login` + `refresh_quota` | |
+| 39 | `Test-OsQuota` (1113) | `OpenSubtitlesClient.quota_ok` / `quota_level` | còn ≤ `OsStopRemaining` → ngừng; ≤ `OsWarnRemaining` → cảnh báo (dùng `≤` như .bat) |
+| 40 | `Get-OsCandidates` (1130) | `OpenSubtitlesClient.search` | 3 lần thử: IMDb + `order_by` → bỏ sắp xếp → theo tên + năm |
 | 41 | `Get-OsScore` (1174) | bỏ | **không được gọi** trong .bat. Phần "trừ điểm dịch máy" → câu hỏi Q2 |
 | 42 | `Test-OsUsable` (1199) | `opensubs.usable` | |
-| 43 | `Save-OsSubtitle` (1213) | `opensubs.download` | `POST /download` → `link`, `remaining`, `reset_time`/`message`; file < 64 byte = rỗng |
-| 44 | `Get-SubtitlePack` (1262) | `subsource.download_pack` | cache theo `subtitleId`; chỉ ZIP (RAR/7z báo "cần 7-Zip", bỏ qua) |
+| 43 | `Save-OsSubtitle` (1213) | `OpenSubtitlesClient.download` | `POST /download` → `link`, `remaining`, `reset_time`/`message`; file < 64 byte = rỗng |
+| 44 | `Get-SubtitlePack` (1262) | `SubSourceClient.download_pack` | cache theo `subtitleId`; chỉ ZIP (RAR/7z báo "cần 7-Zip", bỏ qua) |
 | 45 | `Select-FromPack` (1298) | `subsource.select_from_pack` | bỏ `forced/sdh/hi/hearing/cc`; lọc **đúng tập** bằng `same_episode` (TĐ-02) |
 | 46 | `Save-ToDest` (1337) | `tools.copy_file` | |
 | 47 | `Get-PreviewTimes` (1353) | `srt.preview_times` | |
 | 48 | `Get-QuickOffset` (1365) | `timing.quick_offset` | |
 | 49 | `New-Cand` (1383) | `subfetch.Candidate` (dataclass) | |
 | 50 | `Get-PoolCandidates` (1391) | `pool.pool_candidates` | lọc tập **trước** rồi mới cắt `PoolTryLimit`; < `PoolMinVotes` bỏ (in tên); < `MinVerifyVotes` "nghi ngờ"; lệch FPS → hạng 3 |
-| 51 | `Get-OnlineCandidates` (1467) | `subfetch.online_candidates` | gói đã tải → đo thẳng file của tập; chưa tải → ước tính từ preview |
+| 51 | `Get-OnlineCandidates` (1467) | `FetchSession.online_candidates` | gói đã tải → đo thẳng file của tập; chưa tải → ước tính từ preview |
 | 52 | `Add-Action` (1530) | `undo.RunLog.add` | gộp |
 | 53 | `Save-ActionLog` (1536) | `undo.RunLog.save` | gộp |
 | 54 | `Invoke-UndoRun` (1551) | `undo.plan_undo` + `undo.execute_undo` + màn hình Hoàn tác | Thùng rác (TĐ-16) |
 | 55 | `Test-EpisodeConflict` (1603) | `episodes.episode_conflict` | gộp, nhận cả số tuyệt đối (TĐ-02) |
-| 56 | `Use-ExistingSub` (1610) | `subfetch.match_existing` (lập kế hoạch) + `apply_existing` | đo được → chỉ tin đo (≥ 20 mốc); không đo được → tên ≥ 0,35; **chép**, không di chuyển (mặc định `copy`) |
+| 56 | `Use-ExistingSub` (1610) | `FetchSession.match_existing` (lập kế hoạch) + `_apply_existing` (thực thi) | đo được → chỉ tin đo (≥ 20 mốc); không đo được → tên ≥ 0,35; **chép**, không di chuyển (mặc định `copy`) |
 | 57 | `Get-TableWidth` (1708) | bỏ | console |
 | 58 | `Limit-Text` (1718) | `gui/widgets.ellipsize_middle` | cắt giữa, giữ đuôi (tên nhóm release) |
 | 59 | `Show-CandidateTable` (1727) | `gui/fetch_view.CandidateTable` | §5.1 mục 4 |
-| 60 | `Select-Candidate` (1770) | `subfetch.ChoiceMemory` + GUI | nhớ theo `movieId\|ngôn ngữ`; không nhớ bản riêng của tập khác |
-| 61 | `Get-ChosenSubtitle` (1853) | `subfetch.fetch_candidate` | |
-| 62 | `Report-Timing` (1873) | `subfetch.report_timing` | **chỉ báo**, không sửa thời gian |
-| — | Phần chính (1901–2135) | `subfetch.plan_fetch()` / `execute_fetch()` | thứ tự nguồn §6.11; TĐ-06, TĐ-07, TĐ-11 |
+| 60 | `Select-Candidate` (1770) | `subfetch.ChoiceMemory` + `FetchSession.auto_select`/`choose` + GUI | nhớ theo `movieId\|ngôn ngữ`; không nhớ bản riêng của tập khác |
+| 61 | `Get-ChosenSubtitle` (1853) | `FetchSession._fetch` + `_fetch_item` | |
+| 62 | `Report-Timing` (1873) | `FetchSession.report_timing` | **chỉ báo**, không sửa thời gian |
+| — | Phần chính (1901–2135) | `FetchSession.scan` → `gather` → `auto_select`/`choose`/`skip` → `execute` | thứ tự nguồn §6.11; TĐ-06, TĐ-07, TĐ-11 |
 
 ### 4.2. `SubPrep_v20.bat` (55 hàm)
 
@@ -763,12 +763,12 @@ Chạy bằng PowerShell 7.6 (máy Linux của tôi) qua `tools/verify_bat/KiemC
 
 | Mã | File (dòng) | Lỗi | Cách mới |
 |---|---|---|---|
-| TĐ-06 | SF 1995–2001 | SubSource không tìm thấy phim **và** OpenSubtitles tắt/hỏng → `continue`: bỏ qua luôn **kho `srt_pool` và file có sẵn** của video đó | Kho nội bộ và file có sẵn luôn được xét (GĐ2) |
-| TĐ-07 | SF 1909–1913 | Thiếu `SubSourceApiKey` → dừng toàn bộ script | Chỉ tắt nguồn SubSource, các nguồn khác vẫn chạy (GĐ2) |
-| TĐ-08 | SF 583–615 | `Get-RefTimes` chỉ xét `srt_goc` khi file là `.mkv`, có mkvmerge/mkvextract **và** MKV có track phụ đề ⇒ phụ đề gốc bạn tự đặt vào `srt_goc` bị bỏ qua với MKV không có phụ đề và với MP4 | Xét `srt_goc` trước (trùng tên → theo số tập → theo tên), rồi mới trích từ MKV (GĐ2) |
-| TĐ-09 | SF 662–665, 2006, 1687 | (a) Phụ đề gốc dạng ASS được **đổi đuôi thành `.srt`** trong `srt_goc` (nội dung vẫn là ASS) ⇒ alass ở bước ② đọc sai; SubPrep trích lại thành `.ass` ⇒ hai file trùng tên khác đuôi. (b) Phụ đề tải về/kho/có sẵn dạng `.ass/.ssa` luôn được lưu thành `<tên>.<mã>.srt` | Giữ đuôi thật (`<tên>.ass`, `<tên>.<mã>.ass`) — bước ② và ③ đã đọc được ASS. **Đã duyệt (Q7): ASS giữ là ASS ở mọi bước** (GĐ2) |
-| TĐ-10 | SF 797–810 | `Get-ImdbId` không hỗ trợ token TMDB `eyJ…` (dùng chung `TmdbApiKey` với MuxTool) và luôn lấy kết quả đầu (One Piece anime / live-action có thể ra nhầm IMDb) | Dùng chung `tmdb.py`: Bearer + chọn series thực sự có season/tập (GĐ2) |
-| TĐ-11 | SF 1964–1969 | SubFetch quét video chỉ bỏ `srt_can_sync` ⇒ chạy lại sau MuxTool sẽ tải phụ đề cho cả file trong `Output\` và file nguồn trong `audio_nguon\` | Bỏ qua `Output`, `DonorFolder`, `PoolFolder`, `ExtractFolder`, thư mục log → Q6 (GĐ2) |
+| TĐ-06 | SF 1995–2001 | SubSource không tìm thấy phim **và** OpenSubtitles tắt/hỏng → `continue`: bỏ qua luôn **kho `srt_pool` và file có sẵn** của video đó | Kho nội bộ và file có sẵn luôn được xét (GĐ2 ✅) |
+| TĐ-07 | SF 1909–1913 | Thiếu `SubSourceApiKey` → dừng toàn bộ script | Chỉ tắt nguồn SubSource, các nguồn khác vẫn chạy (GĐ2 ✅) |
+| TĐ-08 | SF 583–615 | `Get-RefTimes` chỉ xét `srt_goc` khi file là `.mkv`, có mkvmerge/mkvextract **và** MKV có track phụ đề ⇒ phụ đề gốc bạn tự đặt vào `srt_goc` bị bỏ qua với MKV không có phụ đề và với MP4 | Xét `srt_goc` trước (trùng tên → theo số tập → theo tên), rồi mới trích từ MKV (GĐ2 ✅) |
+| TĐ-09 | SF 662–665, 2006, 1687 | (a) Phụ đề gốc dạng ASS được **đổi đuôi thành `.srt`** trong `srt_goc` (nội dung vẫn là ASS) ⇒ alass ở bước ② đọc sai; SubPrep trích lại thành `.ass` ⇒ hai file trùng tên khác đuôi. (b) Phụ đề tải về/kho/có sẵn dạng `.ass/.ssa` luôn được lưu thành `<tên>.<mã>.srt` | Giữ đuôi thật (`<tên>.ass`, `<tên>.<mã>.ass`) — bước ② và ③ đã đọc được ASS. **Đã duyệt (Q7): ASS giữ là ASS ở mọi bước** (GĐ2 ✅) |
+| TĐ-10 | SF 797–810 | `Get-ImdbId` không hỗ trợ token TMDB `eyJ…` (dùng chung `TmdbApiKey` với MuxTool) và luôn lấy kết quả đầu (One Piece anime / live-action có thể ra nhầm IMDb) | Dùng chung `tmdb.py`: Bearer + chọn series thực sự có season/tập (GĐ2 ✅) |
+| TĐ-11 | SF 1964–1969 | SubFetch quét video chỉ bỏ `srt_can_sync` ⇒ chạy lại sau MuxTool sẽ tải phụ đề cho cả file trong `Output\` và file nguồn trong `audio_nguon\` | Bỏ qua `Output`, `DonorFolder`, `PoolFolder`, `ExtractFolder`, thư mục log — đã duyệt Q6 (GĐ2 ✅) |
 | TĐ-12 | SP 1483, 1573 | `Invoke-NormalizeEncoding` và `Remove-LeadingExtra` **ghi đè file nguồn** trong `srt_can_sync`; nhật ký `Encoding` không được hoàn tác | Làm trên bản sao tạm; file nguồn không đổi (GĐ3) |
 | TĐ-13 | SP 37–38 | `RefExcludeFolders` thiếu `audio_nguon` ⇒ khi dùng ghép audio, mỗi tập có 2 video cùng số tập ⇒ "NHẬP NHẰNG" hàng loạt | Luôn loại `DonorFolder` (và `PoolFolder`, `SubFolderName`) (GĐ3) |
 | TĐ-14 | SP 371–375, 1568 | Kiểm tra sức khoẻ và cắt recap chỉ đọc SRT ⇒ kết quả `.ass/.vtt` luôn bị báo "CÓ VẤN ĐỀ: không đọc được nội dung" | Sức khoẻ đọc mốc chung SRT/ASS/VTT; cắt recap chỉ với SRT, file khác ghi "không cắt recap (ASS)" (GĐ3) |
@@ -779,12 +779,15 @@ Chạy bằng PowerShell 7.6 (máy Linux của tôi) qua `tools/verify_bat/KiemC
 | TĐ-19 | SP 1594–1600 | Lần thử lại "không kèm tham số" đưa **MKV gốc** cho alass thay vì WAV ⇒ gặp lại lỗi `missing field codec_long_name` với MKV có font | Thứ tự thử: WAV + cờ → WAV không cờ → MKV + cờ → MKV không cờ (GĐ3) |
 | TĐ-20 | SP 1617 | `MaxShiftSeconds = 0` thì bỏ qua cả sửa khối 00:00:00 lẫn kiểm tra sức khoẻ | Luôn sửa + kiểm tra; `0` chỉ tắt ngưỡng từ chối (GĐ3) |
 | TĐ-21 | MT 1081, 1100, 2146 | `$DryRun` vẫn tạo thư mục trong `Output`; lệnh in ra thiếu bước ffmpeg đổi tốc độ nên không đúng lệnh thật | "Xem lệnh" không ghi gì; in đủ lệnh ffmpeg + mkvmerge (đường dẫn tạm ghi rõ) (GĐ4) |
-| TĐ-22 | SF 132, 145 | `$KeepPaidDownloads`, `$SkipIfExists` chỉ khai báo, không dùng. Thực tế .bat **luôn giữ** mọi file đã tải (chỉ cảnh báo) và luôn bỏ qua khi đích đã có (nếu `UseExistingSubs`) | `SkipIfExists` điều khiển đúng việc "đích đã có → bỏ qua" (tách khỏi `UseExistingSubs`; mặc định cả hai bật = như cũ). `KeepPaidDownloads` → Q5 (GĐ2) |
+| TĐ-22 | SF 132, 145 | `$KeepPaidDownloads`, `$SkipIfExists` chỉ khai báo, không dùng. Thực tế .bat **luôn giữ** mọi file đã tải (chỉ cảnh báo) và luôn bỏ qua khi đích đã có (nếu `UseExistingSubs`) | `SkipIfExists` điều khiển đúng việc "đích đã có → bỏ qua" (tách khỏi `UseExistingSubs`; mặc định cả hai bật = như cũ). `KeepPaidDownloads` đã duyệt Q5: tắt → file OpenSubtitles kiểm chứng yếu vào Thùng rác, thử bản kế tiếp (GĐ2 ✅) |
 | TĐ-23 | MT 2479 | `$SkipOnMultipleEnAudio` với cấu hình mặc định không bao giờ chạy: điều kiện "người dùng đã chọn" thực ra là "đã được hỏi" (đúng cả khi bạn bấm Huỷ/giữ tất cả hay khi quy tắc nhớ tự áp dụng) | → Q3 (GĐ4) |
-| TĐ-24 | SF 1174 | `Get-OsScore` (trừ điểm dịch máy, cộng lượt tải, đánh giá…) không bao giờ được gọi ⇒ khi `OsExcludeMachine` tắt, bản dịch máy xếp ngang bản thường | → Q2 (GĐ2) |
+| TĐ-24 | SF 1174 | `Get-OsScore` (trừ điểm dịch máy, cộng lượt tải, đánh giá…) không bao giờ được gọi ⇒ khi `OsExcludeMachine` tắt, bản dịch máy xếp ngang bản thường | Đã duyệt Q2: bản dịch máy xếp sau bản thường cùng hạng FPS và cùng tình trạng đo (GĐ2 ✅) |
 | TĐ-25 | MT 2542–2546, 1146–1150 | Phụ đề ngoài chỉ nhận hậu tố vi/cs/en ⇒ thêm `ja` vào `SubKeepLangs` cũng không ghép được `Phim.ja.srt` | Dùng bảng ngôn ngữ chung (GĐ4) |
 | TĐ-26 | SP 899, MT 1878 | `Get-CueTimes` (SP/MT) không nhận `Dialogue: Marked=0,…` (SSA v4) và đọc file không BOM theo bảng mã ANSI | Dùng bản SF + `encoding.read_text` (GĐ1 ✅) |
 | TĐ-27 | SP 1794–1808 | `Remove-FileSafe`: đưa vào Thùng rác lỗi thì **tự chuyển sang xoá hẳn** | Thùng rác lỗi → báo "không xoá được", không xoá hẳn. Chỉ xoá hẳn khi bạn tắt `DeleteToRecycleBin` (GĐ1 ✅) |
+| TĐ-28 | SF 1793–1799 | `AutoPickWhenSingle` tự lấy cả ứng viên duy nhất mà kho đo được chỉ 8–19 mốc ("nghi ngờ, cần kiểm tra") ⇒ có thể âm thầm lấy phụ đề của PHIM KHÁC (test GĐ2 tái hiện được: file kho của phim khác đạt 8–9 mốc với tập phim bộ) | Ứng viên duy nhất mà "nghi ngờ" → không tự lấy, hiện trên bảng để bạn quyết (GĐ2 ✅) |
+| TĐ-29 | SF 1981–1995 | Tên anime đánh số tuyệt đối (`[Judas] One Piece - 0643`): SubFetch coi là **phim lẻ** (không nhận số tập) ⇒ tìm SubSource bằng tên `One Piece - 0643`, không lọc season | Tên series lấy từ bộ nhận diện tập; có TMDB key → đổi số tuyệt đối sang season (cộng dồn `episode_count`) để chọn đúng `movieId` season trên SubSource và chọn file trong gói (nhận cả `- 0643` lẫn `S16E643`); không xác định được season → bỏ qua SubSource cho tập đó (kho + OpenSubtitles vẫn chạy). OpenSubtitles: gửi season/tập đã đổi, không có thì chỉ `episode_number` — **cần kiểm bằng script dò** (GĐ2 ✅, chờ kết quả dò) |
+| TĐ-30 | SF 618–653 | Phụ đề gốc trích từ MKV được ghi vào `srt_goc` ngay khi quét | Lập kế hoạch không ghi gì vào thư mục phim: phụ đề gốc trích ra thư mục tạm, chỉ chép vào `srt_goc` khi bấm chạy (ghi nhật ký hoàn tác) (GĐ2 ✅) |
 
 ### 7.C. Bỏ vì GUI thay thế (không mất tính năng)
 
@@ -803,7 +806,7 @@ Phần console (`Initialize-Console`, `Disable-QuickEdit`, `Set-ConsoleSize`, `W
 
 Chưa kiểm với máy chủ thật (cần key của bạn). Giai đoạn 2 sẽ có `tools/probe_subsource.py`, `probe_opensubs.py`, `probe_tmdb.py`, `probe_tvdb.py` theo §2: in status, header quan trọng (giới hạn lượt), JSON thô đã che key/token, thử các biến thể tham số. Bạn chạy một lần với key thật; chỗ nào khác tài liệu trong §6.10–6.11 sẽ được ghi vào đây (hàm, vì sao hỏng, cách mới, kiểm chứng ra sao).
 
-Việc cần kiểm cụ thể: tên header giới hạn lượt của SubSource (để hiện "còn 58/60 lượt/phút"); `limit=100` còn được nhận không; tên trường `language`, `releaseInfo`, `framerate`, `preview`; `base_url` của OpenSubtitles VIP; `GET /infos/user`; TMDB `/configuration` với key và với token; TVDB `/login` có/không `pin`.
+Việc cần kiểm cụ thể (script dò đã có ở GĐ2: `chay_do_api.bat`): mã ngôn ngữ OpenSubtitles cho 18 ngôn ngữ (vd `zh` hay `zh-cn`, `pt` hay `pt-pt/pt-br`); OpenSubtitles tìm anime theo `episode_number` không kèm season (TĐ-29); tên header giới hạn lượt của SubSource (để hiện "còn 58/60 lượt/phút"); `limit=100` còn được nhận không; tên trường `language`, `releaseInfo`, `framerate`, `preview`; `base_url` của OpenSubtitles VIP; `GET /infos/user`; TMDB `/configuration` với key và với token; TVDB `/login` có/không `pin`.
 
 Ngoài ra (Giai đoạn 4): mkvmerge in thông báo theo ngôn ngữ Windows, nên lọc dòng "warning/error" bằng chữ tiếng Anh như .bat có thể không bắt được trên Windows tiếng Séc/Việt. Bản mới quyết định theo **mã thoát** và hiện toàn bộ output; nếu `mkvmerge --ui-language` có `en` thì dùng để log dễ đọc (sẽ kiểm bằng `--ui-language list`).
 
@@ -846,7 +849,7 @@ Trước khi báo xong mỗi giai đoạn: chạy hết test và dán kết qu�
 |---|---|---|
 | **0** | ✅ Đặc tả này + script kiểm chứng — **đã duyệt** | ~~Đọc, trả lời mục 10~~ |
 | **1** | ✅ `timing`, `pgs`, `srt`, `encoding`, `episodes`, `naming`, `config`, `secrets`, `undo` + 298 test (gồm 17 test đối chiếu hàm gốc qua PowerShell) — **chờ duyệt** | Xem kết quả test; (tuỳ chọn) chạy `run_tests.bat` trên Windows |
-| 2 | `subsource`, `opensubs`, `pool`, `subfetch`, `tmdb` (phần IMDb) + script dò + test (mock) | **Chạy script dò với key thật**, gửi tôi kết quả (đã che key) |
+| **2** | ✅ `tools`, `probe` (phần bước ①), `tmdb` (IMDb + chọn series + số tập tuyệt đối), `subsource`, `opensubs`, `pool`, `subfetch` + 4 script dò + `chay_do_api.bat` + test (API giả + MKV thật) — **chờ duyệt** | **Bấm đúp `chay_do_api.bat`**, gửi tôi `ket_qua_do_api.txt` (đã che key) |
 | 3 | Bước ②: ghép tên, trích phụ đề gốc, alass, cắt recap, sức khoẻ, nhật ký/hoàn tác + test đầu–cuối nhỏ | |
 | 4 | Bước ③: `probe`, quy tắc audio/phụ đề, `tmdb`/`tvdb`, thẻ codec, `donor`, dựng lệnh mkvmerge + test tiếng bíp | |
 | 5 | Giao diện 4 thẻ + khung log + luồng phụ + nút Dừng | Thử trên Windows |

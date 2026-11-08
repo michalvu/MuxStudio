@@ -108,6 +108,11 @@ class Redactor:
         vals = {v for v in values if v and len(v) >= 4}
         self._vals = sorted(vals, key=len, reverse=True)
 
+    def add(self, value: str | None) -> None:
+        """Thêm một bí mật mới biết lúc chạy (vd token đăng nhập)."""
+        if value:
+            self.update([*self._vals, value])
+
     def redact(self, text: str) -> str:
         for v in self._vals:
             if v in text:

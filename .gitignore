@@ -19,3 +19,6 @@ dist/
 _subfetch_logs/
 _subprep_logs/
 _muxtool_logs/
+
+# Ket qua do API cua ban (da che bi mat, nhung la thong tin ca nhan)
+ket_qua_do_api.txt
