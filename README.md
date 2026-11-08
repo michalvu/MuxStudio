@@ -12,5 +12,6 @@ Chưa có giao diện (Giai đoạn 5).
 
 - Yêu cầu gốc: [`docs/PROMPT_MuxStudio.md`](docs/PROMPT_MuxStudio.md)
 - Đặc tả: [`docs/SPEC.md`](docs/SPEC.md)
+- Bàn giao giữa các phiên: [`docs/HANDOFF.md`](docs/HANDOFF.md)
 - Script kiểm chứng các lỗi tìm thấy trong .bat: [`tools/verify_bat/KiemChung_LoiBat.ps1`](tools/verify_bat/KiemChung_LoiBat.ps1)
 - Bản sao .bat đã xoá bí mật (để test đối chiếu): [`reference/`](reference/) — tạo bằng `tools/sanitize_bat.py`
