@@ -1,0 +1,4 @@
+requests
+keyring
+send2trash
+customtkinter

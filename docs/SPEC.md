@@ -260,7 +260,7 @@ Các hàm: `lang_from_word` (thay `ConvertTo-PoolLangCode`/`ConvertTo-LangCode`)
 | Bản gộp | SF | SP | MT |
 |---|---|---|---|
 | `undo.RunLog.add/save` | `Add-Action`, `Save-ActionLog` (giữ 20) | `Add-RunLog`, `Save-RunLog` (giữ `$KeepUndoRuns`) | `Add-MuxLog`, `Save-MuxLog` (không giới hạn, không hoàn tác) |
-| `undo.list_runs/undo_run` | `Invoke-UndoRun` (xoá **hẳn**) | `Invoke-Undo` (xoá **hẳn**) | — (TĐ-17) |
+| `undo.list_runs` / `plan_undo` / `execute_undo` / `undo_runs` | `Invoke-UndoRun` (xoá **hẳn**) | `Invoke-Undo` (xoá **hẳn**) | — (TĐ-17) |
 | `undo.trash` | — | `Remove-FileSafe` (Thùng rác qua VisualBasic) | — |
 
 Báo cáo không dùng cho hoàn tác vẫn giữ: SF `fetch_*.csv`, SP `health_*.csv`.
@@ -328,7 +328,7 @@ Báo cáo không dùng cho hoàn tác vẫn giữ: SF `fetch_*.csv`, SP `health_
 | 51 | `Get-OnlineCandidates` (1467) | `subfetch.online_candidates` | gói đã tải → đo thẳng file của tập; chưa tải → ước tính từ preview |
 | 52 | `Add-Action` (1530) | `undo.RunLog.add` | gộp |
 | 53 | `Save-ActionLog` (1536) | `undo.RunLog.save` | gộp |
-| 54 | `Invoke-UndoRun` (1551) | `undo.undo_run` + màn hình Hoàn tác | Thùng rác (TĐ-16) |
+| 54 | `Invoke-UndoRun` (1551) | `undo.plan_undo` + `undo.execute_undo` + màn hình Hoàn tác | Thùng rác (TĐ-16) |
 | 55 | `Test-EpisodeConflict` (1603) | `episodes.episode_conflict` | gộp, nhận cả số tuyệt đối (TĐ-02) |
 | 56 | `Use-ExistingSub` (1610) | `subfetch.match_existing` (lập kế hoạch) + `apply_existing` | đo được → chỉ tin đo (≥ 20 mốc); không đo được → tên ≥ 0,35; **chép**, không di chuyển (mặc định `copy`) |
 | 57 | `Get-TableWidth` (1708) | bỏ | console |
@@ -395,7 +395,7 @@ Báo cáo không dùng cho hoàn tác vẫn giữ: SF `fetch_*.csv`, SP `health_
 | 50 | `Invoke-Rename` (1299) | `subprep.plan_rename` / `execute_rename` | lý do: "không đoán được ngôn ngữ", "nhập nhằng", "không tìm được mốc", "trùng đích", "đích đã tồn tại", "đã đúng tên" |
 | 51 | `Get-SupportedAlassFlags` (1391) | `tools.alass_supported_flags` | gộp |
 | 52 | `Invoke-Sync` (1413) | `subprep.plan_sync` / `execute_sync` | TĐ-12, TĐ-14, TĐ-18, TĐ-19, TĐ-20 |
-| 53 | `Invoke-Undo` (1746) | `undo.undo_run` + màn hình Hoàn tác | Thùng rác |
+| 53 | `Invoke-Undo` (1746) | `undo.plan_undo` + `undo.execute_undo` + màn hình Hoàn tác | Thùng rác |
 | 54 | `Remove-FileSafe` (1794) | `undo.trash` | `send2trash`; tắt `DeleteToRecycleBin` mới xoá hẳn |
 | 55 | `Invoke-Cleanup` (1810) | `subprep.cleanup_targets` + hộp thoại dọn dẹp | chỉ đề xuất file nguồn của cặp đã có kết quả > 32 byte cạnh phim |
 | — | Menu chính (1873–2004) | `gui/subprep_view` | mục 6 |
@@ -714,7 +714,7 @@ Mỗi mục có mã **TĐ-xx** để tham chiếu. Cột "Kiểm chứng" ghi c�
 Chạy bằng PowerShell 7.6 (máy Linux của tôi) qua `tools/verify_bat/KiemChung_LoiBat.ps1`: script nạp **đúng định nghĩa hàm** từ ba file .bat bằng bộ phân tích cú pháp của PowerShell. Các lỗi dưới đây thuộc về ngữ nghĩa ngôn ngữ (ép kiểu `[int]`, thứ tự `-and/-or`, regex), giống nhau ở PowerShell 5.1 trên máy bạn; bạn chạy lại script để chắc chắn.
 
 **TĐ-01 — `Format-SrtStamp` ghi sai giờ (cả 3 file).**
-- *Vì sao hỏng:* `[int]$ts.TotalHours` làm tròn: 0,75 giờ → 1.
+- *Vì sao hỏng:* `[int]$ts.TotalHours` làm tròn về số chẵn gần nhất: 0,75 giờ → 1; 1,5 giờ → 2; (đúng 0,5 giờ → 0 nên 00:30:00 lại không sai — test đối chiếu ở Giai đoạn 1 đã xác nhận quy tắc này).
 - *Kiểm chứng:*
   ```
   1799 giây -> 00:29:59,000     (đúng)
@@ -751,7 +751,13 @@ Chạy bằng PowerShell 7.6 (máy Linux của tôi) qua `tools/verify_bat/KiemC
   2001.A.Space.Odyssey.1968.1080p  MuxTool: '2001 A Space Odyssey' (1968) SubFetch: 'A Space Odyssey' (2001)
   ```
 - *Ảnh hưởng:* MuxTool tìm TMDB "Blade Runner" năm 2049 → không ra → bỏ năm → ra bản 1982 → không khớp năm → hỏi lại (hoặc lấy nhầm nếu tắt `TmdbConfirm`); tên rỗng → giữ tên gốc. SubFetch tra IMDb và SubSource bằng tên sai.
-- *Cách mới:* năm = năm cuối cùng **hợp lệ**: không phải năm nếu bỏ đi làm tên rỗng, hoặc lớn hơn năm hiện tại + 1. → câu hỏi Q4.
+- *Cách mới:* năm = năm cuối cùng **hợp lệ**: không phải năm nếu bỏ đi làm tên rỗng, hoặc lớn hơn năm hiện tại + 1. → câu hỏi Q4 (đã duyệt).
+- *Phát hiện thêm ở Giai đoạn 1 (test đối chiếu hàm gốc):* danh sách từ kỹ thuật của `Split-ReleaseName` có những từ trùng với tên phim thật (`web`, `uncut`, `dual`, `extended`…), và MuxTool cắt tên **trước** khi tìm năm:
+  ```
+  Uncut.Gems.2019.1080p       MuxTool: '' (không năm)       → giữ tên file gốc
+  Charlotte's.Web.2006.720p   MuxTool: "Charlotte's" (không năm)
+  ```
+  Bản mới chia từ kỹ thuật làm hai loại: loại **chắc chắn** (`1080p`, `x265`, `BluRay`, `WEB-DL`, `DDP5`…) luôn cắt tên tại đó; loại **có thể trùng tên phim** (`web`, `uncut`, `extended`, `dual`, `proper`, `multi`…) chỉ dùng để cắt khi tên **không có năm**. Có năm hợp lệ thì tên = phần trước năm. Kết quả: `Uncut Gems` (2019), `Charlotte's Web` (2006). Các tên release thông thường (`Tên.Năm.1080p…`, `[YTS.MX] Tên (Năm) [2160p]`) cho kết quả **giống hệt** MuxTool — có test đối chiếu.
 
 ### 7.B. Lỗi tìm thấy khi đọc code (test chứng minh ở giai đoạn ghi trong ngoặc)
 
@@ -760,7 +766,7 @@ Chạy bằng PowerShell 7.6 (máy Linux của tôi) qua `tools/verify_bat/KiemC
 | TĐ-06 | SF 1995–2001 | SubSource không tìm thấy phim **và** OpenSubtitles tắt/hỏng → `continue`: bỏ qua luôn **kho `srt_pool` và file có sẵn** của video đó | Kho nội bộ và file có sẵn luôn được xét (GĐ2) |
 | TĐ-07 | SF 1909–1913 | Thiếu `SubSourceApiKey` → dừng toàn bộ script | Chỉ tắt nguồn SubSource, các nguồn khác vẫn chạy (GĐ2) |
 | TĐ-08 | SF 583–615 | `Get-RefTimes` chỉ xét `srt_goc` khi file là `.mkv`, có mkvmerge/mkvextract **và** MKV có track phụ đề ⇒ phụ đề gốc bạn tự đặt vào `srt_goc` bị bỏ qua với MKV không có phụ đề và với MP4 | Xét `srt_goc` trước (trùng tên → theo số tập → theo tên), rồi mới trích từ MKV (GĐ2) |
-| TĐ-09 | SF 662–665, 2006, 1687 | (a) Phụ đề gốc dạng ASS được **đổi đuôi thành `.srt`** trong `srt_goc` (nội dung vẫn là ASS) ⇒ alass ở bước ② đọc sai; SubPrep trích lại thành `.ass` ⇒ hai file trùng tên khác đuôi. (b) Phụ đề tải về/kho/có sẵn dạng `.ass/.ssa` luôn được lưu thành `<tên>.<mã>.srt` | Giữ đuôi thật (`<tên>.ass`, `<tên>.<mã>.ass`) — bước ② và ③ đã đọc được ASS. → Q7 (GĐ2) |
+| TĐ-09 | SF 662–665, 2006, 1687 | (a) Phụ đề gốc dạng ASS được **đổi đuôi thành `.srt`** trong `srt_goc` (nội dung vẫn là ASS) ⇒ alass ở bước ② đọc sai; SubPrep trích lại thành `.ass` ⇒ hai file trùng tên khác đuôi. (b) Phụ đề tải về/kho/có sẵn dạng `.ass/.ssa` luôn được lưu thành `<tên>.<mã>.srt` | Giữ đuôi thật (`<tên>.ass`, `<tên>.<mã>.ass`) — bước ② và ③ đã đọc được ASS. **Đã duyệt (Q7): ASS giữ là ASS ở mọi bước** (GĐ2) |
 | TĐ-10 | SF 797–810 | `Get-ImdbId` không hỗ trợ token TMDB `eyJ…` (dùng chung `TmdbApiKey` với MuxTool) và luôn lấy kết quả đầu (One Piece anime / live-action có thể ra nhầm IMDb) | Dùng chung `tmdb.py`: Bearer + chọn series thực sự có season/tập (GĐ2) |
 | TĐ-11 | SF 1964–1969 | SubFetch quét video chỉ bỏ `srt_can_sync` ⇒ chạy lại sau MuxTool sẽ tải phụ đề cho cả file trong `Output\` và file nguồn trong `audio_nguon\` | Bỏ qua `Output`, `DonorFolder`, `PoolFolder`, `ExtractFolder`, thư mục log → Q6 (GĐ2) |
 | TĐ-12 | SP 1483, 1573 | `Invoke-NormalizeEncoding` và `Remove-LeadingExtra` **ghi đè file nguồn** trong `srt_can_sync`; nhật ký `Encoding` không được hoàn tác | Làm trên bản sao tạm; file nguồn không đổi (GĐ3) |
@@ -777,7 +783,8 @@ Chạy bằng PowerShell 7.6 (máy Linux của tôi) qua `tools/verify_bat/KiemC
 | TĐ-23 | MT 2479 | `$SkipOnMultipleEnAudio` với cấu hình mặc định không bao giờ chạy: điều kiện "người dùng đã chọn" thực ra là "đã được hỏi" (đúng cả khi bạn bấm Huỷ/giữ tất cả hay khi quy tắc nhớ tự áp dụng) | → Q3 (GĐ4) |
 | TĐ-24 | SF 1174 | `Get-OsScore` (trừ điểm dịch máy, cộng lượt tải, đánh giá…) không bao giờ được gọi ⇒ khi `OsExcludeMachine` tắt, bản dịch máy xếp ngang bản thường | → Q2 (GĐ2) |
 | TĐ-25 | MT 2542–2546, 1146–1150 | Phụ đề ngoài chỉ nhận hậu tố vi/cs/en ⇒ thêm `ja` vào `SubKeepLangs` cũng không ghép được `Phim.ja.srt` | Dùng bảng ngôn ngữ chung (GĐ4) |
-| TĐ-26 | SP 899, MT 1878 | `Get-CueTimes` (SP/MT) không nhận `Dialogue: Marked=0,…` (SSA v4) và đọc file không BOM theo bảng mã ANSI | Dùng bản SF + `encoding.read_text` (GĐ1) |
+| TĐ-26 | SP 899, MT 1878 | `Get-CueTimes` (SP/MT) không nhận `Dialogue: Marked=0,…` (SSA v4) và đọc file không BOM theo bảng mã ANSI | Dùng bản SF + `encoding.read_text` (GĐ1 ✅) |
+| TĐ-27 | SP 1794–1808 | `Remove-FileSafe`: đưa vào Thùng rác lỗi thì **tự chuyển sang xoá hẳn** | Thùng rác lỗi → báo "không xoá được", không xoá hẳn. Chỉ xoá hẳn khi bạn tắt `DeleteToRecycleBin` (GĐ1 ✅) |
 
 ### 7.C. Bỏ vì GUI thay thế (không mất tính năng)
 
@@ -837,8 +844,8 @@ Trước khi báo xong mỗi giai đoạn: chạy hết test và dán kết qu�
 
 | GĐ | Nội dung | Bạn cần làm |
 |---|---|---|
-| **0** | ✅ Đặc tả này + script kiểm chứng | Đọc, trả lời mục 10 |
-| 1 | `timing`, `pgs`, `srt`, `encoding`, `episodes`, `naming`, `config`, `secrets`, `undo` (phần lõi) + test | Xem kết quả test |
+| **0** | ✅ Đặc tả này + script kiểm chứng — **đã duyệt** | ~~Đọc, trả lời mục 10~~ |
+| **1** | ✅ `timing`, `pgs`, `srt`, `encoding`, `episodes`, `naming`, `config`, `secrets`, `undo` + 298 test (gồm 17 test đối chiếu hàm gốc qua PowerShell) — **chờ duyệt** | Xem kết quả test; (tuỳ chọn) chạy `run_tests.bat` trên Windows |
 | 2 | `subsource`, `opensubs`, `pool`, `subfetch`, `tmdb` (phần IMDb) + script dò + test (mock) | **Chạy script dò với key thật**, gửi tôi kết quả (đã che key) |
 | 3 | Bước ②: ghép tên, trích phụ đề gốc, alass, cắt recap, sức khoẻ, nhật ký/hoàn tác + test đầu–cuối nhỏ | |
 | 4 | Bước ③: `probe`, quy tắc audio/phụ đề, `tmdb`/`tvdb`, thẻ codec, `donor`, dựng lệnh mkvmerge + test tiếng bíp | |
@@ -850,6 +857,10 @@ Môi trường của tôi: máy Linux trong đám mây. Tôi đã cài PowerShel
 ---
 
 ## 10. Câu hỏi cần bạn quyết
+
+> **Đã quyết (2026-11-08):** bạn đồng ý tất cả đề xuất dưới đây. Riêng **Q7** bạn nhấn mạnh: *phụ đề ASS giữ là phụ đề ASS* — ở mọi bước (tải về, kho, file có sẵn, phụ đề gốc trích từ MKV, kết quả alass, mux) phụ đề ASS/SSA giữ nguyên định dạng và đuôi, **không** chuyển sang SRT. Các thao tác chỉ làm được với SRT (cắt recap, ghi lại khối) sẽ bỏ qua file ASS và ghi rõ lý do trong bảng, không âm thầm đổi định dạng. Q8 không bắt buộc, chưa có danh sách tên file.
+>
+> Q1 đã thực hiện: bản sao ba file .bat đã xoá 7 bí mật nằm trong `reference/` (tạo bằng `tools/sanitize_bat.py`).
 
 Mỗi câu có **đề xuất của tôi**. Bạn chỉ cần trả lời "đồng ý hết" hoặc ghi số câu muốn khác.
 

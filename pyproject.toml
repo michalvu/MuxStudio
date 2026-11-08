@@ -1,0 +1,22 @@
+[project]
+name = "muxstudio"
+version = "0.1.0"
+description = "Thay SubFetch, SubPrep, MuxTool: tải phụ đề, đồng bộ, mux MKV chuẩn Jellyfin"
+requires-python = ">=3.11"
+dependencies = [
+    "requests",
+    "keyring",
+    "send2trash",
+    "customtkinter",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+markers = [
+    "golden: đối chiếu với hàm PowerShell gốc trong reference/*.bat (cần pwsh)",
+]

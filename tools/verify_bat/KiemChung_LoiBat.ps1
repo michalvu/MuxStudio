@@ -90,7 +90,7 @@ try {
 
     "`n=== C3. Tach ten phim + nam ==="
     $sfc2 = Import-BatFunctions $SF @('Get-CleanTitle', 'Get-Year')
-    foreach ($nm in @('Blade Runner 2049', '2001 A Space Odyssey', '2001.A.Space.Odyssey.1968.1080p')) {
+    foreach ($nm in @('Blade Runner 2049', '2001 A Space Odyssey', '2001.A.Space.Odyssey.1968.1080p', 'Uncut.Gems.2019.1080p', "Charlotte's.Web.2006.720p")) {
         $a = Invoke-In $mtc "Split-ReleaseName $(Q $nm)"
         "  {0,-34} MuxTool: '{1}' ({2})   SubFetch: '{3}' ({4})" -f $nm, $a.Title, $a.Year,
             (Invoke-In $sfc2 "Get-CleanTitle $(Q $nm)"), (Invoke-In $sfc2 "Get-Year $(Q $nm)")
