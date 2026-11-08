@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# PyInstaller
+build/
+dist/
+*.spec.bak
+
+# Ban goc .bat co key that - KHONG dua len repo
+*_v[0-9]*.bat
+!reference/*.bat
+
+# Nhat ky / file tam khi chay thu
+_subfetch_logs/
+_subprep_logs/
+_muxtool_logs/
