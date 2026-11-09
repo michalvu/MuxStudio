@@ -606,16 +606,16 @@ def test_settings_tools_block_shows_used_files_and_wrong_pick(movie_dir, ui, tmp
 
     from gui import app as A
 
-    a = ui(movie_dir, {"FfprobePath": shutil.which("ffmpeg") or ""})
+    a = ui(movie_dir, {"FfprobePath": _find("ffmpeg") or ""})
     pump(a)
     pump(a)
     v = a.settings
     st = {k: v.rows[k].status.cget("text") for k in ("MkvmergePath", "MkvextractPath", "AlassPath", "FfprobePath", "FfmpegPath")}
     assert all(t and t != "đang kiểm tra…" for t in st.values())
     assert "Công cụ: mkvmerge" in log_text(a)  # bao trong log khi mo chuong trinh
-    if shutil.which("mkvmerge"):
+    if _find("mkvmerge"):
         assert st["MkvmergePath"].startswith("✓ v") and "tự tìm thấy" in st["MkvmergePath"]
-    if shutil.which("ffmpeg"):
+    if _find("ffmpeg"):
         assert st["FfprobePath"].startswith("✗ không phải ffprobe")  # chon nham ffmpeg vao o ffprobe
     # chon lai dung file -> kiem tra lai ngay
     fr = v.rows["AlassPath"]

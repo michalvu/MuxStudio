@@ -179,7 +179,8 @@ def test_tool_info_found_missing_broken_and_wrong_file(tmp_path, monkeypatch):
     bad.write_text("không phải chương trình", encoding="utf-8", newline="")
     b = tools.tool_info("ffprobe", bad)
     assert not b.ok and "KHÔNG chạy được" in b.problem and "Unblock" in b.problem
-    real = {n: shutil.which(n) for n in ("mkvmerge", "mkvextract", "ffmpeg", "ffprobe")}
+    # PATH, roi nhu nut "Tu tim" (tren Windows mkvmerge thuong o Desktop\\mkvtoolnix, KHONG co trong PATH)
+    real = {n: shutil.which(n) or tools.find_tool(n, C.Config({})) for n in ("mkvmerge", "mkvextract", "ffmpeg", "ffprobe")}
     if not all(real.values()):
         pytest.skip("thiếu mkvmerge / ffmpeg thật")
     assert tools.tool_info("mkvmerge", real["mkvmerge"]).version.startswith("v")
