@@ -3,13 +3,15 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
+.venv-build/
 venv/
 *.egg-info/
 
-# PyInstaller
+# PyInstaller (build.bat)
 build/
 dist/
 *.spec.bak
+kiem_tra_exe.txt
 
 # Ban goc .bat co key that - KHONG dua len repo
 *_v[0-9]*.bat

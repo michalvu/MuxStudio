@@ -4,7 +4,7 @@
   SubFetch), ``fit_text`` / ``shorten_name`` (rút gọn tên file dài cho vừa ô mà GIỮ số tập + đuôi tên),
   ``plan_window`` / ``ui_factor`` (cỡ cửa sổ, mật độ bố cục theo màn hình 720p / 1080p / 1440p), ``GridModel`` (logic bảng chọn phụ đề theo tập: tick ô / cả cột / cả dòng, "Trả về mặc định"),
   ``Runner`` (chạy việc nặng ở luồng phụ, log + tiến độ qua ``queue``, giao diện đọc bằng ``after(100)``,
-  nút Dừng), ``open_path``.
+  nút Dừng), ``open_path``, ``resource_path`` / ``is_frozen`` (file đi kèm — cả khi chạy bản ``.exe``).
 * Phần Tk: ``setup_style`` (màu ``ttk.Treeview`` hợp CustomTkinter, sáng/tối), ``Table`` (Treeview có cột ☑/☐ —
   không tạo ``CTkCheckBox`` cho từng ô), ``CheckGrid`` (lưới ☑/☐ vẽ trên Canvas: ô xám = không có, ô vàng = khác
   quy tắc tự động — Treeview không tô màu được từng ô), ``Tooltip``, các hộp thoại nhỏ.
@@ -232,6 +232,46 @@ def open_path(path: str | os.PathLike[str]) -> bool:
             subprocess.Popen(["xdg-open", p], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # noqa: S603,S607
         return True
     except OSError:
+        return False
+
+
+def is_frozen() -> bool:
+    """Đang chạy bản đóng gói (``MuxStudio.exe`` do PyInstaller tạo), không phải từ mã nguồn."""
+    return bool(getattr(sys, "frozen", False))
+
+
+def resource_path(*parts: str) -> str:
+    """Đường dẫn tới file dữ liệu đi kèm chương trình (vd ``assets/muxstudio.ico``): bản ``.exe`` → thư mục
+    ``_internal`` của PyInstaller (``sys._MEIPASS``); chạy từ mã nguồn → thư mục gốc repo."""
+    base = getattr(sys, "_MEIPASS", None) if is_frozen() else None
+    if not base:
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, *parts)
+
+
+ICON_ICO = ("assets", "muxstudio.ico")
+ICON_PNG = ("assets", "muxstudio.png")
+
+
+def set_window_icon(win: Any, default: bool = False) -> bool:
+    """Đặt icon MuxStudio cho cửa sổ (thay icon CustomTkinter). Windows: ``iconbitmap(.ico)`` — gọi NGAY khi tạo
+    cửa sổ: CustomTkinter chỉ tự đặt icon của nó (sau 200 ms) khi ``iconbitmap`` chưa được gọi. Nơi khác:
+    ``iconphoto(.png)`` (giữ ảnh trên cửa sổ để không bị thu hồi). Thiếu file / lỗi → bỏ qua, trả ``False``."""
+    try:
+        if sys.platform.startswith("win"):
+            ico = resource_path(*ICON_ICO)
+            if not os.path.isfile(ico):
+                return False
+            win.iconbitmap(ico)
+            return True
+        png = resource_path(*ICON_PNG)
+        if not os.path.isfile(png):
+            return False
+        img = tk.PhotoImage(master=win, file=png)
+        win.iconphoto(default, img)
+        win._muxstudio_icon = img  # noqa: SLF001 - giu tham chieu
+        return True
+    except Exception:  # noqa: BLE001 - icon khong quan trong bang chuong trinh chay duoc
         return False
 
 
@@ -1197,6 +1237,7 @@ class Dialog:
     def __init__(self, parent: Any, title: str, width: int = 640, height: int = 420):
         self.parent = parent
         self.win = ctk.CTkToplevel(parent)
+        set_window_icon(self.win)
         self.win.title(title)
         sw, sh = screen_logical(self.win)  # hop thoai khong bao gio to hon man hinh (720p)
         width, height = int(min(width, sw - 40)), int(min(height, sh - 90))

@@ -1,8 +1,8 @@
 # Bàn giao giữa các phiên làm việc (đọc file này TRƯỚC)
 
-Cập nhật: 2026-11-09, Giai đoạn 5 ĐÃ DUYỆT — phiên sau làm Giai đoạn 6. Repo `michalvu/MuxStudio`.
-Nhánh: GĐ5 làm trên nhánh phiên `ccr-770f1e3e-dqsvcp`, đẩy cả `claude/new-session-eckanp` (người dùng yêu cầu: hai nhánh giống nhau).
-Phiên sau: làm trên nhánh phiên đó được giao; đẩy cả `claude/new-session-eckanp`.
+Cập nhật: 2026-11-09, Giai đoạn 6 (đóng gói) XONG — **chờ người dùng duyệt** (build `.exe` trên Windows). Repo `michalvu/MuxStudio`.
+Nhánh: GĐ6 làm trên nhánh phiên `ccr-e18d248b-a69t65`, đẩy cả `claude/new-session-eckanp` (người dùng yêu cầu: hai nhánh giống nhau).
+Phiên sau: làm trên nhánh phiên được giao; đẩy cả `claude/new-session-eckanp`.
 
 ## 1. Đọc gì, theo thứ tự
 
@@ -24,11 +24,13 @@ Người dùng **không phải lập trình viên**: trả lời + giao diện *
 | 3 | Bước ② `subprep` + test | ✅ đã duyệt (2026-11-09, gồm TĐ-31, TĐ-32) |
 | 4 | Bước ③ `mux donor tvdb` + phần bước ③ của `probe tmdb naming` + test | ✅ đã duyệt (2026-11-09, gồm TĐ-33, TĐ-34) |
 | 5 | GUI `gui/` (4 thẻ + log + luồng phụ + Dừng + Hoàn tác) + test giao diện + tối ưu 720p/1080p/1440p + khối "Công cụ ngoài" | ✅ đã duyệt (2026-11-09) |
-| 6 | Đóng gói | **làm tiếp ở phiên sau** (mục 10) |
+| 6 | Đóng gói: `MuxStudio.pyw`, `MuxStudio.spec`, `build.bat`, icon, 1.0.0, `--kiem-tra`, `HUONG_DAN.md` + 23 test | ✅ xong, **chờ duyệt** (mục 10) |
 
-**Việc kế tiếp:** GĐ6 — đóng gói (mục 10). Người dùng CHƯA thử giao diện trên Windows (duyệt GĐ5 không thử, chấp nhận sửa
-lỗi sau khi có .exe) → các phần chỉ giả lập trên Linux (Credential Manager, Thùng rác, DPI 125/150%, alass thật, đường
-dẫn `C:\`) có thể lộ lỗi khi người dùng chạy .exe: sửa ở mã nguồn + test, đẩy, người dùng build lại. Bất cứ lúc nào người dùng gửi `ket_qua_do_api.txt` → so với giả định trong `core/subsource.py`, `core/opensubs.py`,
+**Việc kế tiếp:** chờ người dùng duyệt GĐ6: bấm đúp `build.bat` trên Windows → đọc báo cáo tự kiểm tra (`kiem_tra_exe.txt`)
+→ chạy `MuxStudio.exe`, làm thử ① → ② → ③. Người dùng CHƯA thử giao diện trên Windows (chấp nhận sửa lỗi sau khi có
+.exe) → các phần chỉ giả lập trên Linux (Credential Manager, Thùng rác, DPI 125/150%, alass thật, đường dẫn `C:\`,
+SmartScreen/antivirus) có thể lộ lỗi: hỏi báo cáo tự kiểm tra + "Lưu log" + ảnh; sửa ở mã nguồn + test, đẩy, người
+dùng build lại (chép đè `dist\MuxStudio`). Lỗi ở bản `.exe` mà mã nguồn không có → xem mục 10 (spec, hiddenimports). Bất cứ lúc nào người dùng gửi `ket_qua_do_api.txt` → so với giả định trong `core/subsource.py`, `core/opensubs.py`,
 `core/tmdb.py` (và `tvdb` sau). Chỗ nào khác: viết lại hàm giữ nguyên tên/chữ ký, thêm test, ghi vào SPEC mục 7.E
 (hàm nào, vì sao hỏng, cách mới, kiểm chứng ra sao). Những điểm đang chờ dò:
 - mã ngôn ngữ OpenSubtitles (`zh` hay `zh-cn`, `pt`…) — bước 2 của `probe_opensubs`;
@@ -55,14 +57,17 @@ core/   timing pgs srt encoding episodes naming config secrets undo   (GĐ1)
         mux donor tvdb (+ phần bước ③ của probe tmdb naming)              (GĐ4)
         + set_job (3 phiên), naming.search_candidates, MuxSession.search_name (GĐ5)
 gui/    app widgets log_panel settings_view fetch_view subprep_view mux_view (GĐ5)
-tests/  pytest — 614 test (2 test alass thật tự bỏ qua nếu không có alass; 9 test test_gui_app.py tự bỏ qua nếu
-        không có tkinter/màn hình); test_gui_logic.py (logic giao diện, không cần Tk); fakehttp.py (API giả),
+        + build_info / self_check (--kiem-tra) / write_startup_error trong app; resource_path / set_window_icon (GĐ6)
+tests/  pytest — 637 test (2 test alass thật tự bỏ qua nếu không có alass; 10 test test_gui_app.py + 1 test_packaging
+        tự bỏ qua nếu không có tkinter/màn hình); test_packaging.py (GĐ6); test_gui_logic.py (logic giao diện, không cần Tk); fakehttp.py (API giả),
         synth.py (phụ đề/PGS giả), fake_alass.py (alass GIẢ: ghi lại từng lần gọi, dịch phụ đề theo cấu hình),
         test_golden_powershell.py + test_golden_subprep.py + test_golden_mux.py + golden/ps_harness.ps1 (chạy HÀM GỐC
         trong reference/*.bat bằng pwsh và so; Invoke-TmdbApi/Invoke-TvdbApi thay bằng API giả cùng dữ liệu)
-tools/  verify_bat/KiemChung_LoiBat.ps1, sanitize_bat.py, probe_*.py, probe_all.py, nhap_tu_bat.py
+tools/  verify_bat/KiemChung_LoiBat.ps1, sanitize_bat.py, probe_*.py, probe_all.py, nhap_tu_bat.py, make_icon.py (GĐ6)
 reference/  3 file .bat gốc ĐÃ XOÁ 7 bí mật (dùng cho test đối chiếu)
 run_tests.bat, chay_do_api.bat, chay_muxstudio.bat (CRLF, cho Windows; chay_muxstudio = chạy giao diện từ mã nguồn)
+GĐ6: MuxStudio.pyw (điểm vào), MuxStudio.spec, build.bat, requirements-build.txt, HUONG_DAN.md,
+     assets/ muxstudio.ico (16–256: BMP + PNG 256) muxstudio.png kiem_tra_MuxStudio.bat (spec chép cạnh .exe)
 ```
 
 - Bước ① theo mẫu **lập kế hoạch → thực thi**: `FetchSession.scan → gather → auto_select/choose/skip → execute`.
@@ -107,6 +112,11 @@ run_tests.bat, chay_do_api.bat, chay_muxstudio.bat (CRLF, cho Windows; chay_muxs
   "ế", "ệ" — chữ mẫu cho test bảng mã cũ dùng "Đây là tiên".
 - **Không chạy được file .exe/nhị phân tải từ mạng** trong container (bộ phân loại an toàn chặn, kể cả alass bản Linux) →
   test alass thật tự bỏ qua ở đây; dùng `tests/fake_alass.py`. Trên Windows `run_tests.bat` tìm alass thật như nút "Tự tìm".
+  (Bản đóng gói Linux do PyInstaller build NGAY trong container thì chạy được — mục 10.)
+- **Test giao diện phụ thuộc cỡ màn hình:** `xvfb-run -a` ở container này cho màn hình 1280×1024 (< 1400×860) → cửa sổ tự
+  phóng to hết màn hình; Xvfb không có trình quản lý cửa sổ nên Tk KHÔNG bỏ phóng to được (`-zoomed` kẹt ở 1). Test nào
+  đặt cỡ cửa sổ phải xét `a.window.zoomed` (đã sửa `test_window_fits_screen_and_remembers_logical_size` ở GĐ6 — trước đó
+  hỏng ở màn hình nhỏ, kể cả laptop 1366×768 của người dùng). Thử nhiều cỡ: `xvfb-run -a -s "-screen 0 1366x768x24"`.
 
 ## 6. Dựng lại môi trường (container cloud bị xoá sau mỗi phiên)
 
@@ -121,9 +131,13 @@ pip install -q uv && uv python install 3.11   # chạy test trên 3.11 (bản uv
 uv venv -p 3.11 /tmp/v311 && uv pip install -p /tmp/v311/bin/python keyring send2trash requests pytest customtkinter
 # Python 3.12 của Ubuntu + Tk 8.6 (GIỐNG Windows nhất — dùng để chụp ảnh giao diện):
 /usr/bin/python3.12 -m venv /tmp/v312 && /tmp/v312/bin/pip install -q customtkinter keyring send2trash requests pytest
-.venv/bin/python -m pytest -q              # không có Tk: 603 passed, 11 skipped (9 test giao diện + 2 alass thật)
-xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 612 passed, 2 skipped
-xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 612 passed, 2 skipped
+.venv/bin/python -m pytest -q              # không có Tk: 624 passed, 13 skipped (11 test cần Tk + 2 alass thật)
+xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 635 passed, 2 skipped
+xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 635 passed, 2 skipped
+# Thử đóng gói (GĐ6) — PyInstaller trên Python 3.12 của Ubuntu (Tk 8.6), kết quả để ngoài repo:
+/usr/bin/python3.12 -m venv /tmp/vbuild && /tmp/vbuild/bin/pip install -q -r requirements-build.txt
+/tmp/vbuild/bin/python -m PyInstaller --noconfirm --clean --distpath /tmp/pyi/dist --workpath /tmp/pyi/build MuxStudio.spec
+xvfb-run -a /tmp/pyi/dist/MuxStudio/MuxStudio --kiem-tra /tmp/pyi/kt.txt; echo $?; cat /tmp/pyi/kt.txt   # 0 + "ĐẠT"
 ```
 
 Quét bí mật trước khi đẩy (cần bản .bat gốc có key — chỉ có nếu người dùng tải lên lại; nếu không có thì ít nhất
@@ -206,32 +220,44 @@ Chạy: `python -m gui.app [thư mục phim]` — trên Windows bấm đúp `cha
     `<Configure>` của chính khung chứa nhãn → vòng lặp vô hạn; nghe khung ngoài + trễ `after(80)`. (4) Cửa sổ bị
     `withdraw()` thì Tk không báo cỡ thật — test cỡ phải `deiconify()`.
 
-## 10. Kế hoạch GĐ6 (đóng gói) — việc của phiên sau
+## 10. Giai đoạn 6 đã làm (đóng gói)
 
-PROMPT §3, §9 mục 6, §10. Người dùng KHÔNG phải lập trình viên: hướng dẫn từng bước ngắn, tiếng Việt có dấu.
+PROMPT §3, §9 mục 6, §10. Hướng dẫn người dùng: `HUONG_DAN.md` (tạo .exe, công cụ ngoài, cấu hình lần đầu, quy trình,
+Hoàn tác, báo lỗi, SmartScreen/antivirus/Unblock, run_tests, dò API).
 
-1. **Điểm vào** ở gốc repo: `MuxStudio.pyw` (hoặc `muxstudio_main.py`) → `from gui.app import main; raise SystemExit(main())`.
-2. **Số phiên bản**: thêm `__version__` (vd `gui/__init__.py` hoặc `core/__init__.py`, đồng bộ `pyproject.toml` 0.1.0 → 1.0.0);
-   hiện trên thanh tiêu đề ("MuxStudio 1.0.0") + dòng đầu khung log — để người dùng báo lỗi biết đang chạy bản nào
-   (đã hứa với người dùng).
-3. **`build.bat`** (CRLF, chữ trong .bat không dấu như `run_tests.bat`): tạo `.venv` nếu chưa có → `pip install -r
-   requirements.txt pyinstaller` → chạy test nhanh (tuỳ chọn) → `pyinstaller` → kết quả `dist\MuxStudio\MuxStudio.exe`;
-   báo rõ thành công / lỗi, `pause` cuối.
-   Tham số: `--onedir --windowed --name MuxStudio --icon …ico --collect-data customtkinter`
-   `--hidden-import keyring.backends.Windows --hidden-import win32ctypes.core` (keyring trên Windows dùng pywin32-ctypes),
-   `--collect-submodules send2trash` (nếu cần). KHÔNG `--onefile` (PROMPT §3). Có thể viết `MuxStudio.spec` cho gọn.
-   Không đóng gói `tests/`, `reference/`, `tools/` (script dò API vẫn chạy bằng `chay_do_api.bat`).
-4. **Icon**: tự tạo `assets/muxstudio.ico` bằng Pillow (chỉ cần lúc build — thêm vào requirements-dev, KHÔNG vào .exe),
-   nhiều cỡ 16–256. Đặt icon cửa sổ: `root.iconbitmap()` trên Windows (CTk tự đặt icon sau ~200 ms → gọi bằng `after`).
-5. **Kiểm tra trong bản .exe** (sys.frozen): `keyring` lấy đúng backend Windows (không phải fail backend), `send2trash`,
-   phông Segoe UI, `CREATE_NO_WINDOW` (không nháy cửa sổ đen), `os.startfile`, `tools.desktop_dir`; lỗi khởi động vẫn
-   ghi `%APPDATA%\MuxStudio\loi_khoi_dong.txt`. Không thể chạy .exe Windows trong container → thử build bằng PyInstaller
-   trên Linux để bắt lỗi thiếu module/dữ liệu (chạy được bản Linux dưới xvfb), còn .exe thật do người dùng build.
-6. **`HUONG_DAN.md`** (tiếng Việt, ngắn, từng bước): cài Python (chỉ khi tự build) / chạy `MuxStudio.exe`; công cụ cần có
-   (MKVToolNix bắt buộc cho ③, alass bắt buộc cho ②, ffmpeg/ffprobe — xem khối "Công cụ ngoài"); cấu hình lần đầu
-   (Nhập từ .bat, key vào Credential Manager); quy trình ① → ② → ③; Hoàn tác; báo lỗi (Lưu log + ảnh + loi_khoi_dong.txt);
-   chạy test (`run_tests.bat`); lưu ý SmartScreen/antivirus báo nhầm (chuột phải › Properties › Unblock).
-7. Cập nhật README (trạng thái + link HUONG_DAN), SPEC mục 9 (GĐ6 ✅ chờ duyệt), HANDOFF; chạy hết test (3 môi trường,
-   mục 6); commit; đẩy nhánh phiên + `claude/new-session-eckanp`; DỪNG chờ duyệt.
+- **Phiên bản 1.0.0**: `core.__version__` = `pyproject.toml`; `gui.app.APP_TITLE` = "MuxStudio 1.0.0" (thanh tiêu đề);
+  hai dòng ĐẦU khung log: "MuxStudio 1.0.0 — chọn thư mục phim…" + `build_info()` (bản .exe / mã nguồn, Python,
+  `os_name()` — Python 3.11 báo Windows 11 là "10" → đọc số build ≥ 22000, Tk patchlevel, CustomTkinter). Cũng ghi ở
+  đầu `loi_khoi_dong.txt` (`write_startup_error`) và trong Properties › Details của .exe (spec tạo file version info).
+- **Điểm vào** `MuxStudio.pyw` → `gui.app.main()`. `main(["--kiem-tra", file])` → `self_check`: 10 mục + dựng thử
+  cửa sổ (ẩn, cấu hình tạm qua `MUXSTUDIO_CONFIG_DIR`, trả lại sau): module core/gui, theme + phông hình CustomTkinter,
+  keyring (tên backend + các backend thấy qua entry points; ĐỌC thử một mục không có, không ghi), send2trash (trên
+  Windows phải là `send2trash.win.*`), certifi + ssl, ghi được `%APPDATA%\MuxStudio`, `tools.run` (`cmd /c ver` với
+  CREATE_NO_WINDOW), `os.startfile` + Desktop, icon, công cụ ngoài (theo cấu hình thật, chỉ cảnh báo), cửa sổ 4 thẻ +
+  phông Segoe UI + icon. Báo cáo `[OK]`/`[!]`/`[LỖI]` + "KẾT QUẢ: ĐẠT / KHÔNG ĐẠT"; mã thoát 0/1. Không gọi mạng.
+- **Keyring dự phòng** `core.secrets.ensure_backend`: Windows + backend `fail` (bản .exe thiếu metadata gói) → đặt thẳng
+  `WinVaultKeyring`. Gọi một lần ở `_keyring()` đầu tiên. Test: keyring giả giữ nguyên.
+- **Icon**: `tools/make_icon.py` (Python thuần, SDF + làm mượt; không cần Pillow) → `assets/muxstudio.ico` (16, 24, 32, 48,
+  64, 128 BMP 32 bit + mặt nạ AND; 256 PNG — như icon Windows; icon của CustomTkinter cũng là PNG 256 nên Tk đọc được)
+  + `assets/muxstudio.png`. `W.set_window_icon(win)`: Windows `iconbitmap(.ico)` gọi NGAY khi tạo cửa sổ (CTk chỉ đặt
+  icon của nó sau 200 ms nếu `iconbitmap` chưa được gọi — cờ `_iconbitmap_method_called`); Linux `iconphoto(.png)`.
+  Gọi cho `App.root` và mọi `W.Dialog`. `W.resource_path` = `sys._MEIPASS` khi `sys.frozen`, không thì gốc repo.
+- **`MuxStudio.spec`**: onedir, `console=False`, `upx=False`, `collect_data_files("customtkinter")`,
+  `copy_metadata("keyring")`, `collect_submodules("keyring.backends")`; Windows thêm `keyring.backends.Windows`,
+  `win32ctypes.core(.ctypes.*)`, `win32ctypes.pywin32.*`, `send2trash.win(.legacy)`; excludes pytest/PIL/numpy…;
+  icon + version file chỉ trên Windows (`pefile` chỉ có trên Windows); sau COLLECT chép `kiem_tra_MuxStudio.bat` cạnh
+  .exe. PyInstaller 6.22 + hooks-contrib 2026.9 cũng tự có hook cho keyring, win32ctypes.core, customtkinter, certifi.
+- **`build.bat`** (ASCII, CRLF): `.venv-build` RIÊNG (không lẫn pytest/Pillow của `.venv`) → kiểm Python ≥ 3.11 → `pip
+  install -r requirements-build.txt` → báo nếu MuxStudio.exe đang mở (`tasklist | findstr` — KHÔNG dùng `find`, Git for
+  Windows có `find` của Unix) → `PyInstaller --noconfirm --clean MuxStudio.spec` → `start "" /wait MuxStudio.exe --kiem-tra
+  kiem_tra_exe.txt` (cmd không đợi chương trình cửa sổ nếu thiếu `start /wait`; `%errorlevel%` = mã thoát) → `type` báo
+  cáo → mở Explorer. Mỗi lỗi một nhãn `:loi_*` có hướng dẫn.
+- **Đã kiểm trên Linux**: build PyInstaller thật (11 s, 52 MB) → bản đóng gói `--kiem-tra` ĐẠT (keyring thấy backend
+  SecretService, Windows, kwallet, libsecret, macOS qua entry points); mở giao diện thật dưới Xvfb, thư mục có `[ ]` +
+  dấu: log đầu "MuxStudio 1.0.0 (bản .exe) | Python 3.12.3 | … | Tk 8.6.14 | CustomTkinter 6.0.0"; archive chỉ có
+  `core.*` + `gui.*`. CHƯA kiểm được trên Windows thật: Credential Manager, Thùng rác, SmartScreen/Defender, DPI,
+  Segoe UI, `cmd /c ver` không nháy cửa sổ — `build.bat` bước [4/4] và `kiem_tra_MuxStudio.bat` kiểm những thứ này.
+- Sửa test (không đổi mã chương trình): `test_window_fits_screen_and_remembers_logical_size` (mục 5).
 
-Tiêu chí hoàn thành của cả dự án: PROMPT §10 (mở .exe bằng bấm đúp, không cần cài Python, …).
+Tiêu chí hoàn thành của cả dự án: PROMPT §10 (mở .exe bằng bấm đúp, không cần cài Python, …) — chờ người dùng xác nhận
+trên Windows.

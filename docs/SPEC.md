@@ -63,11 +63,20 @@ muxstudio/
     pool.py      subfetch.py  subprep.py   mux.py       donor.py
   gui/
     app.py  fetch_view.py  subprep_view.py  mux_view.py  settings_view.py  widgets.py  log_panel.py
-  tools/                     # script dò API (§2) + script kiểm chứng .bat
+  tools/                     # script dò API (§2) + script kiểm chứng .bat + make_icon.py (vẽ icon)
   tests/
   docs/SPEC.md
-  build.bat
+  build.bat                  # (GĐ6) đóng gói: .venv-build → PyInstaller → chạy thử MuxStudio.exe --kiem-tra
+  MuxStudio.pyw              # (GĐ6) điểm vào: from gui.app import main
+  MuxStudio.spec             # (GĐ6) cấu hình PyInstaller --onedir --windowed
+  assets/                    # (GĐ6) muxstudio.ico / .png, kiem_tra_MuxStudio.bat (chép cạnh .exe)
+  HUONG_DAN.md               # (GĐ6) hướng dẫn cho người dùng
 ```
+
+(GĐ6) Bản đóng gói `dist\MuxStudio\` = `MuxStudio.exe` + `_internal\` (Python, Tcl/Tk, thư viện, theme CustomTkinter,
+icon) + `kiem_tra_MuxStudio.bat`. Chỉ chứa module `core.*`, `gui.*` (không có `tests/`, `reference/`, `tools/`). Số
+phiên bản `core.__version__` (= `pyproject.toml`) hiện trên thanh tiêu đề, dòng đầu khung log, `loi_khoi_dong.txt`, báo cáo
+tự kiểm tra và Properties › Details của file `.exe`.
 
 Vai trò từng module `core/`:
 
@@ -115,7 +124,7 @@ Kế hoạch là `dataclass`, GUI hiện và cho sửa trước khi bấm chạy
 ### 2.4. Cấu hình, bí mật, nhật ký, bộ nhớ đệm
 
 - **Cấu hình:** `%APPDATA%\MuxStudio\config.json`, có khoá `"_version"`. Khoá giữ đúng tên biến trong .bat (mục 5) để nhập từ .bat không phải dịch. Khoá lạ được giữ nguyên khi ghi lại.
-- **Bí mật** (`SubSourceApiKey`, `TmdbApiKey`, `TvdbApiKey`, `TvdbPin`, `OsApiKey`, `OsUsername`, `OsPassword`): `keyring`, dịch vụ `MuxStudio`, mỗi bí mật một mục. **Không** nằm trong `config.json`, không bao giờ in ra log (log đi qua bộ lọc thay mọi bí mật đang có bằng bản che), không có trong mã nguồn, ô nhập dạng `•••` có nút "Hiện".
+- **Bí mật** (`SubSourceApiKey`, `TmdbApiKey`, `TvdbApiKey`, `TvdbPin`, `OsApiKey`, `OsUsername`, `OsPassword`): `keyring`, dịch vụ `MuxStudio`, mỗi bí mật một mục. (GĐ6) Bản `.exe` mà `keyring` không thấy backend nào (rơi về backend `fail`) → `secrets.ensure_backend` đặt thẳng `WinVaultKeyring` (Credential Manager); backend khác (vd keyring giả của test) giữ nguyên. **Không** nằm trong `config.json`, không bao giờ in ra log (log đi qua bộ lọc thay mọi bí mật đang có bằng bản che), không có trong mã nguồn, ô nhập dạng `•••` có nút "Hiện".
 - **Nhật ký + hoàn tác:** `_subfetch_logs\actions_*.csv`, `_subprep_logs\run_*.csv`, `_muxtool_logs\mux_*.csv`; cột `Time, Action, From, To, Detail` (MuxTool thêm `Status`). Cùng định dạng với .bat nên **màn hình Hoàn tác đọc được cả nhật ký cũ của .bat**. Giữ 20 lần gần nhất mỗi bước. Hoàn tác: file tạo ra → Thùng rác; file đã đổi tên/di chuyển → trả về chỗ cũ (theo thứ tự ngược).
 - **Bộ nhớ đệm trong một lượt chạy** (đối tượng `RunCache`, xoá khi hết lượt): kết quả `mkvmerge -J`, mốc phụ đề gốc, IMDb ID, mục SubSource, danh sách phụ đề SubSource, gói ZIP đã tải (giải nén vào thư mục tạm), kết quả TMDB/TVDB, mốc thời gian track phụ đề của file nguồn audio.
 
@@ -851,6 +860,7 @@ Ngoài ra (Giai đoạn 4 ✅): mkvmerge in thông báo theo ngôn ngữ Windows
 | Cấu hình | nhập từ ba file .bat thật (đã che key) → đúng mọi khoá, `@()` nhiều dòng, `@{}`; bí mật vào keyring, không vào `config.json`, không ra log |
 | Hoàn tác | tạo / chép / di chuyển / đổi tên → hoàn tác đúng thứ tự ngược, file tạo ra vào Thùng rác (mock `send2trash`); đọc được nhật ký cũ của .bat; giữ 20 lần |
 | Giao diện (GĐ5) | `test_gui_logic.py` (không cần màn hình): dòng bảng / trạng thái / màu của ba thẻ, `GridModel` (ô/cột/dòng/"Trả về mặc định"), `Runner` (một việc mỗi lúc, xếp hàng, Dừng sau file / Dừng ngay kết thúc tiến trình con thật, lỗi không làm chết vòng đọc), chữ ↔ giá trị cho MỌI khoá cấu hình, "Kiểm tra kết nối" (API giả), bảng nhập từ .bat (bí mật luôn che), `ellipsize_middle` = `Limit-Text` gốc. tên file dài (`fit_text`: giữ số tập + đuôi file ở mọi độ rộng), cỡ cửa sổ cho 720p / 768p / 1080p (100%, 125%, 150%) / 1440p / 4K (`plan_window`), `ui_factor`. `test_gui_app.py` (Tk thật, tự bỏ qua nếu không có màn hình): bảng / cột cây / bảng chọn phụ đề hiện tên dài vẫn phân biệt được tập, rê chuột thấy tên đầy đủ, kéo rộng cột thì hiện thêm; cửa sổ vừa màn hình, nhớ cỡ theo đơn vị logic, hộp thoại tự thu cho vừa; ③ MKV thật 2 audio tiếng Anh → Cần chọn → tick xoá + áp dụng cho file còn lại → bảng chọn phụ đề → Xem lệnh → mux → Hoàn tác; "Cần chọn" tên (Tìm lại / Chọn / Sửa tay / Giữ tên gốc / hỏi khi bấm Bắt đầu); ① kho → chọn trong bảng ứng viên → tải; ② đổi tên → đồng bộ (alass giả) → CSV; Cài đặt: mọi ô đọc/ghi đúng, bí mật vào keyring |
+| Đóng gói (GĐ6) | `test_packaging.py`: số phiên bản giống nhau ở `core`/`pyproject`/tiêu đề/spec; `build_info` (mã nguồn ↔ bản `.exe`, Windows 11 báo "10"); `resource_path` khi `sys.frozen` (`sys._MEIPASS`); `ensure_backend` (Windows + `fail` → Credential Manager, backend khác giữ nguyên); `self_check` (báo cáo, mã thoát, không ghi cấu hình / không chạm Credential Manager thật); `MuxStudio.pyw --kiem-tra` chạy từ thư mục khác (tiến trình con, keyring `null`); icon `.ico`/`.png` = đúng ảnh `tools/make_icon.py` vẽ (đọc từng điểm ảnh BMP/PNG); `MuxStudio.spec` (onedir, windowed, không UPX, gom theme CustomTkinter, metadata keyring, không đóng gói test); `build.bat` / `kiem_tra_MuxStudio.bat` (CRLF, ASCII, mọi `goto` có nhãn). `test_gui_app.py`: tiêu đề + icon (cửa sổ, hộp thoại) + hai dòng đầu log. Ngoài test: build thật bằng PyInstaller 6.22 trên Linux → chạy bản đóng gói `--kiem-tra` (ĐẠT) + mở giao diện thật dưới Xvfb |
 
 Trước khi báo xong mỗi giai đoạn: chạy hết test và dán kết quả.
 
@@ -866,7 +876,7 @@ Trước khi báo xong mỗi giai đoạn: chạy hết test và dán kết qu�
 | **3** | ✅ `subprep` (chỉ mục mốc, ghép tên, đổi tên, trích phụ đề gốc, alass, cắt recap, sửa 00:00:00, sức khoẻ, dọn dẹp, nhật ký/hoàn tác) + test (alass giả, MKV thật, đối chiếu hàm gốc) — **đã duyệt** | Xem TĐ-31, TĐ-32; (tuỳ chọn) `run_tests.bat` — trên máy bạn chạy được cả test alass thật |
 | **4** | ✅ `mux`, `donor`, `tvdb`, phần bước ③ của `probe`/`tmdb`/`naming` + test (JSON mkvmerge giả, API TMDB/TVDB giả, mkvmerge/ffmpeg thật, test tiếng bíp, đối chiếu hàm gốc) — **đã duyệt** (cả TĐ-33, TĐ-34) | ~~Xem TĐ-33, TĐ-34~~ |
 | **5** | ✅ Giao diện 4 thẻ (`gui/`) + khung log + luồng phụ + nút Dừng + màn hình Hoàn tác + test giao diện + vừa màn hình 720p/1080p/1440p + khối "Công cụ ngoài" — **đã duyệt** | (tuỳ chọn) bấm đúp `chay_muxstudio.bat` |
-| 6 | PyInstaller `--onedir --windowed`, `build.bat`, icon, `HUONG_DAN.md` | Build và chạy `MuxStudio.exe` |
+| **6** | ✅ PyInstaller `--onedir --windowed` (`MuxStudio.spec`), `build.bat` (build + tự kiểm tra bản `.exe`), icon, số phiên bản 1.0.0, `MuxStudio.exe --kiem-tra` / `kiem_tra_MuxStudio.bat`, `HUONG_DAN.md` + test — **chờ duyệt** | Bấm đúp `build.bat`, chạy `MuxStudio.exe`, làm thử ① → ② → ③ (HUONG_DAN.md) |
 
 Môi trường của tôi: máy Linux trong đám mây. Tôi đã cài PowerShell 7 ở đó để chạy hàm gốc; các phần chỉ có trên Windows (Credential Manager, Thùng rác, `CREATE_NO_WINDOW`, đường dẫn `C:\`) được test bằng giả lập, và bạn thử thật ở Giai đoạn 5–6. Thư viện: `requests`, `keyring`, `send2trash`, `customtkinter`; test thêm `pytest` (chỉ để chạy test, không nằm trong .exe); đóng gói thêm `pyinstaller`.
 

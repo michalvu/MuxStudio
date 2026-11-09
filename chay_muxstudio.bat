@@ -2,10 +2,10 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 rem ==========================================================
-rem  Chay MuxStudio tu ma nguon (de thu Giai doan 5).
+rem  Chay MuxStudio tu ma nguon (khong can build).
 rem  Can Python 3.11+ (python.org, tick "Add python.exe to PATH").
 rem  Lan dau se tao thu muc .venv va tai thu vien (vai phut).
-rem  Ban .exe (khong can Python) se co o Giai doan 6.
+rem  Ban .exe (khong can Python): bam dup build.bat, xem HUONG_DAN.md.
 rem ==========================================================
 set "PY=python"
 where py >nul 2>nul && set "PY=py -3"

@@ -506,6 +506,26 @@ def test_long_names_keep_episode_in_tables_and_grid(movie_dir, ui):
     assert MV.overview_values  # dung chung Table
 
 
+def test_title_icon_and_version_first_in_log(movie_dir, ui):
+    """GĐ6: tiêu đề "MuxStudio 1.0.0", icon MuxStudio (cửa sổ + hộp thoại), hai dòng ĐẦU khung log = bản đang chạy."""
+    from core import __version__
+    from gui import app as A
+    from gui import widgets as W
+
+    a = ui(movie_dir)
+    assert a.root.title() == A.APP_TITLE == f"MuxStudio {__version__}"
+    assert a.icon_ok
+    first = a.log_panel.lines[:2]
+    assert first[0][1:] == ("head", f"{A.APP_TITLE} — chọn thư mục phim ở trên, rồi làm lần lượt ① → ② → ③.")
+    assert first[1][1] == "dim" and first[1][2].startswith(f"{A.APP_TITLE} (chạy từ mã nguồn) | Python ")
+    d = W.Dialog(a.root, "Thử", 400, 300)
+    if sys.platform.startswith("win"):
+        assert d.win._iconbitmap_method_called  # CTk khong de icon cua no len nua
+    else:
+        assert getattr(d.win, "_muxstudio_icon", None) is not None
+    d.close()
+
+
 def test_window_fits_screen_and_remembers_logical_size(movie_dir, ui):
     from gui import widgets as W
 

@@ -5,7 +5,8 @@ che), không có trong mã nguồn, che khi hiển thị (``mask``).
 """
 from __future__ import annotations
 
-from typing import Iterable
+import sys
+from typing import Any, Iterable
 
 SERVICE = "MuxStudio"
 
@@ -25,12 +26,44 @@ class SecretStoreError(RuntimeError):
     """Không đọc/ghi được Windows Credential Manager."""
 
 
-def _keyring():
+_backend_checked = False
+
+
+def ensure_backend(kr: Any = None, platform: str | None = None) -> str:
+    """Bản ``.exe`` (PyInstaller) có thể không thấy backend của ``keyring`` (keyring tìm backend qua "entry points"
+    của gói cài đặt) → keyring rơi về backend ``fail`` và MỌI lần đọc/ghi bí mật đều lỗi. Trên Windows, gặp ``fail``
+    thì đặt thẳng ``WinVaultKeyring`` (= Windows Credential Manager). Không đụng tới backend khác (vd keyring giả
+    trong test). Trả tên backend đang dùng (``module.Lớp``)."""
+    if kr is None:
+        kr = _keyring_module()
+    plat = sys.platform if platform is None else platform
+    cur = kr.get_keyring()
+    if plat.startswith("win") and type(cur).__module__.endswith("backends.fail"):
+        from keyring.backends import Windows  # noqa: PLC0415
+
+        kr.set_keyring(Windows.WinVaultKeyring())
+        cur = kr.get_keyring()
+    return f"{type(cur).__module__}.{type(cur).__name__}"
+
+
+def _keyring_module():
     try:
         import keyring  # noqa: PLC0415 (nap muon: test thay backend)
     except Exception as e:  # pragma: no cover - chi xay ra khi thieu thu vien
         raise SecretStoreError(f"Thiếu thư viện keyring: {e}") from e
     return keyring
+
+
+def _keyring():
+    global _backend_checked
+    kr = _keyring_module()
+    if not _backend_checked:
+        _backend_checked = True
+        try:
+            ensure_backend(kr)
+        except Exception:  # noqa: BLE001 - de loi that hien ra o lan doc/ghi
+            pass
+    return kr
 
 
 class SecretStore:

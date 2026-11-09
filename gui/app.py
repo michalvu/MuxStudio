@@ -2,23 +2,33 @@
 (① Tải phụ đề → ② Chuẩn bị phụ đề → ③ Mux → Cài đặt), thanh tiến độ + nút Dừng, khung log màu luôn hiện ở dưới,
 màn hình Hoàn tác chung cho ba bước.
 
-Chạy: ``python -m gui.app`` (hoặc bấm đúp ``chay_muxstudio.bat`` trên Windows).
+Chạy: ``python -m gui.app`` (hoặc bấm đúp ``chay_muxstudio.bat`` trên Windows); bản đóng gói: ``MuxStudio.exe``
+(điểm vào ``MuxStudio.pyw``). ``MuxStudio.exe --kiem-tra [file.txt]`` = tự kiểm tra bản đóng gói (``self_check``:
+thư viện, theme, Credential Manager, Thùng rác, chứng chỉ HTTPS, dựng thử cửa sổ…), ghi báo cáo, mã thoát 0 = đạt.
 """
 from __future__ import annotations
 
+import importlib
 import os
+import platform
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
+import time
 import traceback
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
+from core import __version__ as VERSION
 from core import config as C
 from core import secrets as S
 from core import tools, undo
 
 from . import widgets as W
 
+APP_TITLE = f"MuxStudio {VERSION}"
 TAB_FETCH = "① Tải phụ đề"
 TAB_PREP = "② Chuẩn bị phụ đề"
 TAB_MUX = "③ Mux"
@@ -97,6 +107,41 @@ def plan_lines(plan: undo.UndoPlan, root: str | os.PathLike[str] | None = None) 
 
 
 # ==========================================================================
+#  PHIÊN BẢN (để báo lỗi biết đang chạy bản nào)
+# ==========================================================================
+
+
+def os_name() -> str:
+    """``Windows 11 (10.0.22631)`` / ``Linux 6.8.0``."""
+    system, release, ver = platform.system(), platform.release(), platform.version()
+    if system == "Windows":
+        try:  # Python 3.11 bao Windows 11 la "10": doc so build (>= 22000 = Windows 11)
+            if release == "10" and int(ver.split(".")[2]) >= 22000:
+                release = "11"
+        except (IndexError, ValueError):
+            pass
+        return f"Windows {release} ({ver})"
+    return f"{system} {release}".strip()
+
+
+def build_info(root: Any = None) -> str:
+    """Một dòng: phiên bản MuxStudio, bản ``.exe`` hay mã nguồn, Python, hệ điều hành, Tk, CustomTkinter."""
+    parts = [f"{APP_TITLE} ({'bản .exe' if W.is_frozen() else 'chạy từ mã nguồn'})",
+             f"Python {platform.python_version()}", os_name()]
+    if W.tk is not None:
+        tkv = str(W.tk.TkVersion)
+        if root is not None:
+            try:
+                tkv = str(root.tk.call("info", "patchlevel"))
+            except Exception:  # noqa: BLE001
+                pass
+        parts.append(f"Tk {tkv}")
+    if W.ctk is not None:
+        parts.append(f"CustomTkinter {getattr(W.ctk, '__version__', '?')}")
+    return " | ".join(parts)
+
+
+# ==========================================================================
 #  CỬA SỔ CHÍNH
 # ==========================================================================
 
@@ -116,7 +161,8 @@ class App:
         if W.font_family():
             ctk.ThemeManager.theme["CTkFont"]["family"] = W.font_family()
         self.root = ctk.CTk()
-        self.root.title("MuxStudio")
+        self.root.title(APP_TITLE)
+        self.icon_ok = W.set_window_icon(self.root, default=True)  # ngay luc tao: CTk khong de icon cua no len nua
         # Co chu + co cua so theo man hinh (720p / 1080p / 1440p, ca khi Windows dat phong to 125% / 150%)
         dpi = W.dpi_scaling(self.root)
         self.ui_factor = W.ui_factor(str(self.cfg["UiScale"]), self.root.winfo_screenwidth() / dpi,
@@ -177,6 +223,9 @@ class App:
 
         log_h = {"compact": 64, "normal": 120, "large": 180}[self.density]
         self.log_panel = LogPanel(self.root, lambda: self.folder, self.redactor.redact, height=log_h)
+        # dong dau khung log: ban nao dang chay (nguoi dung bao loi kem "Luu log")
+        self.log("head", f"{APP_TITLE} — chọn thư mục phim ở trên, rồi làm lần lượt ① → ② → ③.")
+        self.log("dim", build_info(self.root))
         # xep tu duoi len: khung log + thanh tien do luon hien, cac the chiem phan con lai
         gap = 4 if self.density == "compact" else 10
         self.log_panel.frame.pack(side="bottom", fill="x", padx=gap, pady=(2, gap))
@@ -200,7 +249,6 @@ class App:
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         for w in self.cfg.warnings:
             self.log("warn", w)
-        self.log("head", "MuxStudio — chọn thư mục phim ở trên, rồi làm lần lượt ① → ② → ③.")
         start = folder or self.cfg.get("UiLastFolder")
         if start and os.path.isdir(str(start)):
             self.set_folder(str(start), quiet=True)
@@ -508,8 +556,272 @@ class UndoDialog:
         self.d.run()
 
 
+# ==========================================================================
+#  TỰ KIỂM TRA BẢN ĐÓNG GÓI  (MuxStudio.exe --kiem-tra [báo cáo.txt])
+# ==========================================================================
+
+SELF_CHECK_ARGS = ("--kiem-tra", "--self-check")
+CORE_MODULES = ("config", "secrets", "tools", "probe", "episodes", "naming", "timing", "pgs", "srt", "encoding", "undo",
+                "subsource", "opensubs", "tmdb", "tvdb", "pool", "subfetch", "subprep", "mux", "donor")
+GUI_MODULES = ("widgets", "log_panel", "fetch_view", "subprep_view", "mux_view", "settings_view")
+CHECK_TAG = {"ok": "[OK]   ", "warn": "[!]    ", "fail": "[LỖI]  "}
+
+
+@dataclass
+class CheckItem:
+    """Một dòng của báo cáo tự kiểm tra. ``status``: ``ok`` | ``warn`` (chạy được, nên xem) | ``fail`` (hỏng)."""
+
+    name: str
+    status: str
+    detail: str = ""
+
+    @property
+    def line(self) -> str:
+        return f"{CHECK_TAG.get(self.status, '[?]    ')}{self.name}" + (f": {self.detail}" if self.detail else "")
+
+
+def _run_check(items: list[CheckItem], name: str, fn: Callable[[], Any], critical: bool = True) -> None:
+    """``fn`` trả chữ chi tiết (= đạt) hoặc ``(status, chữ)``; ném lỗi = ``fail`` (``warn`` nếu không quan trọng)."""
+    try:
+        r = fn()
+    except Exception as e:  # noqa: BLE001
+        items.append(CheckItem(name, "fail" if critical else "warn", f"{type(e).__name__}: {e}"))
+        return
+    status, detail = r if isinstance(r, tuple) else ("ok", r or "")
+    items.append(CheckItem(name, status, str(detail)))
+
+
+def _chk_core() -> str:
+    for m in CORE_MODULES:
+        importlib.import_module(f"core.{m}")
+    return f"đủ {len(CORE_MODULES)} module"
+
+
+def _chk_gui_libs() -> str:
+    if W.tk is None or W.ctk is None:
+        raise RuntimeError("không nạp được tkinter / customtkinter")
+    base = os.path.dirname(os.path.abspath(W.ctk.__file__))
+    need = (("assets", "themes", "blue.json"), ("assets", "fonts", "CustomTkinter_shapes_font.otf"))
+    miss = [os.path.join(*p) for p in need if not os.path.isfile(os.path.join(base, *p))]
+    if miss:
+        raise FileNotFoundError("thiếu dữ liệu của CustomTkinter: " + ", ".join(miss))
+    for m in GUI_MODULES:
+        importlib.import_module(f"gui.{m}")
+    return f"Tk {W.tk.TkVersion}, CustomTkinter {getattr(W.ctk, '__version__', '?')} (đủ theme + phông hình)"
+
+
+def _chk_keyring() -> Any:
+    import keyring  # noqa: PLC0415
+
+    name = S.ensure_backend(keyring)
+    # backend co san cua keyring chi duoc nap qua "entry points" cua goi: ban .exe thieu thong tin goi -> khong co
+    try:
+        from keyring.backend import KeyringBackend  # noqa: PLC0415
+
+        mods = sorted({c.__module__.rsplit(".", 1)[-1] for c in getattr(KeyringBackend, "_classes", ())
+                       if c.__module__.startswith("keyring.backends.")} - {"fail", "chainer"})
+    except Exception:  # noqa: BLE001
+        mods = []
+    seen = f"thấy backend: {', '.join(mods)}" if mods else "KHÔNG thấy backend nào qua entry points (dùng dự phòng)"
+    win = sys.platform.startswith("win")
+    if name.endswith("fail.Keyring"):
+        if win:
+            raise RuntimeError(f"không có kho mật khẩu ({name}; {seen}) → không lưu được key")
+        return "warn", f"{name} — máy này không có kho mật khẩu (chỉ cần trên Windows); {seen}"
+    keyring.get_password(S.SERVICE + "-kiem-tra", "kiem-tra")  # doc thu mot muc khong co (khong ghi gi)
+    if win and ".Windows." not in f".{name}":
+        return "warn", f"{name} — đọc được, nhưng KHÔNG phải Windows Credential Manager; {seen}"
+    return f"{name} — đọc thử được; {seen}"
+
+
+def _chk_trash() -> str:
+    import send2trash  # noqa: PLC0415
+
+    mod = getattr(send2trash.send2trash, "__module__", "?")
+    if sys.platform.startswith("win") and not mod.startswith("send2trash.win"):
+        raise RuntimeError(f"không dùng được Thùng rác của Windows ({mod})")
+    return f"send2trash ({mod})"
+
+
+def _chk_https() -> str:
+    import ssl  # noqa: PLC0415
+
+    import certifi  # noqa: PLC0415
+    import requests  # noqa: PLC0415
+
+    ca = certifi.where()
+    if not os.path.isfile(ca):
+        raise FileNotFoundError(f"thiếu file chứng chỉ {ca}")
+    ssl.create_default_context(cafile=ca)
+    return f"requests {requests.__version__}, chứng chỉ {os.path.basename(ca)} (không gọi mạng khi kiểm tra)"
+
+
+def _chk_config_dir() -> str:
+    d = C.app_config_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix="kiem_tra_", suffix=".tmp", dir=d)
+    os.close(fd)
+    os.remove(tmp)
+    return f"ghi được — {d}"
+
+
+def _chk_subprocess() -> str:
+    win = sys.platform.startswith("win")
+    if win and not hasattr(subprocess, "CREATE_NO_WINDOW"):
+        raise RuntimeError("thiếu subprocess.CREATE_NO_WINDOW")
+    r = tools.run(["cmd", "/c", "ver"] if win else ["uname", "-s"], timeout=20)
+    if r.code != 0:
+        raise RuntimeError(f"mã thoát {r.code}: {r.output[:120]}")
+    first = (r.output.strip().splitlines() or [""])[0][:70]
+    return ("ẩn cửa sổ đen (CREATE_NO_WINDOW) — " if win else "") + first
+
+
+def _chk_tools() -> Any:
+    cfg = C.load_config()
+    found = tools.find_all_tools(cfg, None)
+    parts, miss = [], []
+    for n in tools.TOOLS:
+        info = tools.tool_info(n, found.get(n))
+        parts.append(f"{n} {'✓ ' + info.version if info.ok and info.version else '✓' if info.ok else '✗'}")
+        if not info.ok and tools.TOOL_ROLES.get(n, ("", False))[1]:
+            miss.append(tools.exe_name(n))
+    text = " · ".join(parts)
+    if miss:
+        return "warn", f"{text} — chưa có {', '.join(miss)}: chọn trong Cài đặt › Chung › Công cụ ngoài"
+    return text
+
+
+def _chk_shell() -> Any:
+    if sys.platform.startswith("win") and not hasattr(os, "startfile"):
+        raise RuntimeError("thiếu os.startfile (nút \"Mở thư mục\")")
+    desk = tools.desktop_dir()
+    if not desk or not os.path.isdir(desk):
+        return "warn", f"không thấy Desktop ({desk})"
+    return f"Desktop: {desk}"
+
+
+def _chk_icon() -> Any:
+    miss = [os.path.join(*p) for p in (W.ICON_ICO, W.ICON_PNG) if not os.path.isfile(W.resource_path(*p))]
+    if miss:
+        return "warn", "thiếu " + ", ".join(miss)
+    return W.resource_path(*W.ICON_ICO)
+
+
+def _chk_window(items: list[CheckItem]) -> None:
+    """Dựng thử cửa sổ chính (ẩn, cấu hình tạm — không đụng cấu hình của bạn), đủ 4 thẻ, phông tiếng Việt, rồi đóng."""
+    old = os.environ.get("MUXSTUDIO_CONFIG_DIR")
+    tmp = tempfile.mkdtemp(prefix="muxstudio_kiem_tra_")
+    os.environ["MUXSTUDIO_CONFIG_DIR"] = tmp
+    a: App | None = None
+    try:
+        t0 = time.monotonic()
+        a = App(cfg=C.Config({}), appearance="light")
+        a.root.withdraw()
+        a.root.update()
+        a.runner.wait(30)
+        a.root.update()
+        errs = [m for _t, lvl, m in a.log_panel.lines if lvl == "error" and m.startswith("[LỖI")]
+        tabs = [t for t in TABS if a.tabs.tab(t) is not None]
+        if errs:
+            items.append(CheckItem("Cửa sổ chính", "fail", " | ".join(errs)[:300]))
+        elif len(tabs) != len(TABS) or a.root.title() != APP_TITLE:
+            items.append(CheckItem("Cửa sổ chính", "fail", f"thẻ: {tabs}, tiêu đề: {a.root.title()!r}"))
+        else:
+            items.append(CheckItem("Cửa sổ chính", "ok", f"dựng được 4 thẻ trong {time.monotonic() - t0:.1f} s, "
+                                                        f"tiêu đề \"{APP_TITLE}\""))
+        from tkinter import font as tkfont  # noqa: PLC0415
+
+        fam = W.font_family()
+        if fam and fam not in set(tkfont.families(a.root)):
+            items.append(CheckItem("Phông chữ tiếng Việt", "warn", f"không có phông {fam} — chữ có dấu có thể xấu"))
+        else:
+            items.append(CheckItem("Phông chữ tiếng Việt", "ok", fam or "phông mặc định của hệ điều hành"))
+        items.append(CheckItem("Icon cửa sổ", "ok" if a.icon_ok else "warn",
+                               "đã đặt" if a.icon_ok else "không đặt được (vẫn chạy bình thường)"))
+    except Exception as e:  # noqa: BLE001
+        items.append(CheckItem("Cửa sổ chính", "fail", f"{type(e).__name__}: {e}"))
+    finally:
+        if a is not None:
+            try:
+                a.destroy()
+            except Exception:  # noqa: BLE001
+                pass
+        if old is None:
+            os.environ.pop("MUXSTUDIO_CONFIG_DIR", None)
+        else:
+            os.environ["MUXSTUDIO_CONFIG_DIR"] = old
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def self_check_items(with_window: bool = True) -> list[CheckItem]:
+    """Kiểm tra những phần hay hỏng riêng ở bản ``.exe``: thiếu module / dữ liệu, kho mật khẩu, Thùng rác, chứng chỉ
+    HTTPS, tiến trình con không nháy cửa sổ đen, thư mục cấu hình, dựng thử cửa sổ. Không gọi mạng, không ghi gì
+    vào cấu hình hay Credential Manager."""
+    items: list[CheckItem] = []
+    _run_check(items, "Thư viện lõi (core)", _chk_core)
+    _run_check(items, "Giao diện (tkinter + CustomTkinter)", _chk_gui_libs)
+    _run_check(items, "Windows Credential Manager (keyring)", _chk_keyring)
+    _run_check(items, "Thùng rác", _chk_trash)
+    _run_check(items, "Kết nối HTTPS", _chk_https)
+    _run_check(items, "Thư mục cấu hình", _chk_config_dir)
+    _run_check(items, "Chạy công cụ ngoài", _chk_subprocess)
+    _run_check(items, "Mở thư mục / Desktop", _chk_shell, critical=False)
+    _run_check(items, "File icon", _chk_icon, critical=False)
+    _run_check(items, "Công cụ ngoài (theo Cài đặt hiện tại)", _chk_tools, critical=False)
+    if with_window:
+        if W.ctk is None:
+            items.append(CheckItem("Cửa sổ chính", "fail", "không có tkinter / customtkinter"))
+        else:
+            _chk_window(items)
+    return items
+
+
+def self_check_report(items: list[CheckItem]) -> str:
+    n_fail = sum(i.status == "fail" for i in items)
+    n_warn = sum(i.status == "warn" for i in items)
+    where = os.path.dirname(sys.executable) if W.is_frozen() else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    lines = [f"{APP_TITLE} — tự kiểm tra", build_info(), f"Thư mục chương trình: {where}",
+             f"Lúc: {time.strftime('%Y-%m-%d %H:%M:%S')}", ""]
+    lines += [i.line for i in items]
+    lines.append("")
+    if n_fail:
+        lines.append(f"KẾT QUẢ: KHÔNG ĐẠT — {n_fail} mục [LỖI]" + (f", {n_warn} mục [!]" if n_warn else "")
+                     + ". Gửi file này khi báo lỗi.")
+    else:
+        lines.append("KẾT QUẢ: ĐẠT — chương trình chạy được" + (f" ({n_warn} mục [!] nên xem)" if n_warn else "") + ".")
+    return "\n".join(lines) + "\n"
+
+
+def self_check(out: str | os.PathLike[str] | None = None, with_window: bool = True) -> int:
+    """Chạy kiểm tra, ghi báo cáo (mặc định ``%APPDATA%\\MuxStudio\\kiem_tra.txt``). Mã thoát 0 = đạt, 1 = có lỗi."""
+    items = self_check_items(with_window)
+    text = self_check_report(items)
+    path = os.fspath(out) if out else os.fspath(C.app_config_dir() / "kiem_tra.txt")
+    try:
+        d = os.path.dirname(os.path.abspath(path))
+        os.makedirs(d, exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="\r\n" if sys.platform.startswith("win") else "\n") as f:
+            f.write(text)
+    except OSError:
+        print(text, file=sys.stderr)
+    return 1 if any(i.status == "fail" for i in items) else 0
+
+
+def write_startup_error(tb: str) -> Any:
+    """Lỗi khởi động (bản ``.exe`` / ``pythonw`` không có cửa sổ console) → ``%APPDATA%\\MuxStudio\\loi_khoi_dong.txt``."""
+    p = C.app_config_dir() / "loi_khoi_dong.txt"
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(f"{build_info()}\nLúc: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n{tb}", encoding="utf-8")
+    except OSError:
+        pass
+    return p
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] in SELF_CHECK_ARGS:
+        return self_check(argv[1] if len(argv) > 1 else None)
     if W.ctk is None:  # pragma: no cover
         print("Thiếu tkinter / customtkinter. Cài: pip install customtkinter", file=sys.stderr)
         return 1
@@ -518,14 +830,9 @@ def main(argv: list[str] | None = None) -> int:
         app = App(folder=folder)
     except Exception:  # noqa: BLE001 - pythonw khong co console: ghi loi ra file + bao bang hop thoai
         tb = traceback.format_exc()
-        p = C.app_config_dir() / "loi_khoi_dong.txt"
+        p = write_startup_error(tb)
         try:
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(tb, encoding="utf-8")
-        except OSError:
-            pass
-        try:
-            W.messagebox.showerror("MuxStudio", f"Không khởi động được:\n\n{tb.strip().splitlines()[-1]}\n\nChi tiết: {p}")
+            W.messagebox.showerror(APP_TITLE, f"Không khởi động được:\n\n{tb.strip().splitlines()[-1]}\n\nChi tiết: {p}")
         except Exception:  # noqa: BLE001
             print(tb, file=sys.stderr)
         return 1
