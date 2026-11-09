@@ -3,7 +3,8 @@
 Giai đoạn 2: tra IMDb ID cho bước ① (thay ``Get-ImdbId``/``Get-ImdbIdCached`` của SubFetch) và
 các phần dùng chung với bước ③ (``Invoke-TmdbApi``, ``Find-TmdbMovie``, ``Find-TmdbTv``,
 ``Get-TmdbTvDetails``, ``Select-TmdbTvShow``, phần cộng dồn tập của ``Resolve-TmdbEpisode``).
-Phần đặt tên đầy đủ (tên tập…) thêm ở Giai đoạn 4.
+Giai đoạn 4: đặt tên phim lẻ/phim bộ (``search_movie``, ``search_series``, ``pick_show``, ``episode_title``,
+``resolve_episode`` = ``Get-TmdbEpisodeTitle`` + ``Resolve-TmdbEpisode``) — dùng qua ``naming.resolve_output_name``.
 
 * Key 32 ký tự → ``?api_key=``; token dài bắt đầu ``eyJ`` → ``Authorization: Bearer`` (§6.10).
   (SubFetch cũ chỉ hỗ trợ kiểu đầu — TĐ-10.)
@@ -41,6 +42,8 @@ def _year_of(date: str | None) -> int | None:
 
 
 class TmdbClient:
+    db_name = "tmdb"
+
     def __init__(self, api_key: str, lang: str = "en-US", retry: int = 3, http: Any = None,
                  sleep: Callable[[float], None] = time.sleep, job: tools.Job | None = None):
         self.api_key = (api_key or "").strip()
@@ -128,15 +131,56 @@ class TmdbClient:
     def pick_exact(res: list[dict], want_title: str, want_year: int | None, name_prop: str, orig_prop: str,
                    date_prop: str) -> dict | None:
         """Phần không hỏi của ``Select-TmdbCandidate``: trùng tên chuẩn hoá và năm ±1."""
-        want = naming.norm_title(want_title)
-        for r in res:
-            if naming.norm_title(r.get(name_prop)) != want and naming.norm_title(r.get(orig_prop)) != want:
-                continue
-            y = _year_of(r.get(date_prop))
-            if want_year and (y is None or abs(y - want_year) > 1):
-                continue
-            return r
-        return None
+        return naming.pick_match(res, want_title, want_year, name_prop, orig_prop, date_prop)
+
+    # ------------------------------------------------------------------ dat ten (buoc 3)
+    def search_movie(self, title: str, year: int | None) -> list[dict]:
+        """``Find-TmdbMovie``."""
+        return self.search("movie", title, year)
+
+    def search_series(self, title: str, year: int | None) -> list[dict]:
+        """``Find-TmdbTv``."""
+        return self.search("tv", title, year)
+
+    def pick_show(self, res: list[dict], ep) -> tuple[dict | None, bool]:
+        """``Select-TmdbTvShow`` cho ``naming.tv_name``."""
+        return self.select_show(res, ep.series, ep.year, ep.season, ep.episode)
+
+    def episode_title(self, tv_id: int, season: int, episode: int) -> str | None:
+        """``Get-TmdbEpisodeTitle`` (404 im lặng, có cache)."""
+        r = self._cached(("ep", tv_id, season, episode),
+                         lambda: self.get(f"/tv/{tv_id}/season/{season}/episode/{episode}", {"language": self.lang},
+                                          quiet404=True))
+        v = (r or {}).get("name")
+        return str(v) if v else None
+
+    def resolve_episode(self, tv_id: int, season: int, episode: int, want_title: bool = True) -> naming.EpisodeHit:
+        """``Resolve-TmdbEpisode``: tra thẳng → nếu ngoài phạm vi season: cộng dồn ``episode_count`` thử số
+        tương đối, rồi số tuyệt đối ngay trong season đó (một số anime TMDB giữ số tuyệt đối)."""
+        if season >= 1:
+            t = self.episode_title(tv_id, season, episode)
+            if t:
+                return naming.EpisodeHit(season, episode, t if want_title else None, False, True)
+        d = self.tv_details(tv_id)
+        ss = sorted((s for s in ((d or {}).get("seasons") or []) if int(s.get("season_number") or 0) >= 1),
+                    key=lambda s: int(s.get("season_number")))
+        miss = naming.EpisodeHit(season, episode)
+        if not ss:
+            return miss
+        cur = next((s for s in ss if int(s.get("season_number")) == season), None)
+        if cur is not None and episode <= int(cur.get("episode_count") or 0):
+            return miss  # trong pham vi season -> khong phai so tuyet doi, chi la TMDB chua co ten
+        m = self.absolute_to_season(tv_id, episode)
+        if m is None:
+            return miss
+        s_, rel = m
+        t = self.episode_title(tv_id, s_, rel)
+        if t:
+            return naming.EpisodeHit(s_, rel, t if want_title else None, True, True)
+        t = self.episode_title(tv_id, s_, episode)
+        if t:
+            return naming.EpisodeHit(s_, episode, t if want_title else None, s_ != season, True)
+        return miss
 
     def select_show(self, res: list[dict], series: str, year: int | None, season: int | None,
                     episode: int | None) -> tuple[dict | None, bool]:

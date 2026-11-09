@@ -409,7 +409,7 @@ Báo cáo không dùng cho hoàn tác vẫn giữ: SF `fetch_*.csv`, SP `health_
 | 3 | `Initialize-BoxChars` (200) | bỏ | console |
 | 4 | `Get-BoxLine` (211) | bỏ | console |
 | 5 | `Write-Step` (220) | bỏ → log | |
-| 6 | `Select-AudioTracks` (224) | `mux.AudioRule.apply` + GUI bảng audio | quy tắc "nhớ cái GIỮ" (ngôn ngữ + hệ kênh khi ngôn ngữ vừa giữ vừa xoá); quy tắc xoá hết audio → bỏ qua quy tắc cho file đó |
+| 6 | `Select-AudioTracks` (224) | `mux.AudioRule` + `MuxSession.set_audio_choice` / `keep_all_audio` + GUI bảng audio | quy tắc "nhớ cái GIỮ" (ngôn ngữ + hệ kênh khi ngôn ngữ vừa giữ vừa xoá); quy tắc xoá hết audio → bỏ qua quy tắc cho file đó |
 | 7 | `Get-AudioRuleText` (341) | `mux.AudioRule.describe` | "chỉ giữ English (5.1), Czech" |
 | 8 | `Add-MuxLog` (357) | `undo.RunLog.add` | gộp + hành động `Create` để hoàn tác (TĐ-17) |
 | 9 | `Save-MuxLog` (363) | `undo.RunLog.save` | gộp, giữ 20 |
@@ -418,7 +418,7 @@ Báo cáo không dùng cho hoàn tác vẫn giữ: SF `fetch_*.csv`, SP `health_
 | 12 | `Get-LangCode` (388) | `naming.lang_from_track` | gộp |
 | 13 | `Get-LangName` (404) | `naming.lang_name` | gộp |
 | 14 | `Get-LangForMux` (416) | `naming.lang_for_mux` | gộp |
-| 15 | `Get-CodecName` (425) | `probe.audio_codec_name` | TrueHD, DTS-HD MA/HRA, DTS-ES, DTS, E-AC-3, Dolby Digital, AAC, FLAC, Opus, Vorbis, MP3, PCM |
+| 15 | `Get-CodecName` (425) | `probe.audio_codec_name(track)` | TrueHD, DTS-HD MA/HRA, DTS-ES, DTS, E-AC-3, Dolby Digital, AAC, FLAC, Opus, Vorbis, MP3, PCM. **Sửa lỗi TĐ-33** (đọc `codec` cấp track). Test đối chiếu ✅ |
 | 16 | `Test-CommentaryTrack` (448) | `probe.is_commentary` | gộp |
 | 17 | `Test-DescriptiveTrack` (455) | `probe.is_descriptive` | gộp |
 | 18 | `Get-SubEncodingKind` (463) | `encoding.detect_kind` | gộp |
@@ -427,43 +427,43 @@ Báo cáo không dùng cho hoàn tác vẫn giữ: SF `fetch_*.csv`, SP `health_
 | 21 | `Get-ChannelName` (494) | `probe.channel_name` | 1→1.0, 2→2.0, 3→2.1, 6→5.1, 7→6.1, 8→7.1, khác → `n.0` |
 | 22 | `Get-AudioBitrate` (503) | `probe.audio_bitrate` | tag `BPS` → ffprobe → ước lượng codec × kênh/6 |
 | 23 | `Get-FfprobeBitrates` (529) | `probe.ffprobe_bitrates` | gộp với một lần gọi ffprobe |
-| 24 | `Format-Kbps` (552) | `gui/widgets.format_kbps` | |
+| 24 | `Format-Kbps` (552) | `probe.format_kbps` | |
 | 25 | `Get-VideoCodecName` (567) | `probe.video_codec_name` | AV1, HEVC, H264, VP9, MPEG2 |
 | 26 | `Get-ResolutionName` (577) | `probe.resolution_name` | theo chiều cao: 2160p/1440p/1080p/720p/576p/480p |
-| 27 | `Get-DynamicRange` (590) | `probe.dynamic_range` | `color_transfer` (smpte2084 → HDR, arib-std-b67 → HLG), `side_data_list` (DOVI → DV, HDR Dynamic Metadata → HDR10+), thiếu → đọc tên file |
+| 27 | `Get-DynamicRange` (590) | `probe.dynamic_range(stream_ffprobe, tên_file)` | `color_transfer` (smpte2084 → HDR, arib-std-b67 → HLG), `side_data_list` (DOVI → DV, HDR Dynamic Metadata → HDR10+), thiếu → đọc tên file (`HDR10` cũng là HDR — TĐ-33c). Test đối chiếu ✅ |
 | 28 | `Get-CodecTag` (625) | `mux.codec_tag` | `2160p DV HDR HEVC TrueHD7.1 Atmos`; chỉ vào **tên file** |
 | 29 | `Get-SafeFileName` (672) | `naming.safe_filename` | gộp |
 | 30 | `Get-NormTitle` (679) | `naming.norm_title` | gộp |
 | 31 | `Split-ReleaseName` (682) | `naming.split_release_name` | gộp — bản này làm khung |
-| 32 | `Invoke-TmdbApi` (701) | `tmdb.TmdbClient._get` | key 32 ký tự → `?api_key=`; `eyJ…` → `Authorization: Bearer`; 401 → tắt TMDB cả lượt, báo **một lần**; 404 im lặng khi dò tập; lỗi mạng thử `TmdbRetry` lần, chờ 2ⁱ s |
-| 33 | `Find-TmdbMovie` (742) | `tmdb.search_movie` | có năm không ra → bỏ năm tìm lại |
-| 34 | `Select-TmdbCandidate` (757) | `naming.pick_match` | khớp tên chuẩn hoá + năm ±1 → lấy; không chắc + `TmdbConfirm` → trạng thái **"Cần chọn"** trên bảng (mục 6) |
+| 32 | `Invoke-TmdbApi` (701) | `tmdb.TmdbClient.get` | key 32 ký tự → `?api_key=`; `eyJ…` → `Authorization: Bearer`; 401 → tắt TMDB cả lượt, báo **một lần**; 404 im lặng khi dò tập; lỗi mạng thử `TmdbRetry` lần, chờ 2ⁱ s |
+| 33 | `Find-TmdbMovie` (742) | `TmdbClient.search_movie` | có năm không ra → bỏ năm tìm lại |
+| 34 | `Select-TmdbCandidate` (757) | `naming.pick_match` + `OutputName.status = need_choice` + `naming.choose_candidate` | khớp tên chuẩn hoá + năm ±1 → lấy; không chắc + `TmdbConfirm` → trạng thái **"Cần chọn"** trên bảng (mục 6) |
 | 35 | `Split-EpisodeName` (779) | `episodes.parse_episode` | gộp — bản này làm khung |
 | 36 | `Format-EpRef` (824) | `EpisodeInfo.ref_label` | gộp |
-| 37 | `Find-TmdbTv` (829) | `tmdb.search_tv` | |
-| 38 | `Get-TmdbEpisodeTitle` (843) | `tmdb.episode_title` | 404 im lặng |
-| 39 | `Get-MovieFileName` (854) | `naming.movie_name(db)` | `Tên (Năm) [tmdbid-…]`/`[tvdbid-…]`, bỏ ngoặc trong tên |
+| 37 | `Find-TmdbTv` (829) | `TmdbClient.search_series` | |
+| 38 | `Get-TmdbEpisodeTitle` (843) | `TmdbClient.episode_title` | 404 im lặng |
+| 39 | `Get-MovieFileName` (854) | `naming.movie_name(db, …)` / `movie_name_from` | `Tên (Năm) [tmdbid-…]`/`[tvdbid-…]`, bỏ ngoặc trong tên |
 | 40 | `Get-TmdbTvDetails` (910) | `tmdb.tv_details` | cache |
-| 41 | `Select-TmdbTvShow` (920) | `tmdb.select_show` | nhiều series trùng tên, không có năm → chọn series **có** season/tập đó (điểm: có season +2, tổng tập ≥ số tập +1) |
-| 42 | `Resolve-TmdbEpisode` (953) | `tmdb.resolve_episode` | tra thẳng → nếu ngoài phạm vi season: cộng dồn `episode_count` → thử số tương đối, rồi số tuyệt đối trong season |
-| 43 | `Get-TmdbTvName` (991) | `naming.tv_name(db='tmdb')` | không bao giờ `Season 00` (≤ 0 → 1); tập đôi `S01E05-E06` |
+| 41 | `Select-TmdbTvShow` (920) | `TmdbClient.select_show` / `pick_show` | nhiều series trùng tên, không có năm → chọn series **có** season/tập đó (điểm: có season +2, tổng tập ≥ số tập +1) |
+| 42 | `Resolve-TmdbEpisode` (953) | `TmdbClient.resolve_episode` → `naming.EpisodeHit` | tra thẳng → nếu ngoài phạm vi season: cộng dồn `episode_count` → thử số tương đối, rồi số tuyệt đối trong season |
+| 43 | `Get-TmdbTvName` (991) | `naming.tv_name(db=TmdbClient)` / `tv_name_from` | không bao giờ `Season 00` (≤ 0 → 1); tập đôi `S01E05-E06` |
 | 44 | `Test-DbUsable` (1052) | `naming.db_usable` | |
-| 45 | `Get-TvNameFrom` (1058) | `naming.tv_name(db)` | |
+| 45 | `Get-TvNameFrom` (1058) | `naming.resolve_output_name` | |
 | 46 | `Resolve-OutputName` (1064) | `naming.resolve_output_name` | chỉ chuyển sang database kia khi `NameFallbackOther`; **không tạo thư mục khi lập kế hoạch** (TĐ-21) |
 | 47 | `Set-ConsoleSize` (1107) | bỏ | console |
 | 48 | `Get-SubAutoPlan` (1131) | `mux.sub_auto_plan` | **nguồn quy tắc phụ đề duy nhất** (trong .bat quy tắc này bị viết hai lần: ở đây và ở BƯỚC 3/4) |
 | 49 | `Show-SubPickerGrid` (1224) | `gui/mux_view.SubPickerGrid` | §5.3 mục 5 |
-| 50 | `Invoke-TvdbApi` (1453) | `tvdb.TvdbClient._request` | đọc UTF-8; 401 → đăng nhập lại một lần; 404 im lặng khi được yêu cầu |
-| 51 | `Connect-Tvdb` (1500) | `tvdb.login` | `POST /login {apikey, pin?}` → `data.token` |
-| 52 | `Get-TvdbLocalName` (1513) | `tvdb.local_name` | `TvdbLang` → `eng` → tên gốc |
-| 53 | `Find-TvdbMovie` (1524) | `tvdb.search_movie` | `/search?type=movie&year=` → đưa về dạng giống TMDB |
-| 54 | `Find-TvdbSeries` (1547) | `tvdb.search_series` | `/search?type=series` |
-| 55 | `Get-TvdbEpisodes` (1571) | `tvdb.episodes` | `/series/{id}/episodes/{TvdbSeasonType}?page=N`, theo `links.next`, tối đa 30 trang |
-| 56 | `Get-TvdbEpisodeName` (1585) | `tvdb.episode_name` | `/episodes/{id}/translations/{lang}` |
-| 57 | `Resolve-TvdbEpisode` (1596) | `tvdb.resolve_episode` | `seasonNumber`+`number`, không có thì `absoluteNumber` |
-| 58 | `Select-TvdbShow` (1617) | `tvdb.select_show` | chọn series có tập |
-| 59 | `Get-TvdbTvName` (1637) | `naming.tv_name(db='tvdb')` | |
-| 60 | `Select-NameDatabase` (1691) | `gui/mux_view` (3 lựa chọn) + `naming.db_status` | **bắt buộc chọn, không mặc định** |
+| 50 | `Invoke-TvdbApi` (1453) | `tvdb.TvdbClient.request` | đọc UTF-8; 401 → đăng nhập lại một lần; 404 im lặng khi được yêu cầu |
+| 51 | `Connect-Tvdb` (1500) | `TvdbClient.login` | `POST /login {apikey, pin?}` → `data.token` |
+| 52 | `Get-TvdbLocalName` (1513) | `TvdbClient.local_name` | `TvdbLang` → `eng` → tên gốc |
+| 53 | `Find-TvdbMovie` (1524) | `TvdbClient.search_movie` | `/search?type=movie&year=` → đưa về dạng giống TMDB |
+| 54 | `Find-TvdbSeries` (1547) | `TvdbClient.search_series` | `/search?type=series` |
+| 55 | `Get-TvdbEpisodes` (1571) | `TvdbClient.episodes` | `/series/{id}/episodes/{TvdbSeasonType}?page=N`, theo `links.next`, tối đa 30 trang |
+| 56 | `Get-TvdbEpisodeName` (1585) | `TvdbClient.episode_name` | `/episodes/{id}/translations/{lang}` |
+| 57 | `Resolve-TvdbEpisode` (1596) | `TvdbClient.resolve_episode` | `seasonNumber`+`number`, không có thì `absoluteNumber`. Test đối chiếu ✅ |
+| 58 | `Select-TvdbShow` (1617) | `TvdbClient.pick_show` | chọn series có tập |
+| 59 | `Get-TvdbTvName` (1637) | `naming.tv_name(db=TvdbClient)` | |
+| 60 | `Select-NameDatabase` (1691) | `MuxSession.db_status` + `plan_all(db)` (`ValueError` nếu chưa chọn) + `gui/mux_view` (3 lựa chọn) | **bắt buộc chọn, không mặc định** |
 | 61 | `ConvertTo-Double` (1733) | `timing.to_double` | gộp |
 | 62 | `Get-EvenSample` (1755) | `timing.even_sample` | gộp |
 | 63 | `Get-OffsetVote` (1763) | `timing.offset_vote` | gộp |
@@ -471,18 +471,18 @@ Báo cáo không dùng cho hoàn tác vẫn giữ: SF `fetch_*.csv`, SP `health_
 | 65 | `Format-SrtStamp` (1816) | `srt.format_stamp` | gộp, sửa lỗi giờ |
 | 66 | `Convert-PgsToTimingSrt` (1822) | `pgs.pgs_to_timing_srt` | gộp |
 | 67 | `Get-CueTimes` (1869) | `srt.cue_times` | gộp |
-| 68 | `Get-DonorTmpDir` (1905) | `donor` (thư mục tạm của lượt chạy) | |
+| 68 | `Get-DonorTmpDir` (1905) | `MuxSession.temp` (thư mục tạm của lượt chạy) | |
 | 69 | `Format-Inv` (1914) | `timing.fmt_inv` | gộp |
 | 70 | `Get-DonorFiles` (1918) | `donor.donor_files` | `.mkv .mka .mp4 .m4v .ts` trong `DonorFolder` (đệ quy) |
 | 71 | `Find-DonorFile` (1930) | `donor.find_donor_file` | `episodes.same_episode`; phim lẻ theo tên + năm; chỉ 1 file nguồn phim lẻ → lấy |
 | 72 | `Get-RefSubTracks` (1962) | `probe.ref_sub_tracks` | bỏ Forced; hạng văn bản 0 / SDH 1 / PGS 2 |
-| 73 | `Get-TrackCueTimes` (1983) | `donor.track_cue_times` | `mkvextract` → (PGS → SRT mốc) → `cue_times`, cache |
+| 73 | `Get-TrackCueTimes` (1983) | `donor.TrackTimes` | `mkvextract` → (PGS → SRT mốc) → `cue_times`, cache |
 | 74 | `Get-VideoFpsOf` (2002) | `probe.video_fps` | gộp |
 | 75 | `Get-DurationOf` (2010) | `probe.duration` | gộp |
 | 76 | `Measure-DonorTiming` (2018) | `donor.measure_timing` | ngôn ngữ chung, ưu tiên `en`; mốc phía bạn: sub trong MKV, rồi sub ngoài `.en.srt`; ≥ `DonorMinVotes`; không đo được → FPS + thời lượng (≤ `DonorMaxDurationDiff`) |
-| 77 | `Get-DonorPlan` (2071) | `donor.plan_donor` (chỉ lập kế hoạch) + `donor.prepare` (chạy ffmpeg lúc thực thi) | `DonorOffsetMs` theo tên file / `S01E03` / `tap #643` / `643`; sửa tay trong bảng; chọn track nhiều kênh nhất rồi bitrate cao nhất |
-| 78 | `Remove-DonorTemp` (2178) | `donor.cleanup` | |
-| — | Phần chính (2185–2862) | `mux.plan_all()` / `execute_mux()` | tìm công cụ, quét, chọn database, đọc trước, quy tắc audio/phụ đề, thẻ codec, audio ghép, dựng lệnh, chạy, mã thoát 0/1/≥2 |
+| 77 | `Get-DonorPlan` (2071) | `donor.plan_donor` (chỉ lập kế hoạch) + `donor.prepare` (ffmpeg lúc thực thi) + `donor.stretch_filter` (TĐ-34) | `DonorOffsetMs` theo tên file / `S01E03` / `tap #643` / `643`; sửa tay trong bảng; chọn track nhiều kênh nhất rồi bitrate cao nhất |
+| 78 | `Remove-DonorTemp` (2178) | `MuxSession.execute` (dọn thư mục tạm) | |
+| — | Phần chính (2185–2862) | `MuxSession.scan` → `plan_all(db)` / `plan_file` → sửa kế hoạch → `build_args` / `preview_commands` → `execute` | tìm công cụ, quét, chọn database, đọc trước, quy tắc audio/phụ đề, thẻ codec, audio ghép, dựng lệnh, chạy (ghi tên tạm rồi đổi tên), mã thoát 0/1/≥2 |
 
 ### 4.4. Quy tắc dựng lệnh mkvmerge (giữ nguyên từ phần chính MuxTool)
 
@@ -774,15 +774,15 @@ Chạy bằng PowerShell 7.6 (máy Linux của tôi) qua `tools/verify_bat/KiemC
 | TĐ-14 | SP 371–375, 1568 | Kiểm tra sức khoẻ và cắt recap chỉ đọc SRT ⇒ kết quả `.ass/.vtt` luôn bị báo "CÓ VẤN ĐỀ: không đọc được nội dung" | Sức khoẻ đọc mốc chung SRT/ASS/VTT; cắt recap và sửa khối 00:00:00 chỉ với SRT, file khác ghi "không cắt recap (ASS)" / "không sửa khối 00:00:00 (ASS)" (Q7: không đổi định dạng). Với ASS bỏ dấu hiệu "chồng lấn" (ASS hiện nhiều dòng cùng lúc là bình thường) (GĐ3 ✅) |
 | TĐ-15 | SP 48, 549 | Hậu tố `.cz` được giữ nguyên ⇒ kết quả `Phim.cz.srt` | Chuẩn hoá thành `.cs` (MuxTool vốn hiểu cả hai) (GĐ3 ✅) |
 | TĐ-16 | SF 1581, SP 1776 | Hoàn tác **xoá hẳn** file | Vào Thùng rác (§4) (GĐ1 – `undo.py`) |
-| TĐ-17 | MT | MuxTool không có hoàn tác | `_muxtool_logs\mux_*.csv` ghi `Create` cho file đầu ra + thư mục mới tạo; hoàn tác → Thùng rác (§4) (GĐ4) |
+| TĐ-17 | MT | MuxTool không có hoàn tác | `_muxtool_logs\mux_*.csv` ghi `Create` cho file đầu ra + `Mkdir` thư mục mới tạo (+ `Skip`/`Fail` để xem lại); hoàn tác → Thùng rác, thư mục mới tạo bị xoá nếu rỗng (§4) (GĐ4 ✅) |
 | TĐ-18 | SP 1469, 1588 | `FpsAutoAllowGuess` không bao giờ có tác dụng với cấu hình mặc định: mốc phụ đề thì không có cờ để bỏ; mốc audio thì không đo được lệch FPS | Mốc audio mà `srt_goc` có phụ đề gốc của phim đó → đo quan hệ để phát hiện lệch FPS rồi bỏ `--disable-fps-guessing` cho file đó; không có thì như cũ (GĐ3 ✅) |
 | TĐ-19 | SP 1594–1600 | Lần thử lại "không kèm tham số" đưa **MKV gốc** cho alass thay vì WAV ⇒ gặp lại lỗi `missing field codec_long_name` với MKV có font | Thứ tự thử: WAV + cờ → WAV không cờ → MKV + cờ → MKV không cờ. Kèm §6.5 "luôn trích WAV": số thứ tự / ngôn ngữ audio không có trong file → dùng track Default (không có thì track đầu) và vẫn trích WAV (bản cũ đưa thẳng MKV cho alass) (GĐ3 ✅) |
 | TĐ-20 | SP 1617 | `MaxShiftSeconds = 0` thì bỏ qua cả sửa khối 00:00:00 lẫn kiểm tra sức khoẻ | Luôn sửa + kiểm tra; `0` chỉ tắt ngưỡng từ chối (GĐ3 ✅) |
-| TĐ-21 | MT 1081, 1100, 2146 | `$DryRun` vẫn tạo thư mục trong `Output`; lệnh in ra thiếu bước ffmpeg đổi tốc độ nên không đúng lệnh thật | "Xem lệnh" không ghi gì; in đủ lệnh ffmpeg + mkvmerge (đường dẫn tạm ghi rõ) (GĐ4) |
+| TĐ-21 | MT 1081, 1100, 2146 | `$DryRun` vẫn tạo thư mục trong `Output`; lệnh in ra thiếu bước ffmpeg đổi tốc độ nên không đúng lệnh thật | "Xem lệnh" không ghi gì, lập kế hoạch không tạo thư mục; in đủ lệnh ffmpeg + mkvmerge (đường dẫn tạm ghi rõ) (GĐ4 ✅) |
 | TĐ-22 | SF 132, 145 | `$KeepPaidDownloads`, `$SkipIfExists` chỉ khai báo, không dùng. Thực tế .bat **luôn giữ** mọi file đã tải (chỉ cảnh báo) và luôn bỏ qua khi đích đã có (nếu `UseExistingSubs`) | `SkipIfExists` điều khiển đúng việc "đích đã có → bỏ qua" (tách khỏi `UseExistingSubs`; mặc định cả hai bật = như cũ). `KeepPaidDownloads` đã duyệt Q5: tắt → file OpenSubtitles kiểm chứng yếu vào Thùng rác, thử bản kế tiếp (GĐ2 ✅) |
-| TĐ-23 | MT 2479 | `$SkipOnMultipleEnAudio` với cấu hình mặc định không bao giờ chạy: điều kiện "người dùng đã chọn" thực ra là "đã được hỏi" (đúng cả khi bạn bấm Huỷ/giữ tất cả hay khi quy tắc nhớ tự áp dụng) | → Q3 (GĐ4) |
+| TĐ-23 | MT 2479 | `$SkipOnMultipleEnAudio` với cấu hình mặc định không bao giờ chạy: điều kiện "người dùng đã chọn" thực ra là "đã được hỏi" (đúng cả khi bạn bấm Huỷ/giữ tất cả hay khi quy tắc nhớ tự áp dụng) | Q3: dòng "Cần chọn" cho tới khi bạn tick trong bảng audio của file đó hoặc bấm "Giữ cả hai, Default = bitrate cao nhất"; tắt `SkipOnMultipleEnAudio` → tự lấy bitrate cao nhất (GĐ4 ✅) |
 | TĐ-24 | SF 1174 | `Get-OsScore` (trừ điểm dịch máy, cộng lượt tải, đánh giá…) không bao giờ được gọi ⇒ khi `OsExcludeMachine` tắt, bản dịch máy xếp ngang bản thường | Đã duyệt Q2: bản dịch máy xếp sau bản thường cùng hạng FPS và cùng tình trạng đo (GĐ2 ✅) |
-| TĐ-25 | MT 2542–2546, 1146–1150 | Phụ đề ngoài chỉ nhận hậu tố vi/cs/en ⇒ thêm `ja` vào `SubKeepLangs` cũng không ghép được `Phim.ja.srt` | Dùng bảng ngôn ngữ chung (GĐ4) |
+| TĐ-25 | MT 2542–2546, 1146–1150 | Phụ đề ngoài chỉ nhận hậu tố vi/cs/en ⇒ thêm `ja` vào `SubKeepLangs` cũng không ghép được `Phim.ja.srt` | Dùng bảng ngôn ngữ chung (`naming.lang_of_suffix`) cho phụ đề ngoài và cho mốc đo audio ghép (GĐ4 ✅) |
 | TĐ-26 | SP 899, MT 1878 | `Get-CueTimes` (SP/MT) không nhận `Dialogue: Marked=0,…` (SSA v4) và đọc file không BOM theo bảng mã ANSI | Dùng bản SF + `encoding.read_text` (GĐ1 ✅) |
 | TĐ-27 | SP 1794–1808 | `Remove-FileSafe`: đưa vào Thùng rác lỗi thì **tự chuyển sang xoá hẳn** | Thùng rác lỗi → báo "không xoá được", không xoá hẳn. Chỉ xoá hẳn khi bạn tắt `DeleteToRecycleBin` (GĐ1 ✅) |
 | TĐ-28 | SF 1793–1799 | `AutoPickWhenSingle` tự lấy cả ứng viên duy nhất mà kho đo được chỉ 8–19 mốc ("nghi ngờ, cần kiểm tra") ⇒ có thể âm thầm lấy phụ đề của PHIM KHÁC (test GĐ2 tái hiện được: file kho của phim khác đạt 8–9 mốc với tập phim bộ) | Ứng viên duy nhất mà "nghi ngờ" → không tự lấy, hiện trên bảng để bạn quyết (GĐ2 ✅) |
@@ -790,6 +790,8 @@ Chạy bằng PowerShell 7.6 (máy Linux của tôi) qua `tools/verify_bat/KiemC
 | TĐ-30 | SF 618–653 | Phụ đề gốc trích từ MKV được ghi vào `srt_goc` ngay khi quét | Lập kế hoạch không ghi gì vào thư mục phim: phụ đề gốc trích ra thư mục tạm, chỉ chép vào `srt_goc` khi bấm chạy (ghi nhật ký hoàn tác) (GĐ2 ✅) |
 | TĐ-31 | SP 1073–1179 (1165) | `Resolve-Ref` ghép nhầm tập — **đã chứng minh bằng chạy hàm gốc** (`tests/test_golden_subprep.py`): (a) tầng 2 (so tên phim) không xét số tập ⇒ anime đánh số tuyệt đối (`[Judas] One Piece - 0643/0644/0645`) luôn "NHẬP NHẰNG theo tên phim", không bao giờ ghép được; (b) thiếu file phim tập 5, chỉ còn tập 6 ⇒ phụ đề `Show.S01E05.vi` được ghép vào `Show.S01E06` (điểm tên 0,5) — bị đổi tên thành tập 6 và đồng bộ theo tập 6; tầng 4 "1 phụ đề – 1 mốc" cũng ghép dù số tập khác nhau; (c) ở tầng 3, `Select-RefVariant` luôn trả **một** file trước khi kiểm tra nhập nhằng ⇒ kiểm tra không bao giờ chạy, `Sousou no Frieren - 05` được ghép bừa vào `S01E05` hoặc `S02E05` | Trước tầng 2 và tầng 4: loại các mốc ghi số tập (chắc chắn) **khác** số tập của phụ đề — đúng quy tắc §6.6 "hai tên đều ghi số tập mà khác nhau → không bao giờ ghép". Tầng 3: gom theo phim rồi mới chọn bản đại diện ⇒ nhiều phim khác nhau cùng khớp → "nhập nhằng tập E05" (bỏ qua + báo). Mọi ca khác cho **cùng kết quả** với hàm gốc (có test đối chiếu) (GĐ3 ✅) |
 | TĐ-32 | SP 1452, 1608, 1262, 1402 | Vài chỗ ghi đè / mất thông tin nhỏ ở bước ②: (a) phụ đề chưa đổi tên (không có hậu tố ngôn ngữ, vd nằm trong `srt_can_sync\cs\`) cho kết quả `Phim.srt` không hậu tố ⇒ bước ③ coi là `DefaultExternalLang` (vi); (b) hai phụ đề cùng ra một đích ⇒ cái sau ghi đè cái trước; (c) tắt `SkipExistingOut` (hoặc `SkipExistingRef`) ⇒ file đích cũ cạnh phim / trong `srt_goc` bị ghi đè mất, không hoàn tác được; (d) cờ alass không hỗ trợ bị bỏ nhưng **giá trị** đi kèm (vd `--split-penalty 7`) vẫn bị gửi, alass hiểu `7` là tên file | (a) không có hậu tố → lấy ngôn ngữ đã chọn / thư mục con; (b) cái sau bỏ qua, lý do "trùng đích với …"; (c) file cũ vào **Thùng rác** trước (ghi `Delete` vào nhật ký); (d) bỏ cả giá trị đi kèm. Ngoài ra: kết quả alass ghi ra thư mục tạm, xử lý xong mới chép cạnh phim (bấm Dừng không để lại file dở dang); đổi tên + đồng bộ + dọn dẹp của một lượt ghi chung **một** nhật ký (như .bat), lưu sau mỗi bước (GĐ3 ✅) |
+| TĐ-33 | MT 425–446, 647, 590–620 | (a) `Get-CodecName` đọc `properties.codec` — nhưng `mkvmerge -J` ghi `codec` ở **cấp track** (đã kiểm với mkvmerge v82 thật) ⇒ hàm luôn rơi về `codec_id`: tên track ra `English EAC3 5.1`, `English TRUEHD 7.1`, DTS-HD MA chỉ còn `DTS` (yêu cầu §6.7: `English E-AC-3 5.1`); ước lượng bitrate của AC3/E-AC-3/PCM rơi về mặc định 300 kbps ⇒ chọn Default "bitrate cao nhất" có thể sai khi thiếu tag BPS và ffprobe. (b) Thẻ codec ra `TRUEHD7.1`, `DTS` thay vì `TrueHD7.1`, `DTS-HD`. (c) `Get-DynamicRange` khi không có ffprobe: tên file `HDR10` (không có `+`) không được nhận là HDR (`\bHDR\b` không khớp `HDR10`) | Đọc `codec` cấp track (đúng ý định ghi trong .bat "ưu tiên field codec của mkvmerge"), không có thì dịch `codec_id` qua bảng (`A_EAC3` → E-AC-3, `A_AC3` → Dolby Digital…); `HDR10` → HDR. Chứng minh bằng test đối chiếu: hàm gốc với JSON mkvmerge thật trả `EAC3`/`DTS`; cùng hàm khi được đưa `codec` cho kết quả **giống hệt** bản mới (GĐ4 ✅) |
+| TĐ-34 | MT 2156–2159 | Đổi tốc độ audio ghép khác FPS bằng `asetrate=<số nguyên>,aresample=<sr>,atempo=<bù>`: **`atempo` làm audio sớm ~21 ms cố định** (đo bằng tiếng bíp: `asetrate+aresample` lệch 0,01 ms; thêm `atempo` lệch −21,3 ms) ⇒ ghép PAL vào phim 23,976 lệch ~20–21 ms, **không đạt yêu cầu < 20 ms** (§8, §10) | Viết tỉ lệ thành phân số p/q (25/23,976 = 3125/2997), đổi tần số trung gian R = p·k gần `sr` rồi `asetrate` = q·k — số nguyên chính xác, không cần `atempo`: `aresample=46875,asetrate=44955,aresample=48000` (PAL → 23,976). Đo lại: lệch < 0,2 ms với mọi tỉ lệ; test tiếng bíp đầu–cuối: < 2 ms ở đầu và cuối phim. Tỉ lệ không viết gọn thành phân số được (hiếm) → dùng lại chuỗi cũ. **Khác chữ của §6.9** (chuỗi lọc cụ thể) để giữ đúng kết quả — chờ bạn duyệt (GĐ4 ✅) |
 
 ### 7.C. Bỏ vì GUI thay thế (không mất tính năng)
 
@@ -816,7 +818,7 @@ Nguyên nhân: Bước 1 của `chay_do_api.bat` không nhập được key (b�
 — kể cả thư mục `reference\` đã xoá key). Đã sửa script: thư mục không có key → báo rõ và hỏi lại (trước đây báo nhầm lỗi
 "cài Python" hoặc chạy tiếp không key); kết quả dò không có key thì in hướng dẫn chạy lại ở đầu và cuối file.
 
-Ngoài ra (Giai đoạn 4): mkvmerge in thông báo theo ngôn ngữ Windows, nên lọc dòng "warning/error" bằng chữ tiếng Anh như .bat có thể không bắt được trên Windows tiếng Séc/Việt. Bản mới quyết định theo **mã thoát** và hiện toàn bộ output; nếu `mkvmerge --ui-language` có `en` thì dùng để log dễ đọc (sẽ kiểm bằng `--ui-language list`).
+Ngoài ra (Giai đoạn 4 ✅): mkvmerge in thông báo theo ngôn ngữ Windows, nên lọc dòng "warning/error" bằng chữ tiếng Anh như .bat có thể không bắt được trên Windows tiếng Séc/Việt. Bản mới quyết định theo **mã thoát** và hiện output; `mkvmerge --ui-language list` có `en_US` (đã kiểm với v82) thì thêm `--ui-language en_US` để log tiếng Anh dễ đọc.
 
 ---
 
@@ -840,8 +842,8 @@ Ngoài ra (Giai đoạn 4): mkvmerge in thông báo theo ngôn ngữ Windows, n�
 | §6.6 tên tập | toàn bộ danh sách ở 3.4; `S01E10`/`S01E01` chặn; không bao giờ `Season 00` |
 | §6.7 audio | commentary/AD bị xoá; lọc hết → giữ hết; `und` 1 track → `en`; `und` ≥ 2 → bỏ qua file; ≥ 2 tiếng Anh; Default = tiếng Anh bitrate cao nhất; bitrate BPS → ffprobe → ước lượng; quy tắc nhớ "cái giữ" + hệ kênh; quy tắc làm mất hết audio → bỏ qua; tên track `English E-AC-3 5.1` |
 | §6.8 phụ đề | `SubKeepLangs`, sub ngoài thay sub trong, Forced/ảnh/commentary/English SDH; chọn sub ngoài theo `SubExtPriority`; không hậu tố = `DefaultExternalLang`; Default theo `SubDefaultPriority` |
-| §6.9 ghép audio | ghép tập `S16E643` ↔ `- 0643`; đo bằng phụ đề chung; cùng FPS → `--sync TID:ms`; khác FPS → chuỗi `asetrate=<số nguyên>,aresample=<sr>,atempo=<bù>` đúng toán; không đo được → chỉ ghép khi chênh ≤ 1 s; độ lệch tay |
-| §6.9 **tiếng bíp** | ffmpeg tạo phim 23,976 fps có phụ đề tiếng Anh + "bản nguồn" 25 fps có audio tiếng Séc là tiếng bíp đặt đúng từng câu thoại, lệch +1,5 s; ghép; đo vị trí bíp trong kết quả bằng `silencedetect`: sai số < 20 ms ở đầu và cuối phim. Thêm ca cùng FPS, lệch âm |
+| §6.9 ghép audio | ghép tập `S16E643` ↔ `- 0643`; đo bằng phụ đề chung; cùng FPS → `--sync TID:ms`; khác FPS → chuỗi lọc đổi tốc độ đúng toán (`asetrate` số nguyên, hệ số thời lượng = tỉ lệ FPS; TĐ-34); không đo được → chỉ ghép khi chênh ≤ 1 s; độ lệch tay |
+| §6.9 **tiếng bíp** | ffmpeg tạo phim 23,976 fps có phụ đề tiếng Anh + "bản nguồn" 25 fps có audio tiếng Séc là tiếng bíp đặt đúng từng câu thoại, lệch +1,5 s; ghép; đo vị trí bíp trong kết quả bằng `silencedetect`: sai số < 20 ms ở đầu và cuối phim (so với tiếng bíp của audio gốc trong cùng lần giải mã — đo tuyệt đối bị ffmpeg dời theo độ trễ mồi AAC). Thêm ca cùng FPS, lệch âm. Kết quả GĐ4: < 2 ms ✅ |
 | §6.10 đặt tên | phim lẻ/phim bộ đúng mẫu Jellyfin; bỏ ngoặc + ký tự cấm; thẻ codec chỉ ở tên file, tắt cho phim bộ; TMDB key 32 ký tự ↔ `eyJ`; 401 → tắt cả lượt + báo một lần; 404 im lặng; One Piece hai series trùng tên; số tuyệt đối 643 (TMDB cộng dồn, TVDB `absoluteNumber`); TVDB đăng nhập lại khi 401, phân trang, tên tập theo ngôn ngữ rồi `eng` |
 | §6.11 tải phụ đề | (mock) bản tiếng Việt để trống `hearingImpaired/foreignParts` vẫn được nhận; không gửi tham số lọc lên máy chủ; `limit=100` bị từ chối → 20; gói ZIP chọn đúng tập; preview: bản đúng nhận, bản ngẫu nhiên bị từ chối; quota 50/5; OpenSubtitles 401 → đăng nhập lại ≤ 2 lần; 403 user-agent → tắt nguồn; VIP `base_url`; xếp hạng FPS → đã đo → độ lệch nhỏ → giống tên; nhớ lựa chọn theo season + ngôn ngữ, không nhớ bản riêng tập khác, bản nhớ hỏng → thử bản kế + xoá khỏi bộ nhớ; kho nội bộ < 8 / 8–19 / ≥ 20 mốc; `PoolFirst`; file có sẵn: đo được thì chỉ tin đo, **chép** không di chuyển; bước ① **không** sửa thời gian |
 | Cấu hình | nhập từ ba file .bat thật (đã che key) → đúng mọi khoá, `@()` nhiều dòng, `@{}`; bí mật vào keyring, không vào `config.json`, không ra log |
@@ -858,8 +860,8 @@ Trước khi báo xong mỗi giai đoạn: chạy hết test và dán kết qu�
 | **0** | ✅ Đặc tả này + script kiểm chứng — **đã duyệt** | ~~Đọc, trả lời mục 10~~ |
 | **1** | ✅ `timing`, `pgs`, `srt`, `encoding`, `episodes`, `naming`, `config`, `secrets`, `undo` + 298 test (gồm 17 test đối chiếu hàm gốc qua PowerShell) — **đã duyệt** | Xem kết quả test; (tuỳ chọn) chạy `run_tests.bat` trên Windows |
 | **2** | ✅ `tools`, `probe` (phần bước ①), `tmdb` (IMDb + chọn series + số tập tuyệt đối), `subsource`, `opensubs`, `pool`, `subfetch` + 4 script dò + `chay_do_api.bat` + test (API giả + MKV thật) — **đã duyệt** (kết quả dò API thật vẫn chờ, xem 7.E) | **Bấm đúp `chay_do_api.bat`**, gửi tôi `ket_qua_do_api.txt` (đã che key) |
-| **3** | ✅ `subprep` (chỉ mục mốc, ghép tên, đổi tên, trích phụ đề gốc, alass, cắt recap, sửa 00:00:00, sức khoẻ, dọn dẹp, nhật ký/hoàn tác) + test (alass giả, MKV thật, đối chiếu hàm gốc) — **chờ duyệt** | Xem TĐ-31, TĐ-32; (tuỳ chọn) `run_tests.bat` — trên máy bạn chạy được cả test alass thật |
-| 4 | Bước ③: `probe`, quy tắc audio/phụ đề, `tmdb`/`tvdb`, thẻ codec, `donor`, dựng lệnh mkvmerge + test tiếng bíp | |
+| **3** | ✅ `subprep` (chỉ mục mốc, ghép tên, đổi tên, trích phụ đề gốc, alass, cắt recap, sửa 00:00:00, sức khoẻ, dọn dẹp, nhật ký/hoàn tác) + test (alass giả, MKV thật, đối chiếu hàm gốc) — **đã duyệt** | Xem TĐ-31, TĐ-32; (tuỳ chọn) `run_tests.bat` — trên máy bạn chạy được cả test alass thật |
+| **4** | ✅ `mux`, `donor`, `tvdb`, phần bước ③ của `probe`/`tmdb`/`naming` + test (JSON mkvmerge giả, API TMDB/TVDB giả, mkvmerge/ffmpeg thật, test tiếng bíp, đối chiếu hàm gốc) — **chờ duyệt** | Xem TĐ-33, TĐ-34 |
 | 5 | Giao diện 4 thẻ + khung log + luồng phụ + nút Dừng | Thử trên Windows |
 | 6 | PyInstaller `--onedir --windowed`, `build.bat`, icon, `HUONG_DAN.md` | Build và chạy `MuxStudio.exe` |
 

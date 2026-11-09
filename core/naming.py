@@ -414,3 +414,260 @@ def episode_base_name(show_name: str, year: int | str | None, code: str, episode
         if et:
             base += f" - {et}"
     return safe_filename(base)
+
+
+# ==========================================================================
+#  ĐẶT TÊN THEO DATABASE (bước ③)
+#  Get-MovieFileName, Get-TmdbTvName, Get-TvdbTvName, Select-TmdbCandidate, Resolve-OutputName,
+#  Test-DbUsable, Get-TvNameFrom (MuxTool)
+#
+#  ``db`` là client TMDB hoặc TVDB (duck typing — module này không import tmdb/tvdb):
+#    .db_name ('tmdb'|'tvdb'), .usable, .search_movie(title, year), .search_series(title, year),
+#    .pick_show(res, ep) -> (series, chắc_chắn), .resolve_episode(show_id, season, episode, want_title) -> EpisodeHit
+#  Kết quả tìm phim lẻ: {id, title, original_title, release_date}; phim bộ: {id, name, original_name, first_air_date}.
+# ==========================================================================
+
+
+def year_of(date: object) -> int | None:
+    s = str(date or "")
+    return int(s[:4]) if len(s) >= 4 and s[:4].isdigit() else None
+
+
+def pick_match(res: list[dict], want_title: str, want_year: int | None, name_prop: str, orig_prop: str,
+               date_prop: str) -> dict | None:
+    """Phần không hỏi của ``Select-TmdbCandidate``: tên chuẩn hoá trùng (tên hoặc tên gốc) và năm ±1."""
+    want = norm_title(want_title)
+    for r in res:
+        if norm_title(r.get(name_prop)) != want and norm_title(r.get(orig_prop)) != want:
+            continue
+        y = year_of(r.get(date_prop))
+        if want_year and (y is None or abs(y - want_year) > 1):
+            continue
+        return r
+    return None
+
+
+@dataclass(frozen=True)
+class EpisodeHit:
+    """Kết quả tra một tập (``Resolve-TmdbEpisode`` / ``Resolve-TvdbEpisode``)."""
+
+    season: int
+    episode: int
+    title: str | None = None
+    mapped: bool = False  # so tuyet doi -> season/tap cua database
+    found: bool = False
+
+
+@dataclass(frozen=True)
+class NameCandidate:
+    id: int
+    title: str
+    year: int | None
+    original: str = ""
+
+    def describe(self, db: str) -> str:
+        return f"{self.title} ({self.year or '????'})  {db}id-{self.id}"
+
+
+@dataclass
+class OutputName:
+    """Tên + thư mục con (trong ``Output``) của file kết quả, chưa gắn thẻ codec. KHÔNG tạo thư mục nào (TĐ-21)."""
+
+    base: str
+    rel_dir: str = ""  # '' = ngay trong Output
+    db: str = ""  # database da dung ('' = giu ten goc)
+    status: str = "keep"  # ok | need_choice (Can chon) | keep (giu ten goc)
+    note: str = ""
+    kind: str = "movie"  # movie | tv
+    candidates: list[NameCandidate] = field(default_factory=list)
+    episode_note: str = ""
+    query_key: tuple = ()  # cung khoa = cung lua chon (vd moi tap cua mot series)
+    raw: list[dict] = field(default_factory=list, repr=False)
+
+    @property
+    def is_episode(self) -> bool:
+        return self.kind == "tv"
+
+
+def keep_name(orig_base: str, note: str, kind: str = "movie", query_key: tuple = ()) -> OutputName:
+    return OutputName(orig_base, "", "", "keep", note, kind, query_key=query_key)
+
+
+def _cands(res: list[dict], name_prop: str, orig_prop: str, date_prop: str) -> list[NameCandidate]:
+    return [NameCandidate(int(r.get("id") or 0), str(r.get(name_prop) or ""), year_of(r.get(date_prop)),
+                          str(r.get(orig_prop) or "")) for r in res[:5]]
+
+
+def movie_name_from(db_name: str, pick: dict, parsed_year: int | None, cfg: dict) -> OutputName:
+    """Dựng tên phim lẻ từ kết quả đã chọn: ``Tên (Năm) [tmdbid-…]`` (+ thư mục riêng nếu ``TmdbCreateFolder``)."""
+    yr = year_of(pick.get("release_date")) or parsed_year
+    key = ("movie", db_name)
+    if not yr:
+        return keep_name("", f"{db_name.upper()} không có năm phát hành → giữ tên file gốc.", "movie", key)
+    base = movie_base_name(str(pick.get("title") or ""), yr, db_name, pick.get("id"))
+    return OutputName(base, base if cfg["TmdbCreateFolder"] else "", db_name, "ok", f"Phim lẻ ({db_name.upper()}): {base}",
+                      "movie")
+
+
+def movie_name(db: object, orig_base: str, cfg: dict, cache: dict | None = None) -> OutputName:
+    """``Get-MovieFileName``. Không khớp chắc chắn + ``TmdbConfirm`` → trạng thái "Cần chọn" (5 kết quả gần nhất)."""
+    name = getattr(db, "db_name", "")
+    rn = split_release_name(orig_base)
+    key = ("movie", name, rn.title, rn.year)
+    if not rn.title:
+        return keep_name(orig_base, "Không tách được tên phim → giữ tên file gốc.", "movie", key)
+    if cache is not None and key in cache:
+        return _fill_keep(cache[key], orig_base)
+    res = list(db.search_movie(rn.title, rn.year) or [])  # type: ignore[attr-defined]
+    if not res:
+        out = keep_name(orig_base, f"{name.upper()} không tìm thấy phim này → giữ tên file gốc.", "movie", key)
+    else:
+        pick = pick_match(res, rn.title, rn.year, "title", "original_title", "release_date")
+        if pick is None and not cfg["TmdbConfirm"]:
+            pick = res[0]
+        if pick is not None:
+            out = movie_name_from(name, pick, rn.year, cfg)
+        else:
+            out = OutputName(orig_base, "", name, "need_choice", f"{name.upper()}: không khớp chính xác '{rn.title}'"
+                             + (f" ({rn.year})" if rn.year else "") + " — chọn một kết quả.", "movie",
+                             _cands(res, "title", "original_title", "release_date"), raw=res[:5])
+    out.query_key = key
+    if cache is not None:
+        cache[key] = out
+    return _fill_keep(out, orig_base)
+
+
+def _fill_keep(o: OutputName, orig_base: str) -> OutputName:
+    """Kết quả trong bộ nhớ đệm dùng chung cho nhiều file: tên 'giữ gốc' / 'cần chọn' là tên của TỪNG file."""
+    if o.status in ("keep", "need_choice"):
+        c = OutputName(**{**o.__dict__})
+        c.base = orig_base
+        return c
+    return o
+
+
+def tv_name_from(db: object, show: dict, ep: object, cfg: dict) -> OutputName:
+    """Dựng tên tập: ``Series (Năm) [tmdbid-…]\\Season 01\\Series (Năm) - S01E05 - Tên tập``."""
+    name = getattr(db, "db_name", "")
+    sid = int(show.get("id") or 0)
+    yr = year_of(show.get("first_air_date")) or getattr(ep, "year", None)
+    folder = show_folder_name(str(show.get("name") or ""), yr, name, sid)
+    se, en, end = int(ep.season), int(ep.episode), ep.episode_end  # type: ignore[attr-defined]
+    title = None
+    note = ""
+    if (cfg["TvFetchEpisodeTitle"] or cfg["TvAbsoluteToSeason"]) and not end:
+        rt = db.resolve_episode(sid, se, en, bool(cfg["TvFetchEpisodeTitle"]))  # type: ignore[attr-defined]
+        if rt.mapped:
+            note = f"Số tập tuyệt đối: {ep.ref_label} → {name.upper()} S{rt.season:02d}E{rt.episode:02d}"  # type: ignore[attr-defined]
+            if cfg["TvAbsoluteToSeason"]:
+                se, en = rt.season, rt.episode
+        elif not rt.found:
+            note = f"{name.upper()} không có {ep.ref_label} → giữ mã tập gốc, không có tên tập."  # type: ignore[attr-defined]
+        if cfg["TvFetchEpisodeTitle"]:
+            title = rt.title
+    se = max(1, se)  # khong bao gio Season 00
+    base = episode_base_name(str(show.get("name") or ""), yr, episode_code(se, en, end), title)
+    rel = os.path.join(folder, season_folder_name(se)) if cfg["TvSeasonFolder"] else folder
+    return OutputName(base, rel, name, "ok", f"TV Show ({name.upper()}): {base}", "tv", episode_note=note)
+
+
+def tv_name(db: object, orig_base: str, cfg: dict, cache: dict | None = None) -> OutputName:
+    """``Get-TmdbTvName`` / ``Get-TvdbTvName``: series trùng tên → chọn series thực sự có tập đó."""
+    from . import episodes  # noqa: PLC0415 (episodes import naming)
+
+    name = getattr(db, "db_name", "")
+    ep = episodes.parse_episode(orig_base)
+    if ep is None or not ep.series:
+        return keep_name(orig_base, "Không tách được tên series → giữ tên file gốc.", "tv")
+    key = ("tv", name, norm_title(ep.series), ep.year)
+    show: dict | None
+    if cache is not None and key in cache:
+        show = cache[key]
+    else:
+        res = list(db.search_series(ep.series, ep.year) or [])  # type: ignore[attr-defined]
+        show = None
+        if res:
+            pick, sure = db.pick_show(res, ep)  # type: ignore[attr-defined]
+            if pick is not None and (sure or not cfg["TmdbConfirm"]):
+                show = pick
+            elif pick is not None:
+                show = {"_need_choice": True, "res": res[:5]}
+        if cache is not None:
+            cache[key] = show
+    if show is None:
+        return keep_name(orig_base, f"{name.upper()} không tìm thấy series '{ep.series}' → giữ tên file gốc.", "tv", key)
+    if show.get("_need_choice"):
+        res = show["res"]
+        return OutputName(orig_base, "", name, "need_choice", f"{name.upper()}: không khớp chính xác series '{ep.series}'"
+                          + (f" ({ep.year})" if ep.year else "") + " — chọn một kết quả.", "tv",
+                          _cands(res, "name", "original_name", "first_air_date"), query_key=key, raw=res)
+    out = tv_name_from(db, show, ep, cfg)
+    out.query_key = key
+    return out
+
+
+def choose_candidate(db: object, orig_base: str, cand_id: int, current: OutputName, cfg: dict,
+                     cache: dict | None = None) -> OutputName:
+    """Bạn chọn một kết quả ở dòng "Cần chọn" → tên mới. Ghi vào bộ nhớ đệm để mọi file cùng khoá
+    (vd các tập khác của series đó) dùng luôn lựa chọn này khi lập lại kế hoạch."""
+    pick = next((r for r in current.raw if int(r.get("id") or 0) == int(cand_id)), None)
+    if pick is None:
+        return current
+    if current.kind == "movie":
+        out = movie_name_from(getattr(db, "db_name", ""), pick, split_release_name(orig_base).year, cfg)
+        out.query_key = current.query_key
+        if cache is not None and current.query_key:
+            cache[current.query_key] = out
+        return _fill_keep(out, orig_base)
+    if cache is not None and current.query_key:
+        cache[current.query_key] = pick
+    return tv_name(db, orig_base, cfg, cache) if cache is not None else tv_name_from(db, pick, _ep(orig_base), cfg)
+
+
+def _ep(orig_base: str) -> object:
+    from . import episodes  # noqa: PLC0415
+
+    return episodes.parse_episode(orig_base)
+
+
+def db_usable(db: object | None) -> bool:
+    """``Test-DbUsable``: có key và key không bị từ chối / đăng nhập không lỗi."""
+    return bool(db is not None and getattr(db, "usable", False))
+
+
+def resolve_output_name(orig_base: str, choice: str, dbs: dict, cfg: dict, cache: dict | None = None) -> OutputName:
+    """``Resolve-OutputName``: phim bộ hay phim lẻ, theo database đã chọn (``tmdb`` | ``tvdb`` | ``none``).
+
+    Chỉ chuyển sang database kia khi ``NameFallbackOther``. KHÔNG tạo thư mục (TĐ-21) — việc đó làm lúc thực thi.
+    """
+    from . import episodes  # noqa: PLC0415
+
+    kind = "tv" if episodes.parse_episode(orig_base) is not None else "movie"
+    if choice not in ("tmdb", "tvdb"):
+        return keep_name(orig_base, "Không đổi tên (bạn chọn giữ tên gốc).", kind)
+    other = "tvdb" if choice == "tmdb" else "tmdb"
+    fn = tv_name if kind == "tv" else movie_name
+    db = dbs.get(choice)
+    if db_usable(db):
+        out = fn(db, orig_base, cfg, cache)
+    else:
+        out = keep_name(orig_base, f"{choice.upper()} chưa dùng được → giữ tên file gốc.", kind)
+    if out.status == "keep" and cfg["NameFallbackOther"] and db_usable(dbs.get(other)):
+        alt = fn(dbs[other], orig_base, cfg, cache)
+        if alt.status != "keep":
+            alt.note = f"{choice.upper()} không xác định được → thử {other.upper()}: {alt.note}"
+            return alt
+    return out
+
+
+def lang_of_suffix(suffix: str) -> str:
+    """Ngôn ngữ trong phần đuôi tên phụ đề ngoài sau tên phim (``.vi``, ``_vietnamese``, ``.en.sdh``, ``-ja``…).
+
+    Thay các mẫu cứng vi/cs/en của MuxTool (``Get-SubAutoPlan``, BƯỚC 3, ``Measure-DonorTiming``) bằng bảng
+    ngôn ngữ chung (TĐ-25). Từ đầu tiên nhận ra được thắng; không nhận ra → ''.
+    """
+    for tok in re.split(r"[._\- ]+", suffix or ""):
+        c = lang_from_word(tok)
+        if c:
+            return c
+    return ""
