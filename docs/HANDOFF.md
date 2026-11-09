@@ -1,8 +1,8 @@
 # Bàn giao giữa các phiên làm việc (đọc file này TRƯỚC)
 
 Cập nhật: 2026-11-09, sau Giai đoạn 3. Repo `michalvu/MuxStudio`.
-Nhánh: GĐ0–2 trên `claude/new-session-eckanp`; GĐ3 đẩy lên **`claude/gifted-keller-fx1jey`** (nhánh phiên GĐ3 được giao,
-tạo từ đầu nhánh cũ — chứa toàn bộ lịch sử). Phiên sau: làm tiếp trên nhánh mới nhất mà phiên đó được giao.
+Nhánh: `claude/new-session-eckanp` và `claude/gifted-keller-fx1jey` giống nhau (người dùng yêu cầu cập nhật cả hai sau GĐ3).
+Phiên sau: làm trên nhánh phiên đó được giao; người dùng muốn thì đẩy cả `claude/new-session-eckanp`.
 
 ## 1. Đọc gì, theo thứ tự
 
@@ -20,7 +20,7 @@ Người dùng **không phải lập trình viên**: trả lời + giao diện *
 |---|---|---|
 | 0 | SPEC + script kiểm chứng lỗi .bat | ✅ đã duyệt |
 | 1 | `timing pgs srt encoding episodes naming config secrets undo` + test | ✅ đã duyệt |
-| 2 | `tools probe tmdb subsource opensubs pool subfetch` + script dò API + test | ✅ đã duyệt (2026-11-09). **Vẫn chờ** `ket_qua_do_api.txt` |
+| 2 | `tools probe tmdb subsource opensubs pool subfetch` + script dò API + test | ✅ đã duyệt (2026-11-09). Lần dò 1 không có key (SPEC 7.E) → **vẫn chờ** `ket_qua_do_api.txt` có key |
 | 3 | Bước ② `subprep` + test | ✅ xong, **chờ duyệt** (báo TĐ-31, TĐ-32 mới) |
 | 4 | Bước ③ MuxTool | chưa làm |
 | 5 | GUI | chưa làm |

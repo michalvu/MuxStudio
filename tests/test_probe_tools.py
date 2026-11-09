@@ -90,15 +90,18 @@ def test_probe_all_writes_file(tmp_path, monkeypatch):
     assert probe_all.main() == 0
     txt = out.read_text(encoding="utf-8")
     assert "TÓM TẮT" in txt and "chưa có key" in txt
+    assert txt.count("KHÔNG CÓ KEY NÀO") == 2  # dau file + trong tom tat: chi cach chay lai cho dung
 
 
 @pytest.mark.skipif(not (REFERENCE / "SubFetch_v30.bat").exists(), reason="thiếu reference/")
 def test_nhap_tu_bat_reference_folder(config_dir, capsys):
-    assert nhap_tu_bat.main([str(REFERENCE)]) == 0
+    """Thư mục reference\\ (bản ĐÃ XOÁ key): vẫn nhập cấu hình, nhưng báo rõ chưa có key và trả 2 để hỏi lại."""
+    assert nhap_tu_bat.main([str(REFERENCE)]) == 2
     cfg = C.load_config()
     assert cfg["MkvToolNixDir"] == r"C:\Users\fenha\Desktop\mkvtoolnix" and cfg["Languages"] == ["vi", "en", "cs"]
     assert (config_dir / "config.json").exists()
-    assert "(trống)" in capsys.readouterr().out  # ban tham chieu khong co bi mat
+    out = capsys.readouterr().out
+    assert "(trống)" in out and "CHƯA CÓ KEY NÀO" in out and "ĐÃ XOÁ KEY" in out
 
 
 def test_nhap_tu_bat_puts_secrets_in_keyring(tmp_path, memory_keyring, capsys):

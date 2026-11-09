@@ -810,6 +810,12 @@ Chưa kiểm với máy chủ thật (cần key của bạn). Giai đoạn 2 s�
 
 Việc cần kiểm cụ thể (script dò đã có ở GĐ2: `chay_do_api.bat`): mã ngôn ngữ OpenSubtitles cho 18 ngôn ngữ (vd `zh` hay `zh-cn`, `pt` hay `pt-pt/pt-br`); OpenSubtitles tìm anime theo `episode_number` không kèm season (TĐ-29); tên header giới hạn lượt của SubSource (để hiện "còn 58/60 lượt/phút"); `limit=100` còn được nhận không; tên trường `language`, `releaseInfo`, `framerate`, `preview`; `base_url` của OpenSubtitles VIP; `GET /infos/user`; TMDB `/configuration` với key và với token; TVDB `/login` có/không `pin`.
 
+**Lần dò 1 (2026-11-09):** `ket_qua_do_api.txt` báo "Bí mật tìm thấy trong Windows Credential Manager: (không có)" ⇒ cả 4 API
+"chưa có key → bỏ qua", **chưa kiểm được gì** với máy chủ thật; giả định trong `subsource.py`, `opensubs.py`, `tmdb.py` giữ nguyên.
+Nguyên nhân: Bước 1 của `chay_do_api.bat` không nhập được key (bấm Enter bỏ qua, hoặc chỉ tới thư mục không có bản .bat có key
+— kể cả thư mục `reference\` đã xoá key). Đã sửa script: thư mục không có key → báo rõ và hỏi lại (trước đây báo nhầm lỗi
+"cài Python" hoặc chạy tiếp không key); kết quả dò không có key thì in hướng dẫn chạy lại ở đầu và cuối file.
+
 Ngoài ra (Giai đoạn 4): mkvmerge in thông báo theo ngôn ngữ Windows, nên lọc dòng "warning/error" bằng chữ tiếng Anh như .bat có thể không bắt được trên Windows tiếng Séc/Việt. Bản mới quyết định theo **mã thoát** và hiện toàn bộ output; nếu `mkvmerge --ui-language` có `en` thì dùng để log dễ đọc (sẽ kiểm bằng `--ui-language list`).
 
 ---

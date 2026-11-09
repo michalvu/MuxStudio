@@ -18,17 +18,25 @@ if errorlevel 1 goto :loi
 
 rem Buoc 1: nhap key/tai khoan tu 3 file .bat cu vao Windows Credential Manager
 set "BATDIR=%~1"
-if "%BATDIR%"=="" (
-    echo Buoc 1: Nhap THU MUC chua 3 file SubFetch / SubPrep / MuxTool .bat
-    echo         de lay key va tai khoan ^(Enter = bo qua, dung key da nhap truoc^):
-    set /p "BATDIR=> "
-)
-if defined BATDIR set "BATDIR=%BATDIR:"=%"
-if not "%BATDIR%"=="" (
-    ".venv\Scripts\python.exe" -m tools.nhap_tu_bat "%BATDIR%"
-    if errorlevel 1 goto :loi
+if defined BATDIR goto :nhap
+:hoi
+echo.
+echo Buoc 1: Dan duong dan THU MUC chua 3 file .bat CU cua ban - ban co key that:
+echo         SubFetch_v30.bat, SubPrep_v20.bat, MuxTool_v17.bat
+echo         ^(KHONG phai thu muc MuxStudio. Enter = bo qua, dung key da nhap lan truoc^)
+set "BATDIR="
+set /p "BATDIR=> "
+if not defined BATDIR goto :do
+:nhap
+set "BATDIR=%BATDIR:"=%"
+".venv\Scripts\python.exe" -m tools.nhap_tu_bat "%BATDIR%"
+if errorlevel 1 (
+    echo.
+    echo [!] Chua lay duoc key tu thu muc tren ^(xem thong bao o tren^). Thu lai nhe.
+    goto :hoi
 )
 
+:do
 echo.
 echo Buoc 2: Dang do API (mat khoang 1 phut) ...
 ".venv\Scripts\python.exe" -m tools.probe_all

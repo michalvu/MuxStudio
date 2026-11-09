@@ -13,6 +13,10 @@ from tools.probe_common import ROOT, Reporter, load_everything
 
 OUT = ROOT / "ket_qua_do_api.txt"
 
+NO_KEY_HINT = ("[!] KHÔNG CÓ KEY NÀO → không gọi được API nào, kết quả dưới đây chưa dùng được.\n"
+               "    Chạy lại chay_do_api.bat; ở Bước 1 dán đường dẫn THƯ MỤC chứa 3 file .bat CŨ của bạn\n"
+               "    (SubFetch_v30.bat, SubPrep_v20.bat, MuxTool_v17.bat — bản có key thật), không bấm Enter bỏ qua.")
+
 
 def main() -> int:
     from core.secrets import Redactor
@@ -22,6 +26,9 @@ def main() -> int:
     rep.line(f"MuxStudio — kết quả dò API, {dt.datetime.now():%Y-%m-%d %H:%M}")
     rep.line(f"Bí mật tìm thấy trong Windows Credential Manager: {', '.join(sorted(secrets)) or '(không có)'}")
     rep.line(f"User-Agent OpenSubtitles: {cfg['OsUserAgent']}")
+    if not secrets:
+        rep.line()
+        rep.line(NO_KEY_HINT)
     jobs = [
         ("SubSource", lambda: probe_subsource.run(rep, cfg, secrets)),
         ("OpenSubtitles", lambda: probe_opensubs.run(rep, cfg, secrets, download="--download" in sys.argv)),
@@ -38,6 +45,9 @@ def main() -> int:
     rep.section("TÓM TẮT")
     for c in rep.conclusions:
         rep.line(f"  • {c}")
+    if not secrets:
+        rep.line()
+        rep.line(NO_KEY_HINT)
     rep.line()
     rep.line(f"Đã ghi: {OUT}")
     rep.line("Gửi file này cho Claude (key, token, mật khẩu đã được che).")

@@ -63,6 +63,13 @@ def main(argv: list[str]) -> int:
         print(f"  {k:16s} {S.mask(v) if v else '(trống)'}")
     for f, name, line, why in imp.problems:
         print(f"  [?] {f}:{line} {name}: {why}")
+    if not any(S.store.get(k) for k in S.SECRET_KEYS):
+        print("\n[!] CHƯA CÓ KEY NÀO: các file .bat trên không chứa key/tài khoản.")
+        if any(Path(p).parent.name.lower() == "reference" for p, _ in known):
+            print("    Đây là bản sao ĐÃ XOÁ KEY trong thư mục 'reference' của MuxStudio.")
+        print("    Hãy nhập thư mục chứa 3 file .bat CŨ mà bạn vẫn dùng (SubFetch_v30.bat, SubPrep_v20.bat,")
+        print("    MuxTool_v17.bat — bản có key thật), không phải thư mục MuxStudio.")
+        return 2
     return 0
 
 
