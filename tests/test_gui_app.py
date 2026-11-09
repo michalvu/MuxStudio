@@ -517,6 +517,19 @@ def test_window_fits_screen_and_remembers_logical_size(movie_dir, ui):
     w, h = (int(x) for x in a.root.geometry().split("+")[0].split("x"))
     assert w <= sw and h <= sh
     a.root.deiconify()  # cua so an: Tk khong bao kich thuoc that
+    a.root.update()
+    if p.zoomed:  # man hinh nho (< 1400 x 860, vd 1280x1024 cua Xvfb, laptop 1366x768): cua so tu phong to het man hinh
+        assert a._is_zoomed()
+        a._remember_window()
+        assert a.cfg["UiZoomed"] is True
+        # nguoi dung bam "thu nho" roi keo cua so: dat lai trang thai thuong TRUOC khi doi co
+        if sys.platform.startswith("win"):
+            a.root.state("normal")
+        else:
+            a.root.attributes("-zoomed", False)
+        a.root.update()
+        if a._is_zoomed():  # Xvfb khong co trinh quan ly cua so: Tk khong bo phong to duoc -> gia lap dung cho nay
+            a._is_zoomed = lambda: False
     a.root.geometry("1100x700")
     a.root.update()
     a._remember_window()
