@@ -266,8 +266,9 @@ class FieldRow:
             self._build(box)
         help_txt = f.help
         if help_txt:
-            h = ctk.CTkLabel(parent, text=help_txt, anchor="w", justify="left", wraplength=760,
+            h = ctk.CTkLabel(parent, text=help_txt, anchor="w", justify="left", wraplength=view.help_wrap,
                              text_color=W.LEVEL_COLORS["dim"], font=ctk.CTkFont(size=12))
+            view.help_labels.append(h)
             h.grid(row=row + 1, column=0 if self.kind == "bool" else 1, columnspan=2 if self.kind == "bool" else 1,
                    sticky="w", padx=(28 if self.kind == "bool" else 0, 4))
             self.widgets.append(h)
@@ -431,8 +432,10 @@ class SecretRow:
             self.status = ctk.CTkLabel(box, text="", anchor="w", wraplength=420, justify="left")
             self.status.pack(side="left", padx=8)
         if help_txt:
-            ctk.CTkLabel(parent, text=help_txt, anchor="w", justify="left", wraplength=760, text_color=W.LEVEL_COLORS["dim"],
-                         font=ctk.CTkFont(size=12)).grid(row=row + 1, column=1, sticky="w")
+            h = ctk.CTkLabel(parent, text=help_txt, anchor="w", justify="left", wraplength=view.help_wrap,
+                             text_color=W.LEVEL_COLORS["dim"], font=ctk.CTkFont(size=12))
+            h.grid(row=row + 1, column=1, sticky="w")
+            view.help_labels.append(h)
         self.saved = ""
 
     def set_value(self, v: str) -> None:
@@ -475,6 +478,11 @@ class SettingsView:
         self.msg = ctk.CTkLabel(bar, text="", anchor="w")
         self.msg.pack(side="left", padx=10)
         self.groups: dict[str, Any] = {}
+        self.help_labels: list[Any] = []
+        self.help_wrap = 640
+        self._body_w = 0
+        self._rewrap_after: Any = None
+        self.body.bind("<Configure>", self._body_resized, add="+")
         self.rows: dict[str, FieldRow] = {}
         self.secret_rows: dict[str, SecretRow] = {}
         self.tool_label: Any = None
@@ -531,6 +539,26 @@ class SettingsView:
             self.rows[f.key] = fr
             r += 2
         return sf
+
+    def _body_resized(self, ev: Any) -> None:
+        # chi nghe khung NGOAI (be ngang theo cua so, khong theo noi dung) -> khong vong lap doi co
+        self._body_w = ev.width
+        if self._rewrap_after is None:
+            self._rewrap_after = self.frame.after(80, self._rewrap)
+
+    def _rewrap(self) -> None:
+        """Chú thích xuống dòng theo bề ngang cửa sổ (720p hẹp → nhiều dòng; 1440p rộng → ít dòng)."""
+        self._rewrap_after = None
+        w = int(self._body_w / max(W.scaling(self.frame), 0.1)) - 360  # tru cot nhan + thanh cuon + le
+        w = max(300, min(1100, w))
+        if abs(w - self.help_wrap) < 24:
+            return
+        self.help_wrap = w
+        for h in self.help_labels:
+            try:
+                h.configure(wraplength=w)
+            except Exception:  # noqa: BLE001 - nhan da bi huy
+                pass
 
     def _toggle_adv(self) -> None:
         for fr in self.rows.values():
@@ -737,7 +765,7 @@ class ImportDialog:
         files = ", ".join(f"{os.path.basename(p)} → {kinds.get(k or '', 'không nhận ra')}" for p, k in imp.files)
         ctk.CTkLabel(self.d.body, text=f"Đã đọc: {files}\nTick những khoá muốn nhập. Khoá có hai giá trị khác nhau: chọn "
                      "một (hoặc bỏ cả hai). Bí mật được ghi thẳng vào Windows Credential Manager.",
-                     anchor="w", justify="left", wraplength=1060).pack(fill="x")
+                     anchor="w", justify="left", wraplength=self.d.wrap).pack(fill="x")
         cols = [W.Col("label", "Khoá", 260), W.Col("current", "Giá trị hiện tại", 270), W.Col("new", "Giá trị từ .bat", 300),
                 W.Col("source", "Nguồn (file:dòng)", 170)]
         self.t = W.Table(self.d.body, cols, check="Nhập", height=16, selectmode="browse")
@@ -759,7 +787,7 @@ class ImportDialog:
         if imp.problems:
             notes.append("Không đọc được: " + "; ".join(f"{f} {v} (dòng {ln}): {why}" for f, v, ln, why in imp.problems[:8]))
         if notes:
-            ctk.CTkLabel(self.d.body, text="\n".join(notes), anchor="w", justify="left", wraplength=1060,
+            ctk.CTkLabel(self.d.body, text="\n".join(notes), anchor="w", justify="left", wraplength=self.d.wrap,
                          text_color=W.LEVEL_COLORS["dim"]).pack(fill="x")
         self.d.button("Nhập", self.apply, primary=True)
         self.d.button("Huỷ", self.d.close)

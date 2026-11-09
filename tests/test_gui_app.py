@@ -302,7 +302,7 @@ def test_fetch_tab_pool_choose_and_download(movie_dir, ui):
     v.scan()
     pump(a)
     assert len(v.items) == 1 and v.items[0].lang == "vi"
-    assert "dùng lại srt_goc" in v.tree.tv.item("v0", "values")[2]
+    assert v.tree.full("v0")["ref"].startswith("dùng lại srt_goc")
     v.gather()
     pump(a)
     it = v.items[0]
@@ -464,3 +464,68 @@ def test_settings_import_from_bat(movie_dir, ui, memory_keyring):
     assert a.cfg["MaxShiftSeconds"] == 99  # khong tick -> khong nhap
     assert a.cfg["DonorFolder"] == "audio_nguon" and a.cfg["Languages"]
     assert '"DonorFolder"' in C.config_path().read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------- ten dai + co cua so
+LONG_STEM = ("[Judas] Sousou no Frieren - S01E0{n} - The Journey's End and the Hero's Party Departs Again "
+             "[1080p][HEVC x265 10bit][Dual-Audio][Multi-Subs]")
+
+
+def test_long_names_keep_episode_in_tables_and_grid(movie_dir, ui):
+    from gui import mux_view as MV
+    from gui import widgets as W
+
+    a = ui(movie_dir)
+    t = W.Table(a.root, [W.Col("src", "Tên gốc", 220, stretch=True, fit="name"), W.Col("st", "Trạng thái", 120)])
+    names = [LONG_STEM.format(n=n) + ".mkv" for n in (1, 2, 3)]
+    for i, nm in enumerate(names):
+        t.add(f"r{i}", {"src": nm, "st": "Cần chọn: có 2 audio tiếng Anh (#1, #2) — tick track muốn xoá"})
+    shown = [t.tv.item(f"r{i}", "values")[0] for i in range(3)]
+    assert [f"S01E0{n}" in s for n, s in zip((1, 2, 3), shown)] == [True] * 3  # 3 dong phan biet duoc
+    assert all(s.endswith(".mkv") and "…" in s for s in shown)
+    assert t.full("r0")["src"] == names[0] and t.cut_text("r0", "src") == names[0]  # re chuot: ten day du
+    st = t.tv.item("r0", "values")[1]
+    assert st.startswith("Cần chọn") and st.endswith("…") and t.cut_text("r0", "st").endswith("muốn xoá")
+    # cot rong ra (keo cot / cua so to) -> hien nhieu hon
+    t.tv.column("src", width=2000)
+    t.refit()
+    assert t.tv.item("r0", "values")[0] == names[0] and t.cut_text("r0", "src") is None
+    t.set_cell("r1", "st", "sẵn sàng")
+    assert t.tv.item("r1", "values")[1] == "sẵn sàng" and t.full("r1")["src"] == names[1]
+    # cot cay (the 1): ten file giu so tap
+    tree = W.Table(a.root, [W.Col("x", "X", 50)], tree="Phim", tree_width=230)
+    tree.add("v0", {"x": ""}, text=names[1])
+    tree.add("c0", {"x": ""}, parent="v0", text="   cs — Czech")
+    assert "S01E02" in tree.tv.item("v0", "text") and tree.full("v0")["#0"] == names[1]
+    # bang chon phu de theo tap: nhan dong giu so tap
+    g = W.CheckGrid(a.root)
+    rows = ["m0", "m1", "m2"]
+    g.set_model(W.GridModel(rows, ["E|vi"], {(r, "E|vi"): True for r in rows}), {"E|vi": "vi"},
+                {r: nm for r, nm in zip(rows, names)})
+    assert [f"S01E0{n}" in g.label_text(r) for n, r in zip((1, 2, 3), rows)] == [True] * 3
+    assert MV.overview_values  # dung chung Table
+
+
+def test_window_fits_screen_and_remembers_logical_size(movie_dir, ui):
+    from gui import widgets as W
+
+    a = ui(movie_dir)
+    sw, sh = W.screen_logical(a.root)
+    p = W.plan_window(sw, sh)
+    a.root.update()
+    assert a.window == p and a.density == p.density
+    w, h = (int(x) for x in a.root.geometry().split("+")[0].split("x"))
+    assert w <= sw and h <= sh
+    a.root.deiconify()  # cua so an: Tk khong bao kich thuoc that
+    a.root.geometry("1100x700")
+    a.root.update()
+    a._remember_window()
+    a.root.withdraw()
+    assert a.cfg["UiGeometry"] == "1100x700" and a.cfg["UiZoomed"] is False
+    # hop thoai to hon man hinh -> tu thu nho cho vua; nut van hien
+    d = W.Dialog(a.root, "Thử", 5000, 4000)
+    assert d.wrap == int(sw - 40) - 48  # rong = man hinh - 40 (khong phai 5000)
+    d.close()
+    # o "Co chu va giao dien" co trong Cai dat
+    v = a.settings
+    assert "UiScale" in v.rows and v.rows["UiScale"].get_value() == "auto"

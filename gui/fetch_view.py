@@ -53,7 +53,7 @@ def item_status(it: FetchItem) -> tuple[str, str]:
 
 def chosen_text(it: FetchItem) -> str:
     if it.chosen is not None:
-        return f"[{it.chosen.src}] {W.ellipsize_middle(it.chosen.release, 70)}"
+        return f"[{it.chosen.src}] {it.chosen.release}"
     if it.existing is not None:
         return it.existing.file.name
     return ""
@@ -62,7 +62,7 @@ def chosen_text(it: FetchItem) -> str:
 def candidate_row(c: Candidate, i: int) -> dict[str, Any]:
     """Một dòng của bảng ứng viên (thay ``Show-CandidateTable``)."""
     return {"n": i + 1, "src": c.src, "fps": c.fps_label, "score": f"{round(c.score * 100)}%", "off": c.offset_label,
-            "rel": W.ellipsize_middle(c.release, 90), "info": c.info}
+            "rel": c.release, "info": c.info}
 
 
 def candidate_tag(c: Candidate) -> str:
@@ -204,19 +204,18 @@ class FetchView:
                               background=W.pick(("#dbdbdb", "#2b2b2b")))
         pw.pack(fill="both", expand=True)
         top = W.ttk.Frame(pw)
-        cols = [W.Col("kind", "Loại", 125), W.Col("fps", "FPS", 65, "e"), W.Col("ref", "Phụ đề gốc (mốc)", 260),
-                W.Col("status", "Trạng thái", 310, stretch=True), W.Col("chosen", "Bản đã chọn", 280)]
-        self.tree = W.Table(top, cols, height=12, tree="Phim / ngôn ngữ", tree_width=360)
+        cols = [W.Col("kind", "Loại", 140), W.Col("fps", "FPS", 65, "e"), W.Col("ref", "Phụ đề gốc (mốc)", 250, stretch=True, fit="name"),
+                W.Col("status", "Trạng thái", 280, stretch=True), W.Col("chosen", "Bản đã chọn", 260, stretch=True, fit="name")]
+        self.tree = W.Table(top, cols, height=6, tree="Phim / ngôn ngữ", tree_width=340)
         self.tree.frame.pack(fill="both", expand=True)
         self.tree.on_select = self._on_select
         self.tree.tip = self._tree_tip
-        pw.add(top, stretch="always", minsize=160)
+        pw.add(top, stretch="always", minsize=110)
 
         bot = W.ttk.Frame(pw)
         hb = ctk.CTkFrame(bot, fg_color="transparent")
         hb.pack(fill="x", pady=(4, 2))
         self.cand_title = ctk.CTkLabel(hb, text="Chọn một dòng ngôn ngữ ở trên để xem ứng viên.", anchor="w")
-        self.cand_title.pack(side="left", padx=4)
         self.remember = W.tk.BooleanVar(value=bool(self.app.cfg["RememberChoice"]))
         self.skip_btn = ctk.CTkButton(hb, text="Bỏ qua ngôn ngữ này", width=150, command=self.skip_current,
                                       fg_color=("gray70", "gray30"), text_color=("gray10", "gray90"))
@@ -225,13 +224,15 @@ class FetchView:
         self.choose_btn.pack(side="right", padx=4)
         ctk.CTkCheckBox(hb, text="Dùng lại lựa chọn này cho các tập sau cùng season", variable=self.remember).pack(
             side="right", padx=8)
+        self.cand_title.pack(side="left", padx=4, fill="x", expand=True)  # xep sau nut: ten dai khong day nut ra ngoai
         ccols = [W.Col("n", "#", 36, "e"), W.Col("src", "Nguồn", 90), W.Col("fps", "FPS", 140), W.Col("score", "Giống tên", 80, "e"),
-                 W.Col("off", "Lệch", 80, "e"), W.Col("rel", "Bản release", 460, stretch=True), W.Col("info", "Thông tin", 240)]
-        self.cands = W.Table(bot, ccols, height=7)
+                 W.Col("off", "Lệch", 80, "e"), W.Col("rel", "Bản release", 420, stretch=True, fit="name"), W.Col("info", "Thông tin", 220)]
+        self.cands = W.Table(bot, ccols, height=4)
         self.cands.frame.pack(fill="both", expand=True)
         self.cands.on_double = lambda iid, _c: self.choose(iid)
         self.cands.tip = self._cand_tip
-        pw.add(bot, stretch="always", minsize=140)
+        pw.add(bot, stretch="always", minsize=110)
+        W.split_pane(pw, 0.56)
 
         self.summary = ctk.CTkLabel(self.frame, text="", anchor="w", justify="left")
         self.summary.pack(fill="x", pady=(4, 0))
@@ -401,7 +402,7 @@ class FetchView:
             self.cand_title.configure(text="Chọn một dòng ngôn ngữ ở trên để xem ứng viên.")
             self.update_buttons()
             return
-        head = f"Ứng viên cho: {W.ellipsize_middle(it.video.path.name, 70)}  [{it.lang}]"
+        head = f"Ứng viên cho: {W.shorten_name(it.video.path.name, 64)}  [{it.lang}]"
         if it.video.fps:
             head += f"  — video {it.video.fps:.3f} fps"
         self.cand_title.configure(text=head)
@@ -530,10 +531,8 @@ class FetchView:
                              tags=(tag,) if tag else ())
         for vid in self.tree.tv.get_children(""):
             its = [self.iid_item[k] for k in self.tree.tv.get_children(vid)]
-            vals = list(self.tree.tv.item(vid, "values"))
-            if len(vals) >= 4:
-                vals[3] = video_summary(its)
-                self.tree.tv.item(vid, values=vals, tags=("need",) if any(x.needs_choice for x in its) else ("head",))
+            self.tree.set_cell(vid, "status", video_summary(its))
+            self.tree.tv.item(vid, tags=("need",) if any(x.needs_choice for x in its) else ("head",))
 
     def _after_change(self, select_next: bool = False) -> None:
         self.refresh_rows()
@@ -551,10 +550,8 @@ class FetchView:
     def _tree_tip(self, iid: str, col: str) -> str | None:
         it = self.iid_item.get(iid)
         if it is None:
-            vals = self.tree.tv.item(iid, "values") if iid.startswith("v") else ()
-            if col == "ref" and len(vals) > 2:
-                return f"Phụ đề gốc (mốc thời gian): {vals[2]}"
-            return None
+            ref = self.tree.full(iid).get("ref", "") if iid.startswith("v") else ""
+            return f"Phụ đề gốc (mốc thời gian): {ref}" if col == "ref" and ref else None
         if col == "status" and it.timing_note:
             return it.timing_note
         if col == "status" and it.existing is not None:

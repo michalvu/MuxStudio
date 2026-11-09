@@ -116,10 +116,17 @@ class App:
         if W.font_family():
             ctk.ThemeManager.theme["CTkFont"]["family"] = W.font_family()
         self.root = ctk.CTk()
-        W.setup_fonts(self.root)
         self.root.title("MuxStudio")
-        self.root.geometry(str(self.cfg.get("UiGeometry") or "1320x900"))
-        self.root.minsize(1060, 720)
+        # Co chu + co cua so theo man hinh (720p / 1080p / 1440p, ca khi Windows dat phong to 125% / 150%)
+        dpi = W.dpi_scaling(self.root)
+        self.ui_factor = W.ui_factor(str(self.cfg["UiScale"]), self.root.winfo_screenwidth() / dpi,
+                                     self.root.winfo_screenheight() / dpi)
+        W.apply_user_scale(self.root, self.ui_factor)
+        W.setup_fonts(self.root)
+        self.window = W.plan_window(*W.screen_logical(self.root), saved=str(self.cfg.get("UiGeometry") or ""),
+                                    zoomed=bool(self.cfg.get("UiZoomed")))
+        self.density = self.window.density  # compact | normal | large
+        self._place_window()
         self.root.report_callback_exception = self._tk_error
         W.setup_style(self.root)
         self.folder: str | None = None
@@ -128,7 +135,7 @@ class App:
 
         # --- thu muc phim ---
         top = ctk.CTkFrame(self.root)
-        top.pack(fill="x", padx=10, pady=(10, 4))
+        top.pack(fill="x", padx=4 if self.density == "compact" else 10, pady=(4 if self.density == "compact" else 10, 2))
         ctk.CTkLabel(top, text="Thư mục phim:", font=ctk.CTkFont(weight="bold")).pack(side="left", padx=(10, 6), pady=8)
         self.folder_var = W.tk.StringVar(value="")
         self.folder_entry = ctk.CTkEntry(top, textvariable=self.folder_var,
@@ -150,7 +157,6 @@ class App:
         # --- tien do + dung ---
         st = ctk.CTkFrame(self.root)
         self.status = ctk.CTkLabel(st, text="Sẵn sàng.", anchor="w")
-        self.status.pack(side="left", fill="x", expand=True, padx=10, pady=6)
         self.stop_now_btn = ctk.CTkButton(st, text="■ Dừng ngay", width=110, command=self.cancel_now, state="disabled",
                                           fg_color=("#c62828", "#a12020"), hover_color=("#a12020", "#7f1919"))
         self.stop_now_btn.pack(side="right", padx=(4, 10))
@@ -163,15 +169,19 @@ class App:
         self.prog.pack(pady=(2, 1))
         self.cur = ctk.CTkProgressBar(bars, width=260, height=5, mode="indeterminate")
         self.cur.pack(pady=(1, 2))
+        # xep SAU nut Dung: chu dai khong bao gio day nut ra khoi cua so
+        self.status.pack(side="left", fill="x", expand=True, padx=10, pady=4 if self.density == "compact" else 6)
 
         # --- log ---
         from .log_panel import LogPanel  # noqa: PLC0415
 
-        self.log_panel = LogPanel(self.root, lambda: self.folder, self.redactor.redact)
+        log_h = {"compact": 64, "normal": 120, "large": 180}[self.density]
+        self.log_panel = LogPanel(self.root, lambda: self.folder, self.redactor.redact, height=log_h)
         # xep tu duoi len: khung log + thanh tien do luon hien, cac the chiem phan con lai
-        self.log_panel.frame.pack(side="bottom", fill="x", padx=10, pady=(4, 10))
-        st.pack(side="bottom", fill="x", padx=10, pady=4)
-        self.tabs.pack(fill="both", expand=True, padx=10, pady=4)
+        gap = 4 if self.density == "compact" else 10
+        self.log_panel.frame.pack(side="bottom", fill="x", padx=gap, pady=(2, gap))
+        st.pack(side="bottom", fill="x", padx=gap, pady=2)
+        self.tabs.pack(fill="both", expand=True, padx=gap, pady=2)
 
         self.runner = W.Runner(self.root.after, self._log_async, self._progress, self._busy, self.redactor.redact)
 
@@ -195,6 +205,47 @@ class App:
         if start and os.path.isdir(str(start)):
             self.set_folder(str(start), quiet=True)
         self._update_views()
+
+    # ------------------------------------------------------------------ cua so
+    def _place_window(self) -> None:
+        p = self.window
+        try:
+            sc = float(W.ctk.ScalingTracker.get_window_scaling(self.root))
+        except Exception:  # pragma: no cover
+            sc = 1.0
+        x = max(0, int((self.root.winfo_screenwidth() - p.width * sc) / 2))
+        y = max(0, int((self.root.winfo_screenheight() - p.height * sc) / 3)) if not p.zoomed else 0
+        self.root.geometry(f"{p.width}x{p.height}+{x}+{y}")
+        self.root.minsize(p.min_width, p.min_height)
+        if p.zoomed:
+            self.root.after(30, self._zoom)
+
+    def _zoom(self) -> None:
+        try:
+            if sys.platform.startswith("win"):
+                self.root.state("zoomed")
+            else:
+                self.root.attributes("-zoomed", True)
+        except Exception:  # noqa: BLE001 - trinh quan ly cua so khong ho tro: da dat co bang man hinh
+            pass
+
+    def _remember_window(self) -> None:
+        """Nhớ cỡ cửa sổ cho lần sau: phóng to hết màn hình, hoặc ``RỘNGxCAO`` theo đơn vị LOGIC — ``geometry()`` của
+        CustomTkinter, KHÔNG phải ``winfo_geometry()`` (pixel thật: lưu nhầm thì trên máy đặt phóng to 125% / 150% cửa
+        sổ to thêm 1,25–1,5 lần mỗi lần mở)."""
+        if self._is_zoomed():
+            self.cfg["UiZoomed"] = True
+            return
+        self.cfg["UiZoomed"] = False
+        self.cfg["UiGeometry"] = self.root.geometry().split("+")[0]
+
+    def _is_zoomed(self) -> bool:
+        try:
+            if sys.platform.startswith("win"):
+                return str(self.root.state()) == "zoomed"
+            return bool(self.root.attributes("-zoomed"))
+        except Exception:  # noqa: BLE001
+            return False
 
     # ------------------------------------------------------------------ chung
     def secrets(self) -> dict[str, str]:
@@ -351,7 +402,7 @@ class App:
             if ans and not self.settings.save():
                 return
         try:
-            self.cfg["UiGeometry"] = self.root.winfo_geometry()
+            self._remember_window()
             C.save_config(self.cfg)
         except Exception:  # noqa: BLE001
             pass
@@ -385,7 +436,7 @@ class UndoDialog:
         self.d = W.Dialog(app.root, "Hoàn tác", 1040, 560)
         ctk.CTkLabel(self.d.body, text="Tick lần chạy muốn hoàn tác (mới nhất ở trên). File tạo ra → Thùng rác; file đã "
                      "đổi tên / di chuyển → trả về chỗ cũ. Không bao giờ xoá hẳn file của bạn.", anchor="w",
-                     justify="left", wraplength=1000).pack(fill="x")
+                     justify="left", wraplength=self.d.wrap).pack(fill="x")
         cols = [W.Col("step", "Bước", 150), W.Col("when", "Lúc chạy", 150), W.Col("what", "Thao tác", 360),
                 W.Col("note", "Ghi chú", 300, stretch=True)]
         self.t = W.Table(self.d.body, cols, check="Chọn", height=14, selectmode="browse")

@@ -26,7 +26,8 @@ def format_log(lines: list[tuple[str, str, str]]) -> str:
 
 
 class LogPanel:
-    def __init__(self, master: Any, folder: Callable[[], str | None], redact: Callable[[str], str] | None = None):
+    def __init__(self, master: Any, folder: Callable[[], str | None], redact: Callable[[str], str] | None = None,
+                 height: int = 120):
         ctk = W.ctk
         self.folder = folder
         self.redact = redact
@@ -42,9 +43,9 @@ class LogPanel:
         self.count.pack(side="left", padx=8)
         for txt, cmd in (("Mở thư mục", self.open_folder), ("Lưu log…", self.save), ("Xoá", self.clear)):
             ctk.CTkButton(bar, text=txt, width=96, command=cmd).pack(side="right", padx=3)
-        self.box = ctk.CTkTextbox(self.frame, height=120, wrap="word",
+        self.box = ctk.CTkTextbox(self.frame, height=height, wrap="word",
                                   font=ctk.CTkFont(family=W.mono_family(), size=12))
-        self.box.pack(fill="both", expand=True, padx=6, pady=6)
+        self.box.pack(fill="both", expand=True, padx=6, pady=(2, 6))
         self._apply_colors()
         self.box.configure(state="disabled")
         self.expanded = True
@@ -103,7 +104,7 @@ class LogPanel:
             self.box.pack_forget()
             self.toggle_btn.configure(text="▸ Nhật ký")
         else:
-            self.box.pack(fill="both", expand=True, padx=6, pady=6)
+            self.box.pack(fill="both", expand=True, padx=6, pady=(2, 6))
             self.toggle_btn.configure(text="▾ Nhật ký")
         self.expanded = not self.expanded
 

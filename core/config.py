@@ -58,6 +58,10 @@ FIELDS: tuple[Field, ...] = (
     Field("FfmpegPath", "", "chung", "ffmpeg.exe", "Để trống = tự tìm.", "file"),
     Field("FfprobePath", "", "chung", "ffprobe.exe", "Để trống = tự tìm.", "file"),
     Field("AlassPath", "", "chung", "alass.exe", "Để trống = tự tìm.", "file"),
+    Field("UiScale", "auto", "chung", "Cỡ chữ và giao diện", "'auto' = tự chọn theo màn hình (to hơn 10% trên màn hình "
+          "1440p / 4K đặt tỉ lệ 100%); hoặc chọn % (90 = gọn hơn cho màn hình 720p, 125 / 150 = to hơn). Cửa sổ tự vừa "
+          "màn hình 720p / 1080p / 1440p. Có hiệu lực khi mở lại MuxStudio.", "choice",
+          ("auto", "90", "100", "110", "125", "150")),
     Field("ScanSubFolders", True, "chung", "Quét cả thư mục con", "Nhiều season một lượt."),
     Field("VideoExts", [".mkv", ".mp4", ".avi", ".m4v", ".ts", ".mov"], "chung", "Đuôi file phim", "", "list", advanced=True),
     Field("SubFolderName", "srt_can_sync", "chung", "Thư mục phụ đề cần sync", "Nơi hạ phụ đề tải về (bước ② xử lý tiếp)."),

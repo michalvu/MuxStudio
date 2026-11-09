@@ -498,3 +498,77 @@ def test_main_startup_error_written_to_file(config_dir, monkeypatch, capsys):
     txt = (config_dir / "loi_khoi_dong.txt").read_text(encoding="utf-8")
     assert "RuntimeError: hỏng màn hình" in txt
     assert (shown and "hỏng màn hình" in shown[0]) or "hỏng màn hình" in capsys.readouterr().err
+
+
+# ==========================================================================
+#  Tên file dài + bố cục theo độ phân giải (720p / 1080p / 1440p)
+# ==========================================================================
+
+LONG = ("[Judas] Sousou no Frieren - S01E05 - The Journey's End and the Hero's Party Departs Again "
+        "[1080p][HEVC x265 10bit][Dual-Audio][Multi-Subs].mkv")
+
+
+@pytest.mark.parametrize("w", [120, 80, 60, 40, 30, 20, 14, 9])
+def test_fit_name_keeps_episode_and_extension(w):
+    out = W.fit_text(LONG, w, len, "name")
+    assert len(out) <= w and "…" in out
+    assert "S01E05" in out  # KHONG BAO GIO mat so tap
+    if w >= 30:
+        assert out.startswith("[Judas] S") and out.endswith(".mkv")
+
+
+def test_fit_text_other_cases():
+    assert W.fit_text("ngắn", 10) == "ngắn" and W.fit_text(None, 10) == "" and W.fit_text("", 0) == ""
+    assert W.fit_text("Cần chọn: có 2 audio tiếng Anh", 16) == "Cần chọn: có 2…"
+    assert W.fit_text("abc", 0) == ""  # khong du cho ca dau "…"
+    movie = "Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX.mkv"
+    out = W.fit_text(movie, 40, len, "name")  # khong co so tap: bo phan giua, giu dau + nhom release
+    assert len(out) == 40 and out.startswith("Dune.Part.Two.2024") and out.endswith("-FLUX.mkv")
+    anime = W.fit_text("[Judas] One Piece - 1085 [1080p][HEVC x265 10bit][Multi-Subs].mkv", 30, len, "name")
+    assert "- 1085" in anime and len(anime) <= 30
+    # ten series rat dai truoc so tap: rut gon ten, van giu so tap
+    out = W.fit_text("A" * 80 + ".S02E10.1080p.mkv", 24, len, "name")
+    assert "S02E10" in out and len(out) <= 24
+    # do bang pixel (moi ky tu rong khac nhau) cung dung
+    out = W.fit_text(LONG, 300, lambda s: sum(9 if c.isupper() else 7 for c in s), "name")
+    assert "S01E05" in out
+    assert W.shorten_name(LONG, 50) == W.fit_text(LONG, 50, len, "name") and len(W.shorten_name(LONG, 50)) <= 50
+
+
+@pytest.mark.parametrize("sw,sh,zoomed,density,fits", [
+    (1280, 720, True, "compact", (1264, 648)),   # 720p: phong to het man hinh, bo cuc gon
+    (1366, 768, True, "compact", (1350, 696)),   # laptop 768p
+    (1280, 720, True, "compact", (1264, 648)),   # 1080p dat phong to 150% (= 1280x720 logic)
+    (1536, 864, False, "compact", None),          # 1080p dat phong to 125%
+    (1920, 1080, False, "normal", None),          # 1080p 100%
+    (2560, 1440, False, "large", None),           # 1440p 100%
+    (2048, 1152, False, "normal", None),          # 1440p dat phong to 125%
+    (3840, 2160, False, "large", None),           # 4K
+])
+def test_plan_window_fits_every_screen(sw, sh, zoomed, density, fits):
+    p = W.plan_window(sw, sh)
+    assert p.zoomed is zoomed and p.density == density
+    assert p.width <= sw - 16 and p.height <= sh - 72  # khong bao gio to hon man hinh
+    assert p.min_width <= p.width and p.min_height <= p.height
+    if fits:
+        assert (p.width, p.height) == fits
+    if sw >= 1900 and not zoomed:
+        assert p.width >= 1600  # man hinh lon: dung phan lon man hinh (truoc day co dinh 1320x900)
+
+
+def test_plan_window_saved_size_only_if_it_still_fits():
+    assert (W.plan_window(1920, 1080, "1500x900").width, W.plan_window(1920, 1080, "1500x900").height) == (1500, 900)
+    assert W.plan_window(1920, 1080, "1500x900+12+30").width == 1500
+    big = W.plan_window(1920, 1080, "2400x1400")  # luu tu man hinh 1440p, nay mo tren 1080p -> bo qua
+    assert big.width <= 1904 and big.height <= 1008
+    assert W.plan_window(1920, 1080, "rác").width == W.plan_window(1920, 1080).width
+    assert W.plan_window(1920, 1080, zoomed=True).zoomed
+
+
+def test_ui_factor_choices():
+    assert W.ui_factor("auto", 1920, 1080) == 1.0 and W.ui_factor("auto", 1280, 720) == 1.0
+    assert W.ui_factor("auto", 2560, 1440) == 1.1 and W.ui_factor("auto", 3840, 2160) == 1.1
+    assert W.ui_factor("125", 1920, 1080) == 1.25 and W.ui_factor("90%", 1280, 720) == 0.9
+    assert W.ui_factor("500", 0, 0) == 2.0 and W.ui_factor("lạ", 0, 0) == 1.0
+    f = C.FIELD_BY_KEY["UiScale"]
+    assert f.default == "auto" and f.choices == ("auto", "90", "100", "110", "125", "150")

@@ -226,6 +226,7 @@ class SubprepView:
         self.extract_btn.grid(row=0, column=5, padx=(16, 10))
         self.extract_hint = ctk.CTkLabel(of, text="", text_color=W.LEVEL_COLORS["warn"], anchor="w")
         self.extract_hint.grid(row=1, column=1, columnspan=5, sticky="w")
+        self.extract_hint.grid_remove()  # chi hien khi co dieu can nhac (tiet kiem chieu cao man hinh 720p)
         of.columnconfigure(6, weight=1)
 
         # bang audio cua file mau (chi hien khi moc = audio)
@@ -243,12 +244,12 @@ class SubprepView:
         self.alang.pack(side="left", padx=4)
         acols = [W.Col("idx", "Số thứ tự", 80, "e"), W.Col("lang", "Ngôn ngữ", 90), W.Col("codec", "Codec", 110),
                  W.Col("ch", "Kênh", 60, "e"), W.Col("title", "Tên track", 360, stretch=True), W.Col("def", "Default", 70)]
-        self.atable = W.Table(self.audio_box, acols, height=4)
+        self.atable = W.Table(self.audio_box, acols, height=3)
         self.atable.frame.pack(fill="x", padx=10, pady=(0, 8))
         self.atable.on_select = lambda ids: self.amode.set("index") if ids else None
 
         # --- 5-6. doi ten / dong bo ---
-        self.inner = ctk.CTkTabview(self.frame, height=380)
+        self.inner = ctk.CTkTabview(self.frame, height=200)
         self.inner.pack(fill="both", expand=True)
         t1 = self.inner.add("Bước 1 — Đổi tên")
         t2 = self.inner.add("Bước 2 — Đồng bộ")
@@ -260,9 +261,10 @@ class SubprepView:
         self.rename_btn.pack(side="left", padx=6)
         self.rename_info = ctk.CTkLabel(b1, text="", anchor="w")
         self.rename_info.pack(side="left", padx=10)
-        rcols = [W.Col("ep", "Tập", 80), W.Col("old", "Tên cũ", 380, stretch=True), W.Col("new", "→ Tên mới", 380, stretch=True),
-                 W.Col("lang", "Ngôn ngữ", 70), W.Col("why", "Lý do / cảnh báo", 300)]
-        self.rtable = W.Table(t1, rcols, check="Đổi", height=10)
+        rcols = [W.Col("ep", "Tập", 80), W.Col("old", "Tên cũ", 380, stretch=True, fit="name"),
+                 W.Col("new", "→ Tên mới", 380, stretch=True, fit="name"), W.Col("lang", "Ngôn ngữ", 90),
+                 W.Col("why", "Lý do / cảnh báo", 280, stretch=True)]
+        self.rtable = W.Table(t1, rcols, check="Đổi", height=5)
         self.rtable.frame.pack(fill="both", expand=True, pady=(6, 0))
         self.rtable.on_toggle = self._rename_toggle
         self.rtable.on_toggle_all = self._rename_toggle_all
@@ -286,12 +288,13 @@ class SubprepView:
         self.cleanup_btn.pack(side="left", padx=6)
         self.sync_info = ctk.CTkLabel(b2, text="", anchor="w")
         self.sync_info.pack(side="left", padx=10)
-        scols = [W.Col("sub", "Phụ đề", 260, stretch=True), W.Col("ref", "Mốc", 220), W.Col("kind", "Loại mốc", 90),
-                 W.Col("out", "Kết quả (cạnh phim)", 240), W.Col("forecast", "Dự báo", 220), W.Col("health", "Sức khoẻ", 90),
+        scols = [W.Col("sub", "Phụ đề", 260, stretch=True, fit="name"), W.Col("ref", "Mốc", 220, fit="name"),
+                 W.Col("kind", "Loại mốc", 90), W.Col("out", "Kết quả (cạnh phim)", 240, stretch=True, fit="name"),
+                 W.Col("forecast", "Dự báo", 220), W.Col("health", "Sức khoẻ", 90),
                  W.Col("first", "Dịch đầu", 75, "e"), W.Col("last", "Dịch cuối", 75, "e"), W.Col("spread", "Chênh", 65, "e"),
                  W.Col("resid", "Còn lệch", 75, "e"), W.Col("votes", "Mốc khớp", 75, "e"), W.Col("cut", "Cắt recap", 70, "e"),
                  W.Col("flags", "Cờ / lý do", 360)]
-        self.stable = W.Table(t2, scols, check="Chạy", height=10)
+        self.stable = W.Table(t2, scols, check="Chạy", height=5)
         self.stable.frame.pack(fill="both", expand=True, pady=(6, 0))
         self.stable.on_toggle = self._pair_toggle
         self.stable.on_toggle_all = self._pair_toggle_all
@@ -425,8 +428,10 @@ class SubprepView:
             if c.refs == 0 and c.videos:
                 self.extract_hint.configure(text=f"'{cfg['ExtractFolder']}' đang trống → bấm \"Trích phụ đề gốc từ MKV…\" "
                                             "(hoặc chọn mốc = Audio của file phim).")
+                self.extract_hint.grid()
             else:
                 self.extract_hint.configure(text="")
+                self.extract_hint.grid_remove()
             self.update_buttons()
 
         self.app.runner.start("Đếm file (bước ②)", work, done, when_free=True)
@@ -442,7 +447,7 @@ class SubprepView:
         def done(res: tuple[Path | None, list[probe.AudioStream]]) -> None:
             self.sample, self.streams = res
             self.atable.clear()
-            self.audio_title.configure(text=f"Audio track của file mẫu: {self.sample.name}" if self.sample else
+            self.audio_title.configure(text=f"Audio track của file mẫu: {W.shorten_name(self.sample.name, 90)}" if self.sample else
                                        "Không tìm thấy file phim (hoặc thiếu ffprobe) để đọc audio track.")
             for a in self.streams:
                 self.atable.add(f"a{a.index}", {"idx": a.index, "lang": a.lang, "codec": a.codec, "ch": a.channels or "",
@@ -472,9 +477,9 @@ class SubprepView:
         n_ok = sum(1 for r in rows if r.ok)
         ctk.CTkLabel(d.body, text=f"{n_ok}/{len(rows)} file sẽ được trích phụ đề không SDH (theo thứ tự ngôn ngữ trong Cài đặt; "
                      f"chỉ có PGS thì đọc mốc thời gian) vào '{self.app.cfg['ExtractFolder']}'. Bỏ tick dòng không muốn.",
-                     anchor="w", justify="left", wraplength=1060).pack(fill="x")
-        cols = [W.Col("video", "File phim", 400, stretch=True), W.Col("track", "Track", 300), W.Col("dest", "Ghi thành", 260),
-                W.Col("why", "Lý do bỏ qua", 200)]
+                     anchor="w", justify="left", wraplength=d.wrap).pack(fill="x")
+        cols = [W.Col("video", "File phim", 400, stretch=True, fit="name"), W.Col("track", "Track", 300),
+                W.Col("dest", "Ghi thành", 260, fit="name"), W.Col("why", "Lý do bỏ qua", 200)]
         t = W.Table(d.body, cols, check="Trích", height=14)
         t.frame.pack(fill="both", expand=True, pady=6)
         for i, r in enumerate(rows):
@@ -686,7 +691,7 @@ class SubprepView:
         ctk = W.ctk
         d = W.Dialog(self.frame, "Dọn dẹp file nguồn", 900, 520)
         ctk.CTkLabel(d.body, text=f"{plan.done} phụ đề đã đồng bộ xong. Xoá file nguồn đã dùng? Nơi xoá: {plan.where}.",
-                     anchor="w", justify="left", wraplength=860,
+                     anchor="w", justify="left", wraplength=d.wrap,
                      text_color=W.LEVEL_COLORS["error"] if not plan.to_recycle_bin else W.LEVEL_COLORS["info"]).pack(fill="x")
         root = self.app.folder or ""
         txt = (f"— '{self.app.cfg['SubFolderName']}' ({len(plan.sub_files)} file):\n"

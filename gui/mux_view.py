@@ -232,23 +232,22 @@ class MuxView:
         self.frame = ctk.CTkFrame(parent, fg_color="transparent")
         self.frame.pack(fill="both", expand=True)
 
-        # --- 1. database ---
+        # --- 1. database (mot hang ngang: tiet kiem chieu cao cho man hinh 720p) ---
         dbf = ctk.CTkFrame(self.frame)
         dbf.pack(fill="x")
-        ctk.CTkLabel(dbf, text="Đặt tên theo (bắt buộc chọn mỗi lần):", font=ctk.CTkFont(weight="bold")).grid(
-            row=0, column=0, rowspan=3, sticky="nw", padx=10, pady=8)
+        ctk.CTkLabel(dbf, text="Đặt tên theo (bắt buộc chọn):", font=ctk.CTkFont(weight="bold")).pack(
+            side="left", padx=(10, 8), pady=6)
         self.db = W.tk.StringVar(value="")  # KHONG chon san
         self.db_status: dict[str, Any] = {}
-        for i, (k, label) in enumerate(DBS):
-            ctk.CTkRadioButton(dbf, text=label, variable=self.db, value=k, command=self.db_changed, width=150).grid(
-                row=i, column=1, sticky="w", pady=2)
+        self.db_check_btn = ctk.CTkButton(dbf, text="Kiểm tra lại", width=110, command=self.check_db)
+        self.db_check_btn.pack(side="right", padx=10)
+        for k, label in DBS:
+            ctk.CTkRadioButton(dbf, text=label, variable=self.db, value=k, command=self.db_changed).pack(
+                side="left", padx=(6, 2))
             lb = ctk.CTkLabel(dbf, text="", text_color=W.LEVEL_COLORS["dim"], anchor="w")
-            lb.grid(row=i, column=2, sticky="w", padx=8)
+            lb.pack(side="left", padx=(8, 16))
             self.db_status[k] = lb
         self.db_status["none"].configure(text="giữ tên file gốc")
-        self.db_check_btn = ctk.CTkButton(dbf, text="Kiểm tra lại", width=110, command=self.check_db)
-        self.db_check_btn.grid(row=0, column=3, padx=12, pady=4, sticky="w")
-        dbf.columnconfigure(4, weight=1)
 
         # --- nut ---
         bf = ctk.CTkFrame(self.frame, fg_color="transparent")
@@ -272,26 +271,28 @@ class MuxView:
                               background=W.pick(("#dbdbdb", "#2b2b2b")))
         pw.pack(fill="both", expand=True)
         top = W.ttk.Frame(pw)
-        cols = [W.Col("src", "Tên gốc", 250, stretch=True), W.Col("new", "→ Tên mới (trong Output)", 330, stretch=True),
+        cols = [W.Col("src", "Tên gốc", 250, stretch=True, fit="name"),
+                W.Col("new", "→ Tên mới (trong Output)", 330, stretch=True, fit="name"),
                 W.Col("audio", "Audio giữ", 75), W.Col("subs", "Phụ đề giữ", 125), W.Col("donor", "Audio ghép", 140),
                 W.Col("tag", "Thẻ codec", 140), W.Col("status", "Trạng thái", 240, stretch=True)]
-        self.table = W.Table(top, cols, check="Mux", height=10)
+        self.table = W.Table(top, cols, check="Mux", height=6)
         self.table.frame.pack(fill="both", expand=True)
         self.table.on_select = self._on_select
         self.table.on_double = self._on_double
         self.table.on_toggle = self._toggle
         self.table.on_toggle_all = self._toggle_all
         self.table.tip = self._tip
-        pw.add(top, stretch="always", minsize=150)
+        pw.add(top, stretch="always", minsize=110)
 
         bot = W.ttk.Frame(pw)
-        self.inner = ctk.CTkTabview(bot, height=300)
+        self.inner = ctk.CTkTabview(bot, height=200)
         self.inner.pack(fill="both", expand=True)
         self.t_audio = self.inner.add("Audio của file đang chọn")
         self.t_grid = self.inner.add("Bảng chọn phụ đề theo tập")
         self.t_donor = self.inner.add("Audio ghép từ file khác")
         self.t_info = self.inner.add("Chi tiết")
-        pw.add(bot, stretch="always", minsize=200)
+        pw.add(bot, stretch="always", minsize=160)
+        W.split_pane(pw, 0.42)
         self._build_audio()
         self._build_grid()
         self._build_donor()
@@ -309,7 +310,6 @@ class MuxView:
         hb = ctk.CTkFrame(self.t_audio, fg_color="transparent")
         hb.pack(fill="x")
         self.audio_title = ctk.CTkLabel(hb, text="Chọn một file ở bảng trên.", anchor="w")
-        self.audio_title.pack(side="left")
         self.keep_both_btn = ctk.CTkButton(hb, text="Giữ cả hai, Default = bitrate cao nhất", width=250,
                                            command=self.keep_both)
         self.keep_both_btn.pack(side="right", padx=4)
@@ -318,10 +318,11 @@ class MuxView:
         self.apply_rest = W.tk.BooleanVar(value=True)
         self.apply_rest_cb = ctk.CTkCheckBox(hb, text="Áp dụng cho mọi file còn lại", variable=self.apply_rest)
         self.apply_rest_cb.pack(side="right", padx=8)
+        self.audio_title.pack(side="left", fill="x", expand=True)  # xep sau nut: ten dai khong day nut ra ngoai
         cols = [W.Col("id", "ID", 40, "e"), W.Col("lang", "Ngôn ngữ", 100), W.Col("codec", "Codec", 110),
                 W.Col("ch", "Kênh", 50), W.Col("br", "Bitrate", 90, "e"), W.Col("brsrc", "Nguồn bitrate", 110),
                 W.Col("name", "Tên track", 260, stretch=True), W.Col("note", "Ghi chú", 220)]
-        self.atable = W.Table(self.t_audio, cols, check="Xoá", height=6)
+        self.atable = W.Table(self.t_audio, cols, check="Xoá", height=3)
         self.atable.frame.pack(fill="both", expand=True, pady=(4, 0))
 
     def _build_grid(self) -> None:
@@ -329,13 +330,13 @@ class MuxView:
         hb = ctk.CTkFrame(self.t_grid, fg_color="transparent")
         hb.pack(fill="x")
         self.grid_note = ctk.CTkLabel(hb, text="Lập kế hoạch trước.", anchor="w")
-        self.grid_note.pack(side="left")
         self.grid_apply_btn = ctk.CTkButton(hb, text="Áp dụng bảng chọn", width=150, command=self.apply_grid)
         self.grid_apply_btn.pack(side="right", padx=4)
         for txt, fn in (("Bỏ tick tất cả", lambda: self._grid_all(False)), ("Tick tất cả", lambda: self._grid_all(True)),
                         ("Trả về mặc định", self._grid_reset)):
             ctk.CTkButton(hb, text=txt, width=120, command=fn, fg_color=("gray70", "gray30"),
                           text_color=("gray10", "gray90")).pack(side="right", padx=4)
+        self.grid_note.pack(side="left", fill="x", expand=True)
         self.grid = W.CheckGrid(self.t_grid)
         self.grid.frame.pack(fill="both", expand=True, pady=(4, 0))
         self.grid.on_change = self._grid_changed
@@ -346,10 +347,11 @@ class MuxView:
         ctk = W.ctk
         ctk.CTkLabel(self.t_donor, text="Bấm đúp vào ô \"Độ lệch\" để sửa tay (chỉ cho lượt chạy này; muốn lưu lâu dài thì "
                      "điền 'Độ lệch chỉnh tay' trong Cài đặt).", anchor="w").pack(fill="x")
-        cols = [W.Col("src", "Phim", 280, stretch=True), W.Col("donor", "File nguồn", 260), W.Col("langs", "Ngôn ngữ", 80),
+        cols = [W.Col("src", "Phim", 280, stretch=True, fit="name"), W.Col("donor", "File nguồn", 260, stretch=True, fit="name"),
+                W.Col("langs", "Ngôn ngữ", 80),
                 W.Col("off", "Độ lệch (ms)", 110, "e"), W.Col("how", "Cách đo", 260), W.Col("fps", "Khác FPS", 170),
                 W.Col("note", "Ghi chú", 260)]
-        self.dtable = W.Table(self.t_donor, cols, height=6)
+        self.dtable = W.Table(self.t_donor, cols, height=3)
         self.dtable.frame.pack(fill="both", expand=True, pady=(4, 0))
         self.dtable.on_double = self._donor_double
 
@@ -574,9 +576,10 @@ class MuxView:
             return
         self.info.insert("1.0", "\n".join(plan_details(p, out_dir)))
         self.info.configure(state="disabled")
-        head = f"{W.ellipsize_middle(p.rel, 80)} — {len(p.audio)} audio"
+        n = {"compact": 40, "normal": 60, "large": 90}.get(getattr(self.app, "density", "normal"), 60)
+        head = f"{W.shorten_name(p.src.name, n)} — {len(p.audio)} audio"
         if multi_en(p):
-            head += "  ⚠ nhiều audio tiếng Anh: tick track muốn xoá, hoặc \"Giữ cả hai\""
+            head += "  ⚠ 2+ audio tiếng Anh: tick track muốn xoá"
         elif p.needs_audio_table:
             head += " — tick track muốn XOÁ rồi bấm \"Áp dụng\""
         self.audio_title.configure(text=head, text_color=W.LEVEL_COLORS["warn"] if multi_en(p) else W.LEVEL_COLORS["info"])
@@ -822,7 +825,7 @@ class NameDialog:
         self.d = W.Dialog(view.frame, "Tên mới", 900, 520)
         nm = plan.name
         ctk.CTkLabel(self.d.body, text=f"File: {plan.rel}\n{nm.note or ''}", anchor="w", justify="left",
-                     wraplength=860).pack(fill="x")
+                     wraplength=self.d.wrap).pack(fill="x")
         cols = [W.Col("title", "Tên", 360, stretch=True), W.Col("year", "Năm", 70), W.Col("id", "ID", 140),
                 W.Col("orig", "Tên gốc", 240)]
         self.t = W.Table(self.d.body, cols, height=6)
