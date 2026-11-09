@@ -42,6 +42,13 @@ def ass_stamp(sec: float) -> str:
 
 
 def main(argv: list[str]) -> int:
+    # alass that (Rust) in ra UTF-8. Python con tren Windows mac dinh ghi bang bang ma ANSI (cp1250 o may tieng Sec)
+    # -> chu "giả" trong --help lam chet tien trinh -> khong doc duoc co ho tro. Ep UTF-8 nhu alass that.
+    for st in (sys.stdout, sys.stderr):
+        try:
+            st.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     conf = {}
     if os.environ.get("FAKE_ALASS"):
         with open(os.environ["FAKE_ALASS"], encoding="utf-8") as fh:

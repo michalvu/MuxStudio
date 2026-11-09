@@ -18,7 +18,7 @@ import re
 from typing import Any, Callable
 
 from core import naming, probe, tools
-from core.mux import MuxPlan, MuxReport, MuxSession
+from core.mux import MuxPlan, MuxReport, MuxSession, TrashReport, UsedFile, used_sources
 from core.tmdb import ConnStatus
 
 from . import widgets as W
@@ -249,22 +249,26 @@ class MuxView:
             self.db_status[k] = lb
         self.db_status["none"].configure(text="giữ tên file gốc")
 
-        # --- nut ---
+        # --- cac buoc: nut TO theo thu tu, buoc ke tiep sang mau ---
+        self._muxed = self._trash_done = False
+        self.trash_cands: list[UsedFile] = []
+        self.steps = W.StepBar(self.frame, [
+            ("plan", "Quét & lập kế hoạch", self.plan_all), ("run", "Bắt đầu mux", self.start_mux),
+            ("trash", "Dọn file nguồn đã dùng", self.offer_trash), ("out", "Mở thư mục Output", self.open_output)],
+            compact=app.density == "compact", plain=("out",))
+        self.steps.frame.pack(fill="x", pady=(6, 2))
+        self.plan_btn, self.run_btn, self.trash_btn = (self.steps.buttons[k] for k in ("plan", "run", "trash"))
+        # nut phu + goi y
         bf = ctk.CTkFrame(self.frame, fg_color="transparent")
-        bf.pack(fill="x", pady=6)
-        self.plan_btn = ctk.CTkButton(bf, text="1. Quét & lập kế hoạch", width=180, command=self.plan_all)
-        self.plan_btn.pack(side="left")
+        bf.pack(fill="x", pady=(0, 4))
         self.cmd_btn = ctk.CTkButton(bf, text="Xem lệnh", width=90, command=self.show_commands,
                                      fg_color=("gray70", "gray30"), text_color=("gray10", "gray90"))
-        self.cmd_btn.pack(side="left", padx=6)
-        self.run_btn = ctk.CTkButton(bf, text="2. Bắt đầu mux", width=150, command=self.start_mux)
-        self.run_btn.pack(side="left")
+        self.cmd_btn.pack(side="right", padx=(6, 0))
         self.keepall_btn = ctk.CTkButton(bf, text="Giữ mọi audio tiếng Anh (mọi file)", width=230, command=self.keep_all_en,
                                          fg_color=("gray70", "gray30"), text_color=("gray10", "gray90"))
-        self.keepall_btn.pack(side="left", padx=6)
-        ctk.CTkButton(bf, text="Mở thư mục Output", width=140, command=self.open_output).pack(side="right")
+        self.keepall_btn.pack(side="right", padx=6)
         self.hint = ctk.CTkLabel(bf, text="", anchor="w")
-        self.hint.pack(side="left", padx=10)
+        self.hint.pack(side="left", padx=10, fill="x", expand=True)
 
         # --- bang tong quan + chi tiet ---
         pw = W.tk.PanedWindow(self.frame, orient="vertical", sashwidth=6, borderwidth=0,
@@ -386,6 +390,8 @@ class MuxView:
         self.session = None
         self.plans = []
         self.cur = None
+        self._muxed = self._trash_done = False
+        self.trash_cands = []
         self.fill()
         self.summary.configure(text="")
         if note:
@@ -400,8 +406,8 @@ class MuxView:
             return "normal" if on and not busy else "disabled"
 
         has = bool(self.plans)
-        self.plan_btn.configure(state=st(bool(db) and bool(self.app.folder)))
-        self.run_btn.configure(state=st(bool(db) and has))
+        self.steps.update([has, has and self._muxed, self._trash_done or (self._muxed and not self.trash_cands), False],
+                          [bool(db) and bool(self.app.folder), bool(db) and has, bool(self.trash_cands), True], busy)
         self.cmd_btn.configure(state=st(has))
         self.keepall_btn.configure(state=st(any(multi_en(p) for p in self.plans)))
         self.db_check_btn.configure(state=st(True))
@@ -480,7 +486,12 @@ class MuxView:
                 s.set_job(job)
             return s.plan_all(db)
 
-        self.app.runner.start("Lập kế hoạch mux", work, lambda ps: self._set_plans(ps, {}))
+        def done(ps: list[MuxPlan]) -> None:
+            self._muxed = self._trash_done = False  # ke hoach moi = luot moi
+            self.trash_cands = []
+            self._set_plans(ps, {})
+
+        self.app.runner.start("Lập kế hoạch mux", work, done)
 
     def _set_plans(self, plans: list[MuxPlan], sel: dict[str, bool]) -> None:
         cur_key = key_of(self.plans[self.cur]) if self._plan() is not None else None
@@ -800,10 +811,44 @@ class MuxView:
             for p in ps:
                 if p.result is not None and p.result.ok:
                     p.selected = False
+            self._muxed, self._trash_done = True, False
+            seen = {os.path.normcase(os.fspath(u.path)) for u in self.trash_cands}
+            self.trash_cands = [u for u in self.trash_cands if u.path.is_file()] + [
+                u for u in used_sources(ps, s.out_dir) if os.path.normcase(os.fspath(u.path)) not in seen]
             self._set_plans(ps, {key_of(p): p.selected for p in ps})
             self.summary.configure(text=summary_text(rep))
+            if self.trash_cands and self.app.cfg["AskTrashSourcesAfterMux"]:
+                self.app.root.after(150, self.offer_trash)
 
         self.app.runner.start("Mux", work, done)
+
+    def offer_trash(self) -> None:
+        """Mux xong: hỏi đưa file nguồn đã dùng (MKV gốc, phụ đề ngoài, nguồn audio ghép) vào Thùng rác — tick từng file."""
+        cands = [u for u in self.trash_cands if u.path.is_file()]
+        s = self.session
+        if not cands or s is None:
+            self.trash_cands, self._trash_done = [], True
+            self.update_buttons()
+            W.info(self.frame, "Dọn file nguồn", "Không còn file nguồn nào để dọn (chỉ đề xuất file của các file đã mux "
+                   "THÀNH CÔNG, không đụng file vẫn cần cho file chưa mux).")
+            return
+        chosen = TrashDialog(self, cands).run()
+        self._trash_done = True
+        self.update_buttons()
+        if not chosen:
+            return
+
+        def work(job: tools.Job) -> TrashReport:
+            s.set_job(job)
+            return s.trash_sources(chosen)
+
+        def done(rep: TrashReport) -> None:
+            self.trash_cands = [u for u in self.trash_cands if u.path.is_file()]
+            if rep.failed:
+                W.warn(self.frame, "Dọn file nguồn", f"Không xoá được {len(rep.failed)} file (xem nhật ký).")
+            self.update_buttons()
+
+        self.app.runner.start("Dọn file nguồn đã mux", work, done)
 
     def open_output(self) -> None:
         d = os.path.join(self.app.folder, "Output") if self.app.folder else None
@@ -814,6 +859,56 @@ class MuxView:
         if self.session is not None:
             self.session.close()
             self.session = None
+
+
+def size_text(n: int) -> str:
+    """``1536`` → ``1,5 KB``; ``734003200`` → ``700 MB``; ``5 GB`` một chữ số lẻ."""
+    for unit, k in (("GB", 1 << 30), ("MB", 1 << 20), ("KB", 1 << 10)):
+        if n >= k:
+            v = n / k
+            return (f"{v:.1f}".replace(".", ",") if v < 10 else f"{v:.0f}") + f" {unit}"
+    return f"{n} B"
+
+
+def trash_values(u: UsedFile, root: str | os.PathLike[str] | None) -> dict[str, str]:
+    """Một dòng của hộp thoại "Dọn file nguồn đã dùng"."""
+    try:
+        size = size_text(u.path.stat().st_size)
+    except OSError:
+        size = "?"
+    rel = os.path.relpath(u.path, root) if root and tools.is_under(u.path, root) else os.fspath(u.path)
+    return {"kind": u.kind_text, "file": rel, "size": size, "used": ", ".join(u.used_for)}
+
+
+class TrashDialog:
+    """Danh sách file nguồn đã dùng cho file mux thành công, tick sẵn — bấm nút mới đưa vào Thùng rác."""
+
+    def __init__(self, view: "MuxView", cands: list[UsedFile]):
+        ctk = W.ctk
+        self.cands = cands
+        rb = bool(view.app.cfg["DeleteToRecycleBin"])
+        self.d = W.Dialog(view.frame, "Dọn file nguồn đã mux xong", 1080, 560)
+        ctk.CTkLabel(self.d.body, text=f"{len(cands)} file nguồn đã dùng cho các file mux THÀNH CÔNG (kết quả nằm trong "
+                     "Output). Tick file muốn xoá. File vẫn cần cho file chưa mux không có trong danh sách.",
+                     anchor="w", justify="left", wraplength=self.d.wrap).pack(fill="x")
+        ctk.CTkLabel(self.d.body, text="→ vào Thùng rác (khôi phục được: chuột phải trong Thùng rác › Restore)." if rb else
+                     "⚠ Bạn đã TẮT 'Xoá vào Thùng rác' → các file này sẽ bị XOÁ HẲN.", anchor="w",
+                     text_color=W.LEVEL_COLORS["ok" if rb else "error"]).pack(fill="x", pady=(4, 0))
+        cols = [W.Col("kind", "Loại", 150), W.Col("file", "File", 470, stretch=True, fit="name"),
+                W.Col("size", "Dung lượng", 90, "e"), W.Col("used", "Đã dùng cho", 300, stretch=True, fit="name")]
+        self.t = W.Table(self.d.body, cols, check="Xoá", height=12, selectmode="browse")
+        self.t.frame.pack(fill="both", expand=True, pady=8)
+        root = view.app.folder
+        for i, u in enumerate(cands):
+            self.t.add(f"t{i}", trash_values(u, root), checked=True)
+        self.d.button("Không xoá", lambda: self.d.close(None))
+        self.d.button("Đưa các file đã tick vào Thùng rác" if rb else "XOÁ HẲN các file đã tick", self._ok, primary=True)
+
+    def _ok(self) -> None:
+        self.d.close([self.cands[int(i[1:])] for i in self.t.checked_ids()])
+
+    def run(self) -> list[UsedFile] | None:
+        return self.d.run()
 
 
 class NameDialog:

@@ -22,7 +22,8 @@ def test_run_uses_argument_list_no_shell(monkeypatch):
         return real(args, **kw)
 
     monkeypatch.setattr(subprocess, "Popen", spy)
-    r = tools.run([sys.executable, "-c", "print('xin chào [YTS.MX]')"])
+    # Python con in UTF-8 nhu mkvmerge / ffprobe (mac dinh tren Windows la bang ma ANSI, vd cp1250: khong co "à")
+    r = tools.run([sys.executable, "-c", "import sys; sys.stdout.reconfigure(encoding='utf-8'); print('xin chào [YTS.MX]')"])
     assert r.code == 0 and r.stdout.strip() == "xin chào [YTS.MX]"
     assert isinstance(seen["args"], list) and "shell" not in seen["kw"]
     if os.name == "nt":
@@ -83,7 +84,7 @@ def test_walk_files_brackets_and_skip(tmp_path):
 
 def test_copy_file_brackets(tmp_path):
     src = tmp_path / "[Judas] a.srt"
-    src.write_text("x", encoding="utf-8")
+    src.write_text("x", encoding="utf-8", newline="")
     dst = tmp_path / "srt_can_sync" / "vi" / "[Judas] b [1080p].vi.srt"
     tools.copy_file(src, dst)
     assert dst.read_text(encoding="utf-8") == "x"
@@ -175,7 +176,7 @@ def test_tool_info_found_missing_broken_and_wrong_file(tmp_path, monkeypatch):
     assert tools.tool_info("alass", None).text == "không tìm thấy"
     assert tools.tool_info("ffprobe", tmp_path / "không có.exe").problem == "không có file này"
     bad = tmp_path / "[x] hỏng.exe"
-    bad.write_text("không phải chương trình", encoding="utf-8")
+    bad.write_text("không phải chương trình", encoding="utf-8", newline="")
     b = tools.tool_info("ffprobe", bad)
     assert not b.ok and "KHÔNG chạy được" in b.problem and "Unblock" in b.problem
     real = {n: shutil.which(n) for n in ("mkvmerge", "mkvextract", "ffmpeg", "ffprobe")}

@@ -163,3 +163,35 @@ def test_download_stops_when_quota_low(tmp_path):
 ])
 def test_usable(attrs, kw, ok):
     assert opensubs.usable({"attributes": attrs}, **kw) is ok
+
+
+# ---------------------------------------------------------------- ket qua do API that (2026-11-09, SPEC 7.E)
+def test_language_codes_match_real_server():
+    """``/infos/languages`` thật KHÔNG có ``zh``, ``pt`` (có ``zh-cn``, ``zh-tw``, ``pt-pt``, ``pt-br``)."""
+    assert opensubs.os_languages("zh") == "zh-cn,zh-tw" and opensubs.os_languages("pt") == "pt-br,pt-pt"
+    assert opensubs.os_languages("vi") == "vi" and opensubs.os_languages("CS") == "cs"
+    http = base_http()
+    http.add("GET", r"/subtitles", FakeResponse(200, {"data": [{"id": "1"}]}))
+    c, _, _ = client(http)
+    c.login(quiet=True)
+    c.search("tt0133093", None, None, "zh")
+    call = http.calls_to("/subtitles")[0]
+    assert call.params["languages"] == "zh-cn,zh-tw"
+    assert list(call.params) == sorted(call.params)  # theo chu cai: may chu khong chuyen huong 301
+
+
+def test_absolute_episode_without_season():
+    """Dò thật: ``query=One Piece&episode_number=643`` (không season) → 0 kết quả ⇒ không hỏi theo tên; có IMDb thì
+    vẫn thử IMDb (2 lượt) nhưng bỏ lượt tìm theo tên."""
+    http = base_http()
+    http.add("GET", r"/subtitles", FakeResponse(200, {"data": []}))
+    c, _, job = client(http)
+    c.login(quiet=True)
+    assert c.search(None, None, 643, "en", "One Piece") == []
+    assert http.calls_to("/subtitles") == [] and any("không rõ season" in m for _, m in job.lines)
+    assert c.search("tt0388629", None, 643, "en", "One Piece") == []
+    calls = http.calls_to("/subtitles")
+    assert len(calls) == 2 and all("query" not in x.params and x.params["episode_number"] == "643" for x in calls)
+    # co season (TMDB doi so tuyet doi -> S16E01): du 3 luot nhu .bat
+    c.search("tt0388629", 16, 1, "en", "One Piece")
+    assert len(http.calls_to("/subtitles")) == 5 and "query" in http.calls_to("/subtitles")[-1].params

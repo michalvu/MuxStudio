@@ -12,9 +12,16 @@ from fakehttp import FakeHTTP, Sleeper
 from synth import make_ref_times, srt_text
 from test_subfetch import ass_text
 
-MKVMERGE = shutil.which("mkvmerge")
-MKVEXTRACT = shutil.which("mkvextract")
-FFMPEG = shutil.which("ffmpeg")
+
+
+def _find(name):
+    """PATH, rồi như nút "Tự tìm" (Desktop\\mkvtoolnix, cạnh alass… — trên Windows thường KHÔNG có trong PATH)."""
+    return shutil.which(name) or tools.find_tool(name, C.Config({}))
+
+
+MKVMERGE = _find("mkvmerge")
+MKVEXTRACT = _find("mkvextract")
+FFMPEG = _find("ffmpeg")
 pytestmark = pytest.mark.skipif(not (MKVMERGE and MKVEXTRACT and FFMPEG), reason="thiếu mkvmerge/mkvextract/ffmpeg")
 
 
@@ -40,7 +47,7 @@ def mkv_lib(movie_dir):
     files = {}
     for k, t in times.items():
         files[k] = movie_dir / f"{k}.srt"
-        files[k].write_text(srt_text(t), encoding="utf-8")
+        files[k].write_text(srt_text(t), encoding="utf-8", newline="")
     stem = "[YTS.MX] Phim Thử (2020) [1080p]"
     make_mkv(movie_dir / f"{stem}.mkv", [(files["cs"], "cze", ""), (files["sdh"], "eng", "English SDH"), (files["en"], "eng", "")])
     for f in files.values():
@@ -93,7 +100,7 @@ def test_ass_track_kept_as_ass(movie_dir):
     """Q7: phụ đề gốc dạng ASS giữ là .ass trong srt_goc (bản .bat đổi đuôi thành .srt)."""
     t = make_ref_times(200, seed=5)
     a = movie_dir / "a.ass"
-    a.write_text(ass_text(t), encoding="utf-8")
+    a.write_text(ass_text(t), encoding="utf-8", newline="")
     stem = "[Judas] Show - 01 [1080p]"
     make_mkv(movie_dir / f"{stem}.mkv", [(a, "eng", "")])
     a.unlink()

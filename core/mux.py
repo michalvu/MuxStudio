@@ -329,6 +329,25 @@ class MuxResult:
 
 
 @dataclass
+class UsedFile:
+    """File nguồn đã dùng cho file mux THÀNH CÔNG — đề xuất đưa vào Thùng rác sau khi mux."""
+
+    path: Path
+    kind: str  # video | sub | donor
+    used_for: list[str] = field(default_factory=list)  # ten file ket qua trong Output
+
+    @property
+    def kind_text(self) -> str:
+        return {"video": "Phim gốc", "sub": "Phụ đề ngoài", "donor": "Nguồn audio ghép"}.get(self.kind, self.kind)
+
+
+@dataclass
+class TrashReport:
+    done: list[Path] = field(default_factory=list)
+    failed: list[Path] = field(default_factory=list)
+
+
+@dataclass
 class MuxPlan:
     src: Path
     rel: str
@@ -367,6 +386,36 @@ class MuxPlan:
     def status_text(self) -> str:
         return {"ok": "sẵn sàng", "need_choice": "Cần chọn", "skip": "bỏ qua", "exists": "đã có trong Output",
                 "fail": "lỗi"}.get(self.status, self.status)
+
+
+def used_sources(plans: Sequence[MuxPlan], out_dir: str | os.PathLike[str] | None = None) -> list[UsedFile]:
+    """File nguồn của các file đã mux THÀNH CÔNG (kết quả có trên đĩa): MKV gốc, phụ đề ngoài, file nguồn audio ghép.
+
+    KHÔNG đề xuất: file vẫn cần cho dòng chưa mux / mux lỗi (vd dùng chung), file nằm trong ``Output``, chính file kết
+    quả, file không còn trên đĩa. Thứ tự: phim gốc → phụ đề → nguồn audio ghép."""
+
+    def key(p: str | os.PathLike[str]) -> str:
+        return os.path.normcase(os.path.abspath(os.fspath(p)))
+
+    pending: set[str] = set()
+    outs: set[str] = set()
+    used: dict[str, UsedFile] = {}
+    for p in plans:
+        files = [(p.src, "video"), *[(e.path, "sub") for e in p.ext_subs], *[(t.source, "donor") for t in p.donor.tracks]]
+        r = p.result
+        if r is not None and r.ok and r.out is not None and Path(r.out).is_file():
+            outs.add(key(r.out))
+            for f, kind in files:
+                u = used.setdefault(key(f), UsedFile(Path(f), kind))
+                if Path(r.out).name not in u.used_for:
+                    u.used_for.append(Path(r.out).name)
+        else:
+            pending.update(key(f) for f, _k in files)
+    order = {"video": 0, "sub": 1, "donor": 2}
+    out = [u for k, u in used.items() if k not in pending and k not in outs and u.path.is_file()
+           and not (out_dir and tools.is_under(u.path, out_dir))]
+    out.sort(key=lambda u: (order.get(u.kind, 9), os.fspath(u.path).lower()))
+    return out
 
 
 @dataclass
@@ -945,6 +994,28 @@ class MuxSession:
                       + f" | Bỏ qua: {rep.skipped} | Cần chọn: {rep.pending} | Lỗi: {rep.failed}")
         if rep.log_path:
             self.job.info(f"Nhật ký (để hoàn tác): {self.cfg['MuxLogDir']}\\{rep.log_path.name}")
+        return rep
+
+    def trash_sources(self, files: Sequence[UsedFile | str | os.PathLike[str]]) -> TrashReport:
+        """Đưa file nguồn đã dùng vào Thùng rác (tắt ``DeleteToRecycleBin`` → xoá hẳn), ghi ``Delete`` vào nhật ký
+        của lượt mux này (màn hình Hoàn tác ghi rõ: khôi phục bằng tay từ Thùng rác)."""
+        rb = bool(self.cfg["DeleteToRecycleBin"])
+        rep = TrashReport()
+        for f in files:
+            path = Path(f.path if isinstance(f, UsedFile) else f)
+            if not path.is_file():
+                continue
+            if undo.trash(path, rb):
+                rep.done.append(path)
+                self.log.add(undo.DELETE, path, "", "file nguồn đã mux xong" + (" → Thùng rác" if rb else " → XOÁ HẲN"))
+                self.job.ok(f"  [🗑] {path.name}")
+            else:
+                rep.failed.append(path)
+                self.job.error(f"  [!] Không xoá được: {path}")
+        if rep.done:
+            self.log.save()
+        self.job.head(f"DỌN FILE NGUỒN: {len(rep.done)} file " + ("vào Thùng rác" if rb else "đã XOÁ HẲN")
+                      + (f" | {len(rep.failed)} lỗi" if rep.failed else ""))
         return rep
 
     def _mux_one(self, p: MuxPlan) -> MuxResult:

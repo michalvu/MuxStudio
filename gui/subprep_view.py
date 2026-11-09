@@ -28,6 +28,9 @@ OTHER_LANG = "Khác…"
 LEVEL_TAG = {0: "good", 1: "need", 2: "bad"}
 MODE_SUB = "sub"
 MODE_AUDIO = "audio"
+# the con (sau thanh cac buoc: 2–3 = doi ten, 4–5 = dong bo)
+INNER_RENAME = "Đổi tên (bước 2–3)"
+INNER_SYNC = "Đồng bộ (bước 4–5)"
 
 
 # ==========================================================================
@@ -205,7 +208,6 @@ class SubprepView:
         self.counts.pack(side="left", padx=10, pady=6)
         self.recount_btn = ctk.CTkButton(cf, text="Làm mới", width=90, command=self.refresh_counts)
         self.recount_btn.pack(side="left", padx=6)
-        ctk.CTkButton(cf, text="Sang bước ③ →", width=140, command=lambda: self.app.goto("③ Mux")).pack(side="right", padx=8)
 
         # --- 2-4. moc / ngon ngu / trich ---
         of = ctk.CTkFrame(self.frame)
@@ -222,8 +224,6 @@ class SubprepView:
         self.lang_menu = ctk.CTkOptionMenu(of, values=lang_options(), variable=self.lang, width=330,
                                            command=self._lang_changed)
         self.lang_menu.grid(row=0, column=4, sticky="w")
-        self.extract_btn = ctk.CTkButton(of, text="Trích phụ đề gốc từ MKV…", width=190, command=self.plan_extract)
-        self.extract_btn.grid(row=0, column=5, padx=(16, 10))
         self.extract_hint = ctk.CTkLabel(of, text="", text_color=W.LEVEL_COLORS["warn"], anchor="w")
         self.extract_hint.grid(row=1, column=1, columnspan=5, sticky="w")
         self.extract_hint.grid_remove()  # chi hien khi co dieu can nhac (tiet kiem chieu cao man hinh 720p)
@@ -248,17 +248,25 @@ class SubprepView:
         self.atable.frame.pack(fill="x", padx=10, pady=(0, 8))
         self.atable.on_select = lambda ids: self.amode.set("index") if ids else None
 
-        # --- 5-6. doi ten / dong bo ---
+        # --- cac buoc: nut TO theo thu tu, buoc ke tiep sang mau ---
+        self._counts: PrepCounts | None = None
+        self._renames_planned = self._pairs_planned = self._cleaned = False
+        self.steps = W.StepBar(self.frame, [
+            ("extract", "Trích phụ đề gốc", self.plan_extract), ("preview", "Xem trước đổi tên", self.plan_rename),
+            ("rename", "Đổi tên", self.do_rename), ("pairs", "Lập cặp đồng bộ", self.plan_sync),
+            ("sync", "Chạy đồng bộ", self.do_sync), ("cleanup", "Dọn dẹp", self.cleanup),
+            ("next", "Sang ③ Mux →", lambda: self.app.goto("③ Mux"))], compact=app.density == "compact", plain=("next",))
+        self.steps.frame.pack(fill="x", pady=(0, 4))
+        (self.extract_btn, self.plan_rename_btn, self.rename_btn, self.plan_sync_btn, self.sync_btn,
+         self.cleanup_btn) = (self.steps.buttons[k] for k in ("extract", "preview", "rename", "pairs", "sync", "cleanup"))
+
+        # --- doi ten / dong bo ---
         self.inner = ctk.CTkTabview(self.frame, height=200)
         self.inner.pack(fill="both", expand=True)
-        t1 = self.inner.add("Bước 1 — Đổi tên")
-        t2 = self.inner.add("Bước 2 — Đồng bộ")
+        t1 = self.inner.add(INNER_RENAME)
+        t2 = self.inner.add(INNER_SYNC)
         b1 = ctk.CTkFrame(t1, fg_color="transparent")
         b1.pack(fill="x")
-        self.plan_rename_btn = ctk.CTkButton(b1, text="Xem trước đổi tên", width=150, command=self.plan_rename)
-        self.plan_rename_btn.pack(side="left")
-        self.rename_btn = ctk.CTkButton(b1, text="Đổi tên các dòng đã tick", width=180, command=self.do_rename)
-        self.rename_btn.pack(side="left", padx=6)
         self.rename_info = ctk.CTkLabel(b1, text="", anchor="w")
         self.rename_info.pack(side="left", padx=10)
         rcols = [W.Col("ep", "Tập", 80), W.Col("old", "Tên cũ", 380, stretch=True, fit="name"),
@@ -272,20 +280,14 @@ class SubprepView:
 
         b2 = ctk.CTkFrame(t2, fg_color="transparent")
         b2.pack(fill="x")
-        self.plan_sync_btn = ctk.CTkButton(b2, text="Lập cặp đồng bộ", width=140, command=self.plan_sync)
-        self.plan_sync_btn.pack(side="left")
         self.cmd_btn = ctk.CTkButton(b2, text="Xem lệnh", width=90, command=self.show_commands,
                                      fg_color=("gray70", "gray30"), text_color=("gray10", "gray90"))
-        self.cmd_btn.pack(side="left", padx=6)
-        self.sync_btn = ctk.CTkButton(b2, text="Chạy đồng bộ", width=130, command=self.do_sync)
-        self.sync_btn.pack(side="left")
+        self.cmd_btn.pack(side="left", padx=(0, 6))
         self.only_bad = W.tk.BooleanVar(value=False)
         ctk.CTkCheckBox(b2, text="Chỉ hiện file cần xem", variable=self.only_bad, command=self.fill_pairs).pack(side="left", padx=12)
-        self.export_btn = ctk.CTkButton(b2, text="Xuất CSV…", width=100, command=self.export)
+        self.export_btn = ctk.CTkButton(b2, text="Xuất CSV…", width=100, command=self.export,
+                                        fg_color=("gray70", "gray30"), text_color=("gray10", "gray90"))
         self.export_btn.pack(side="left")
-        self.cleanup_btn = ctk.CTkButton(b2, text="Dọn dẹp…", width=100, command=self.cleanup,
-                                         fg_color=("gray70", "gray30"), text_color=("gray10", "gray90"))
-        self.cleanup_btn.pack(side="left", padx=6)
         self.sync_info = ctk.CTkLabel(b2, text="", anchor="w")
         self.sync_info.pack(side="left", padx=10)
         scols = [W.Col("sub", "Phụ đề", 260, stretch=True, fit="name"), W.Col("ref", "Mốc", 220, fit="name"),
@@ -325,12 +327,13 @@ class SubprepView:
 
     def _mode_changed(self) -> None:
         if self._mode() == MODE_AUDIO:
-            self.audio_box.pack(fill="x", pady=(0, 6), before=self.inner)
+            self.audio_box.pack(fill="x", pady=(0, 6), before=self.steps.frame)
             if not self.streams:
                 self.load_streams()
         else:
             self.audio_box.pack_forget()
         self.pairs = []
+        self._pairs_planned = False
         self.fill_pairs()
         self.update_buttons()
 
@@ -375,6 +378,8 @@ class SubprepView:
             self.session.close()
         self.session = None
         self.renames, self.pairs = [], []
+        self._counts = None
+        self._renames_planned = self._pairs_planned = self._cleaned = False
         self.streams, self.sample = [], None
         self.atable.clear()
         self.fill_renames()
@@ -404,13 +409,18 @@ class SubprepView:
 
         ok_ren = [r for r in self.renames if r.ok and r.selected and not r.status]
         ok_pairs = [p for p in self.pairs if p.ok and p.selected and p.result is None]
-        for b in (self.recount_btn, self.extract_btn, self.plan_rename_btn, self.plan_sync_btn):
-            b.configure(state=st(folder))
-        self.rename_btn.configure(state=st(bool(ok_ren)))
-        self.sync_btn.configure(state=st(bool(ok_pairs)))
+        processed = self.session is not None and bool(self.session.processed)
+        c = self._counts
+        synced = self._pairs_planned and not ok_pairs
+        done = [self._mode() == MODE_AUDIO or (c is not None and c.refs > 0),  # moc = audio: khong can phu de goc
+                self._renames_planned, self._renames_planned and not ok_ren,
+                self._pairs_planned, synced,
+                self._cleaned or (synced and not processed),  # khong co gi de don
+                False]
+        self.steps.update(done, [folder, folder, bool(ok_ren), folder, bool(ok_pairs), processed, True], busy)
+        self.recount_btn.configure(state=st(folder))
         self.cmd_btn.configure(state=st(any(p.ok for p in self.pairs)))
         self.export_btn.configure(state=st(bool(self.pairs)))
-        self.cleanup_btn.configure(state=st(self.session is not None and bool(self.session.processed)))
 
     # ------------------------------------------------------------------ 1. dem
     def refresh_counts(self) -> None:
@@ -424,9 +434,10 @@ class SubprepView:
             return self._session(job).counts()
 
         def done(c: PrepCounts) -> None:
+            self._counts = c
             self.counts.configure(text=counts_text(c, cfg))
             if c.refs == 0 and c.videos:
-                self.extract_hint.configure(text=f"'{cfg['ExtractFolder']}' đang trống → bấm \"Trích phụ đề gốc từ MKV…\" "
+                self.extract_hint.configure(text=f"'{cfg['ExtractFolder']}' đang trống → bấm \"1. Trích phụ đề gốc\" "
                                             "(hoặc chọn mốc = Audio của file phim).")
                 self.extract_hint.grid()
             else:
@@ -516,8 +527,9 @@ class SubprepView:
 
         def done(rows: list[RenameRow]) -> None:
             self.renames = rows
+            self._renames_planned = True
             self.fill_renames()
-            self.inner.set("Bước 1 — Đổi tên")
+            self.inner.set(INNER_RENAME)
             self.update_buttons()
 
         self.app.runner.start("Xem trước đổi tên", work, done)
@@ -564,11 +576,12 @@ class SubprepView:
             self.fill_renames()
             self.rename_info.configure(text=f"Đã đổi tên {rep.ok} file | {rep.skipped} bỏ qua | {rep.errors} lỗi")
             self.pairs = []
+            self._pairs_planned = False
             self.fill_pairs()
             self.update_buttons()
             if rep.ok:
-                self.app.log("info", "→ Sang \"Bước 2 — Đồng bộ\" và bấm \"Lập cặp đồng bộ\".")
-                self.inner.set("Bước 2 — Đồng bộ")
+                self.app.log("info", "→ Bấm \"4. Lập cặp đồng bộ\".")
+                self.inner.set(INNER_SYNC)
             self.refresh_counts_later()
 
         self.app.runner.start("Đổi tên phụ đề", work, done)
@@ -591,8 +604,9 @@ class SubprepView:
 
         def done(pairs: list[SyncPair]) -> None:
             self.pairs = pairs
+            self._pairs_planned = True
             self.fill_pairs()
-            self.inner.set("Bước 2 — Đồng bộ")
+            self.inner.set(INNER_SYNC)
             self.update_buttons()
 
         self.app.runner.start("Lập cặp đồng bộ", work, done)
@@ -706,6 +720,8 @@ class SubprepView:
         d.button(f"Chỉ '{self.app.cfg['SubFolderName']}'", lambda: d.close("subs"))
         d.button("Xoá cả hai", lambda: d.close("both"), primary=True)
         which = d.run()
+        self._cleaned = True  # da hoi (ke ca "Khong xoa") -> buoc ke tiep: sang ③
+        self.update_buttons()
         if not which or which == "none":
             return
 

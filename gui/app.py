@@ -198,6 +198,12 @@ class App:
         self.tabs = ctk.CTkTabview(self.root, command=self._tab_changed)
         for t in TABS:
             self.tabs.add(t)
+        try:  # 4 the chinh: chu to, dam (nhin vao biet ngay dang o buoc nao)
+            compact = self.density == "compact"
+            self.tabs._segmented_button.configure(font=ctk.CTkFont(size=13 if compact else 15, weight="bold"),
+                                                  height=30 if compact else 36)
+        except Exception:  # noqa: BLE001 - CustomTkinter doi ten thuoc tinh noi bo: giu chu mac dinh
+            pass
         self._current_tab = TAB_FETCH
 
         # --- tien do + dung ---
@@ -222,7 +228,14 @@ class App:
         from .log_panel import LogPanel  # noqa: PLC0415
 
         log_h = {"compact": 64, "normal": 120, "large": 180}[self.density]
-        self.log_panel = LogPanel(self.root, lambda: self.folder, self.redactor.redact, height=log_h)
+        try:  # chieu cao da keo lan truoc
+            saved_h = int(self.cfg.get("UiLogHeight") or 0)
+        except (TypeError, ValueError):
+            saved_h = 0
+        self.log_panel = LogPanel(self.root, lambda: self.folder, self.redactor.redact,
+                                  height=min(saved_h, self._log_max()) if saved_h else log_h)
+        self.log_panel.max_height = self._log_max
+        self.log_panel.on_resize = lambda h: self.cfg.__setitem__("UiLogHeight", int(h))
         # dong dau khung log: ban nao dang chay (nguoi dung bao loi kem "Luu log")
         self.log("head", f"{APP_TITLE} — chọn thư mục phim ở trên, rồi làm lần lượt ① → ② → ③.")
         self.log("dim", build_info(self.root))
@@ -267,6 +280,17 @@ class App:
         self.root.minsize(p.min_width, p.min_height)
         if p.zoomed:
             self.root.after(30, self._zoom)
+
+    def _log_max(self) -> int:
+        """Khung nhật ký cao tối đa: chừa ~300 đơn vị logic cho các thẻ (bảng vẫn dùng được)."""
+        try:
+            sc = float(W.ctk.ScalingTracker.get_window_scaling(self.root))
+            h = self.root.winfo_height() / sc
+            if h < 200:  # cua so chua hien: dung co da dinh
+                h = self.window.height
+        except Exception:  # noqa: BLE001
+            h = self.window.height
+        return max(80, int(h) - 300)
 
     def _zoom(self) -> None:
         try:

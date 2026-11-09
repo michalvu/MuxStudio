@@ -2,6 +2,7 @@
 
 Mức: ``info`` (thường), ``ok`` (xanh), ``warn`` (vàng), ``error`` (đỏ), ``dim`` (xám), ``head`` (đậm, xanh dương).
 Nút: Thu gọn/Mở rộng, Xoá, Lưu log (UTF-8), Mở thư mục. Mọi dòng đã đi qua bộ lọc bí mật trước khi tới đây.
+Tay kéo ở mép trên: kéo lên / xuống để đổi chiều cao (nhớ cho lần mở sau — khoá ``UiLogHeight``).
 """
 from __future__ import annotations
 
@@ -25,6 +26,16 @@ def format_log(lines: list[tuple[str, str, str]]) -> str:
     return "\n".join(out) + ("\n" if out else "")
 
 
+MIN_HEIGHT = 40  # don vi logic (~2 dong)
+
+
+def drag_height(start_h: int, dy_px: float, scale: float, max_h: int, min_h: int = MIN_HEIGHT) -> int:
+    """Chiều cao mới khi kéo tay kéo: kéo LÊN (``dy_px`` âm, pixel màn hình) → cao hơn. Đổi pixel → đơn vị logic
+    (chia tỉ lệ phóng to Windows 125/150%), giữ trong [``min_h``, ``max_h``]."""
+    h = start_h - dy_px / (scale or 1.0)
+    return int(round(max(min_h, min(max(min_h, max_h), h))))
+
+
 class LogPanel:
     def __init__(self, master: Any, folder: Callable[[], str | None], redact: Callable[[str], str] | None = None,
                  height: int = 120):
@@ -32,7 +43,22 @@ class LogPanel:
         self.folder = folder
         self.redact = redact
         self.lines: list[tuple[str, str, str]] = []  # (gio, muc, chu) - day du cho "Luu log"
+        self.height = int(height)
+        self.on_resize: Callable[[int], None] | None = None  # sau khi tha chuot (de luu chieu cao)
+        self.max_height: Callable[[], int] = lambda: 900
         self.frame = ctk.CTkFrame(master)
+        # tay keo: keo len / xuong de doi chieu cao khung nhat ky
+        self.grip = ctk.CTkFrame(self.frame, height=10, fg_color="transparent", cursor="sb_v_double_arrow")
+        self.grip.pack(fill="x", padx=6, pady=(2, 0))
+        knob = ctk.CTkFrame(self.grip, width=70, height=4, corner_radius=2, fg_color=("gray60", "gray45"),
+                            cursor="sb_v_double_arrow")
+        knob.place(relx=0.5, rely=0.5, anchor="center")
+        for w in (self.grip, knob):
+            w.bind("<ButtonPress-1>", self._drag_start, add="+")
+            w.bind("<B1-Motion>", self._drag, add="+")
+            w.bind("<ButtonRelease-1>", self._drag_end, add="+")
+        W.Tooltip(self.grip, lambda _e: "Kéo lên / xuống để đổi chiều cao khung nhật ký")
+        self._drag_from: tuple[float, int] | None = None
         bar = ctk.CTkFrame(self.frame, fg_color="transparent")
         bar.pack(fill="x", padx=6, pady=(4, 0))
         self.toggle_btn = ctk.CTkButton(bar, text="▾ Nhật ký", width=110, command=self.toggle,
@@ -97,6 +123,35 @@ class LogPanel:
         self.lines.clear()
         self.n_warn = self.n_err = 0
         self._count()
+
+    # ---- keo doi chieu cao ----
+    def _scale(self) -> float:
+        try:
+            return float(W.ctk.ScalingTracker.get_widget_scaling(self.box))
+        except Exception:  # noqa: BLE001
+            return 1.0
+
+    def _drag_start(self, ev: Any) -> None:
+        if not self.expanded:
+            self.toggle()
+        self._drag_from = (float(ev.y_root), self.height)
+
+    def _drag(self, ev: Any) -> None:
+        if self._drag_from is None:
+            return
+        y0, h0 = self._drag_from
+        self.set_height(drag_height(h0, ev.y_root - y0, self._scale(), self.max_height()))
+
+    def _drag_end(self, _ev: Any) -> None:
+        if self._drag_from is not None and self.on_resize:
+            self.on_resize(self.height)
+        self._drag_from = None
+
+    def set_height(self, h: int) -> None:
+        h = int(max(MIN_HEIGHT, h))
+        if h != self.height:
+            self.height = h
+            self.box.configure(height=h)
 
     # ---- nut ----
     def toggle(self) -> None:

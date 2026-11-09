@@ -168,6 +168,8 @@ FIELDS: tuple[Field, ...] = (
     Field("DefaultExternalLang", "vi", "mux", "Ngôn ngữ của sub ngoài không có hậu tố", ""),
     Field("ExternalSubOverridesInternal", True, "mux", "Sub ngoài thay sub trong cùng ngôn ngữ", ""),
     Field("SkipIfOutputExists", False, "mux", "Bỏ qua file đã mux rồi", ""),
+    Field("AskTrashSourcesAfterMux", True, "mux", "Mux xong: hỏi đưa file nguồn đã dùng vào Thùng rác",
+          "MKV gốc, phụ đề ngoài, file nguồn audio ghép của các file mux THÀNH CÔNG — tick từng file trước khi xoá."),
     Field("UseTrackOrder", True, "mux", "Sắp xếp lại thứ tự track", ""),
     Field("SetTitleFromName", True, "mux", "Đặt title theo tên file", "Xoá title rác."),
     Field("SubExtPriority", [".srt", ".ass", ".ssa", ".sup", ".vtt"], "mux", "Ưu tiên đuôi sub ngoài", "", "list"),

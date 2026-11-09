@@ -38,7 +38,7 @@ def test_parse_stamp(t, v):
 
 def test_cue_times_srt_sorted(tmp_path):
     p = tmp_path / "[Judas] x.srt"
-    p.write_text(srt_text([30.0, 10.0, 2700.5]), encoding="utf-8")
+    p.write_text(srt_text([30.0, 10.0, 2700.5]), encoding="utf-8", newline="")
     assert srt.cue_times(p) == [10.0, 30.0, 2700.5]
 
 
@@ -71,7 +71,7 @@ def test_cue_times_utf16_bom(tmp_path):
 
 def test_cue_times_none_when_nothing(tmp_path):
     p = tmp_path / "empty.srt"
-    p.write_text("", encoding="utf-8")
+    p.write_text("", encoding="utf-8", newline="")
     assert srt.cue_times(p) is None
     assert srt.cue_times(tmp_path / "khong-co.srt") is None
     assert srt.cue_times_from_text("hello") is None
@@ -87,7 +87,7 @@ def test_blocks_roundtrip_keeps_hours_text_and_tail(tmp_path):
     times = [5.0, 1900.0, 2700.0, 3599.0, 4000.0, 6000.25]
     texts = [f"Dòng {i}\nhai dòng" for i in range(len(times))]
     p = tmp_path / "a.srt"
-    p.write_text(srt_text(times, texts=texts), encoding="utf-8")
+    p.write_text(srt_text(times, texts=texts), encoding="utf-8", newline="")
     blocks = srt.read_blocks(p)
     blocks[1].tail = " X1:10 X2:20"
     out = tmp_path / "b.srt"
@@ -104,7 +104,7 @@ def test_blocks_roundtrip_keeps_hours_text_and_tail(tmp_path):
 
 def test_read_blocks_without_trailing_newline_and_renumbering(tmp_path):
     p = tmp_path / "c.srt"
-    p.write_text("7\n00:00:01,000 --> 00:00:02,000\nA\n\n9\n00:00:03,000 --> 00:00:04,000\nB", encoding="utf-8")
+    p.write_text("7\n00:00:01,000 --> 00:00:02,000\nA\n\n9\n00:00:03,000 --> 00:00:04,000\nB", encoding="utf-8", newline="")
     bl = srt.read_blocks(p)
     assert [b.text for b in bl] == ["A", "B"]
     out = tmp_path / "d.srt"
@@ -114,7 +114,7 @@ def test_read_blocks_without_trailing_newline_and_renumbering(tmp_path):
 
 def test_read_blocks_returns_none_for_ass(tmp_path):
     p = tmp_path / "x.ass"
-    p.write_text("[Events]\nDialogue: 0,0:00:05.20,0:00:07.00,Default,,0,0,0,,X\n", encoding="utf-8")
+    p.write_text("[Events]\nDialogue: 0,0:00:05.20,0:00:07.00,Default,,0,0,0,,X\n", encoding="utf-8", newline="")
     assert srt.read_blocks(p) is None  # buoc goi bo qua, KHONG doi dinh dang (Q7)
 
 

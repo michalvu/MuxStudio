@@ -118,11 +118,11 @@ def ps(tmp_path_factory):
     # file phu de cho Get-CueTimes / Read-SrtBlocks / Get-SubEncodingKind
     srt_times = [5.0, 1900.0, 2700.5, 4000.25]
     FILES["srt"] = d / "a.srt"
-    FILES["srt"].write_text(srt_text(srt_times), encoding="utf-8")
+    FILES["srt"].write_text(srt_text(srt_times), encoding="utf-8", newline="")
     FILES["srtdot"] = d / "b.srt"
-    FILES["srtdot"].write_text("1\n00:00:01.50 --> 00:00:02.00\nA\n\n2\n00:00:03,250 --> 00:00:04,000\nB\n", encoding="utf-8")
+    FILES["srtdot"].write_text("1\n00:00:01.50 --> 00:00:02.00\nA\n\n2\n00:00:03,250 --> 00:00:04,000\nB\n", encoding="utf-8", newline="")
     FILES["ass"] = d / "c.ass"
-    FILES["ass"].write_text("[Events]\nDialogue: 0,0:00:05.20,0:00:07.00,D,,0,0,0,,X\nDialogue: Marked=0,0:01:02.34,0:01:03.00,D,,0,0,0,,Y\n", encoding="utf-8")
+    FILES["ass"].write_text("[Events]\nDialogue: 0,0:00:05.20,0:00:07.00,D,,0,0,0,,X\nDialogue: Marked=0,0:01:02.34,0:01:03.00,D,,0,0,0,,Y\n", encoding="utf-8", newline="")
     FILES["u16"] = d / "d.srt"
     FILES["u16"].write_bytes(b"\xff\xfe" + srt_text([1.0, 2.0]).encode("utf-16-le"))
     FILES["sup"] = d / "e.sup"
@@ -145,7 +145,7 @@ def ps(tmp_path_factory):
 
     inp = d / "in.json"
     out = d / "out.json"
-    inp.write_text(json.dumps(_CASES), encoding="utf-8")
+    inp.write_text(json.dumps(_CASES), encoding="utf-8", newline="")
     r = subprocess.run([PWSH, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(ROOT / "tests" / "golden" / "ps_harness.ps1"),
                         "-BatDir", str(REFERENCE), "-InFile", str(inp), "-OutFile", str(out)],
                        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)

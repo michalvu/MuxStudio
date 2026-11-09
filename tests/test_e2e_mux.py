@@ -4,8 +4,8 @@
   đặt đúng từng câu thoại, lệch +1,5 s (và phụ đề tiếng Anh của chính bản nguồn). Ghép → đo vị trí tiếng bíp trong
   file kết quả bằng ``silencedetect``: sai số < 20 ms ở đầu và cuối phim. Thêm ca cùng FPS, lệch âm (không encode lại).
   Audio tiếng Anh GỐC của phim cũng là tiếng bíp tại đúng câu thoại → so bíp của audio ghép với bíp của audio gốc trong
-  CÙNG một lần giải mã (đúng thứ người xem nghe). Đo tuyệt đối dễ sai: ffmpeg dời mốc cả file theo độ trễ mồi của
-  track AAC (−21 ms).
+  CÙNG một lần giải mã (đúng thứ người xem nghe). Audio gốc để PCM: AAC có "đoạn mồi" ~21 ms mà ffmpeg mới tự cắt,
+  ffmpeg cũ (bản đi kèm alass trên Windows) thì không → đo theo AAC thì kết quả phụ thuộc phiên bản ffmpeg.
 * Mux thật: mã thoát 0 / ≥ 2 (xoá file dở dang).
 """
 from __future__ import annotations
@@ -50,10 +50,13 @@ def beep_wav(path, beeps, dur):
 
 
 def make_video(path, fps, dur, audio_wav=None):
-    """Video đen + audio tiếng Anh (AAC): im lặng, hoặc lấy từ ``audio_wav``."""
+    """Video đen + audio tiếng Anh: im lặng (AAC), hoặc lấy từ ``audio_wav`` — khi đó giữ PCM: AAC có "đoạn mồi"
+    1024 mẫu (~21 ms) mà ffmpeg cũ (vd bản đi kèm alass trên Windows) không cắt khi giải mã → bíp của audio GỐC đo trễ
+    ~21 ms, phép đo phụ thuộc phiên bản ffmpeg chứ không phải kết quả ghép."""
     src = ["-i", str(audio_wav)] if audio_wav else ["-f", "lavfi", "-i", f"anullsrc=r={SR}:cl=mono"]
+    acodec = "pcm_s16le" if audio_wav else "aac"
     subprocess.run([T["ffmpeg"], "-v", "error", "-y", "-f", "lavfi", "-i", f"color=c=black:s=64x36:r={fps}:d={dur}",
-                    *src, "-t", str(dur), "-c:v", "mpeg4", "-c:a", "aac", "-metadata:s:a:0", "language=eng", str(path)],
+                    *src, "-t", str(dur), "-c:v", "mpeg4", "-c:a", acodec, "-metadata:s:a:0", "language=eng", str(path)],
                    check=True)
 
 
@@ -83,7 +86,7 @@ def build(root, mine_fps, donor_scale, donor_shift, n=45, seed=21):
     beep_wav(mine_wav, rng_times, dur)  # audio goc cua phim: bip dung tung cau thoai
     make_video(mine_v, mine_fps, dur, mine_wav)
     en = work / "en.srt"
-    en.write_text(srt_text(rng_times, 1.0), encoding="utf-8")
+    en.write_text(srt_text(rng_times, 1.0), encoding="utf-8", newline="")
     stem = "Phim.Bip.2020.1080p"
     make_mkv(root / f"{stem}.mkv", mine_v, [(en, "eng")])
     d_times = [m / donor_scale + donor_shift for m in rng_times]
@@ -93,7 +96,7 @@ def build(root, mine_fps, donor_scale, donor_shift, n=45, seed=21):
     wav = work / "cs.wav"
     beep_wav(wav, d_times, d_dur)
     den = work / "den.srt"
-    den.write_text(srt_text(d_times, 1.0), encoding="utf-8")
+    den.write_text(srt_text(d_times, 1.0), encoding="utf-8", newline="")
     (root / "audio_nguon").mkdir()
     # file nguon: video + audio Sec (tieng bip PCM) + phu de Anh cua chinh ban nguon (bo audio Anh cua video nen)
     cmd = [T["mkvmerge"], "-q", "-o", str(root / "audio_nguon" / f"{stem}.CZ.mkv"), "--no-audio", str(donor_v),
@@ -132,9 +135,10 @@ def test_beep_alignment_under_20ms(movie_dir, case):
     for want in (times[0], times[-1]):  # dau phim va cuoi phim
         o = min(orig, key=lambda x: abs(x - want))
         d = min(dub, key=lambda x: abs(x - want))
-        assert abs(o - want) < 0.030  # bip cua audio goc dung cau thoai (sai so do ma hoa AAC)
+        assert abs(o - want) < 0.030  # bip cua audio goc dung cau thoai
         assert abs(d - o) < 0.020, (want, o, d)  # yeu cau §8: < 20 ms
-        assert abs(d - o) < 0.005, (want, o, d)  # thuc te do duoc < 2 ms (chuoi atempo cu: ~21 ms)
+        # thuc te: ffmpeg moi < 2 ms; ffmpeg cu khong cat "doan moi" 256 mau cua E-AC-3 (~5,3 ms). Chuoi atempo cu: ~21 ms
+        assert abs(d - o) < 0.010, (want, o, d)
 
 
 def test_real_mux_exit_code_error_deletes_partial(movie_dir):
@@ -143,7 +147,7 @@ def test_real_mux_exit_code_error_deletes_partial(movie_dir):
     make_video(v, "24000/1001", 2)
     shutil.move(v, movie_dir / f"{stem}.mkv")
     sub = movie_dir / f"{stem}.vi.srt"
-    sub.write_text(srt_text([0.5], 0.5), encoding="utf-8")
+    sub.write_text(srt_text([0.5], 0.5), encoding="utf-8", newline="")
     s = mux.MuxSession(movie_dir, C.Config({"UseDonorAudio": False}), {}, tools.Job(), tool_paths=T)
     (plan,) = s.plan_all("none")
     sub.write_bytes(b"\x00\x01khong phai phu de")  # mkvmerge khong doc duoc -> ma thoat 2

@@ -183,21 +183,22 @@ class FetchView:
         self.check_btn = ctk.CTkButton(sf, text="Kiểm tra nguồn", width=120, command=self.check_sources)
         self.check_btn.pack(side="left")
 
-        # --- nut ---
+        # --- cac buoc: nut TO theo thu tu, buoc ke tiep sang mau ---
+        self._executed = False
+        self.steps = W.StepBar(self.frame, [("scan", "Quét thư mục", self.scan), ("gather", "Tìm phụ đề", self.gather),
+                                            ("run", "Tải phụ đề", self.execute),
+                                            ("next", "Sang ② Chuẩn bị phụ đề →", lambda: self.app.goto("② Chuẩn bị phụ đề"))],
+                               compact=app.density == "compact", plain=("next",))
+        self.steps.frame.pack(fill="x", pady=(6, 2))
+        self.scan_btn, self.gather_btn, self.run_btn = (self.steps.buttons[k] for k in ("scan", "gather", "run"))
+        # nut phu + goi y
         bf = ctk.CTkFrame(self.frame, fg_color="transparent")
-        bf.pack(fill="x", pady=6)
-        self.scan_btn = ctk.CTkButton(bf, text="1. Quét thư mục", width=140, command=self.scan)
-        self.scan_btn.pack(side="left")
-        self.gather_btn = ctk.CTkButton(bf, text="2. Tìm phụ đề", width=140, command=self.gather)
-        self.gather_btn.pack(side="left", padx=6)
-        self.run_btn = ctk.CTkButton(bf, text="3. Tải phụ đề", width=140, command=self.execute)
-        self.run_btn.pack(side="left")
+        bf.pack(fill="x", pady=(0, 4))
         self.skipall_btn = ctk.CTkButton(bf, text="Bỏ qua mọi dòng cần chọn", width=180, command=self.skip_all,
                                          fg_color=("gray70", "gray30"), text_color=("gray10", "gray90"))
-        self.skipall_btn.pack(side="left", padx=6)
-        ctk.CTkButton(bf, text="Sang bước ② →", width=140, command=lambda: self.app.goto("② Chuẩn bị phụ đề")).pack(side="right")
+        self.skipall_btn.pack(side="right", padx=6)
         self.hint = ctk.CTkLabel(bf, text="", text_color=W.LEVEL_COLORS["dim"], anchor="w")
-        self.hint.pack(side="left", padx=10)
+        self.hint.pack(side="left", padx=10, fill="x", expand=True)
 
         # --- bang phim / ngon ngu + bang ung vien ---
         pw = W.tk.PanedWindow(self.frame, orient="vertical", sashwidth=6, borderwidth=0,
@@ -280,6 +281,7 @@ class FetchView:
             self.session.close()
         self.session = None
         self.items = []
+        self._executed = False
         self.iid_item.clear()
         self.cur_item = None
         self.tree.clear()
@@ -298,9 +300,8 @@ class FetchView:
         def st(on: bool) -> str:
             return "normal" if on and not busy else "disabled"
 
-        self.scan_btn.configure(state=st(bool(self.app.folder)))
-        self.gather_btn.configure(state=st(has))
-        self.run_btn.configure(state=st(has))
+        gathered = has and all(it.gathered or it.already or it.existing or it.skip for it in self.items)
+        self.steps.update([has, gathered, has and self._executed, False], [bool(self.app.folder), has, has, True], busy)
         self.skipall_btn.configure(state=st(need > 0))
         self.check_btn.configure(state=st(True))
         cur_ok = self.cur_item is not None and bool(self.cur_item.candidates) and self.cur_item.result is None
@@ -490,6 +491,7 @@ class FetchView:
             return s.execute(items)
 
         def done(rep: FetchReport) -> None:
+            self._executed = True
             self.summary.configure(text=summary_text(rep))
             self._after_change()
 

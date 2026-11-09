@@ -129,7 +129,7 @@ def make_pack(tmp_path, names):
     d = tmp_path / "[pack] goi"
     d.mkdir()
     for n in names:
-        (d / n).write_text("1\n00:00:01,000 --> 00:00:02,000\nx\n", encoding="utf-8")
+        (d / n).write_text("1\n00:00:01,000 --> 00:00:02,000\nx\n", encoding="utf-8", newline="")
     return d
 
 
@@ -158,7 +158,7 @@ def test_select_from_pack_only_forced_returns_none_and_movie_by_name(tmp_path):
     d2 = tmp_path / "m"
     d2.mkdir()
     for n in ("Other.Film.srt", "Dune.Part.Two.2024.srt"):
-        (d2 / n).write_text("x", encoding="utf-8")
+        (d2 / n).write_text("x", encoding="utf-8", newline="")
     assert subsource.select_from_pack(d2, None, naming.title_tokens("Dune.Part.Two.2024.2160p")).name == "Dune.Part.Two.2024.srt"
 
 
@@ -172,3 +172,33 @@ def test_check_reports_rate_headers():
     c2, _, _ = client(http2)
     assert c2.check().ok is False
     assert subsource.SubSourceClient("").check().ok is None
+
+
+# ---------------------------------------------------------------- ket qua do API that (2026-11-09, SPEC 7.E)
+def test_rate_text_real_headers():
+    from core.subsource import _rate_text
+
+    h = {"Content-Type": "application/json", "X-RateLimit-Limit": "60", "X-RateLimit-Remaining": "58",
+         "X-RateLimit-Reset": "2026-11-09T13:04:07.358Z", "X-RateLimit-Window": "60", "X-RateLimit-Limit-Hour": "1800",
+         "X-RateLimit-Remaining-Hour": "1794", "X-RateLimit-Limit-Day": "7200", "X-RateLimit-Remaining-Day": "7194"}
+    assert _rate_text(h) == "còn 58/60 lượt/phút, 1794/1800 lượt/giờ, 7194/7200 lượt/ngày"
+    assert _rate_text({"RateLimit-Remaining": "4", "RateLimit-Limit": "5"}) == "còn 4/5 lượt"  # ten khac: du phong
+    assert _rate_text({}) == ""
+
+
+def test_real_language_names():
+    """Tên ``language`` thật của SubSource: tiếng Trung = ``chinese_bg_code`` / ``big_5_code``, Bồ Đào Nha có cả
+    ``brazilian_portuguese``."""
+    from core.subsource import lang_matches
+
+    for v in ("chinese_bg_code", "big_5_code", "chinese"):
+        assert lang_matches({"language": v}, "zh"), v
+    for v in ("portuguese", "brazilian_portuguese"):
+        assert lang_matches({"language": v}, "pt"), v
+    assert not lang_matches({"language": "chinese_bg_code"}, "ja")
+    assert not lang_matches({"language": "farsi_persian"}, "pt")
+    for code, v in (("vi", "vietnamese"), ("cs", "czech"), ("en", "english"), ("ko", "korean"), ("th", "thai"),
+                    ("id", "indonesian"), ("ar", "arabic"), ("tr", "turkish"), ("nl", "dutch"), ("ru", "russian"),
+                    ("it", "italian"), ("pl", "polish"), ("fr", "french"), ("de", "german"), ("es", "spanish"),
+                    ("ja", "japanese")):
+        assert lang_matches({"language": v}, code), (code, v)  # mọi tên trong kết quả dò khớp bảng ngôn ngữ

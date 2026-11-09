@@ -262,17 +262,31 @@ def _int(v: Any) -> int:
 
 
 def _rate_text(h: dict[str, str]) -> str:
+    """Header giới hạn lượt → ``còn 59/60 lượt/phút, 1794/1800 lượt/giờ, 7194/7200 lượt/ngày``.
+
+    Tên header thật (dò 2026-11-09): ``X-RateLimit-Limit`` / ``-Remaining`` (theo phút, ``X-RateLimit-Window: 60``),
+    ``X-RateLimit-Limit-Hour`` / ``-Remaining-Hour``, ``X-RateLimit-Limit-Day`` / ``-Remaining-Day``."""
     low = {k.lower(): v for k, v in h.items()}
-    rem = next((v for k, v in low.items() if "remaining" in k), None)
+    parts = []
+    for suf, unit in (("", "phút"), ("-hour", "giờ"), ("-day", "ngày")):
+        rem, lim = low.get(f"x-ratelimit-remaining{suf}"), low.get(f"x-ratelimit-limit{suf}")
+        if rem and lim:
+            parts.append(f"{rem}/{lim} lượt/{unit}")
+    if parts:
+        return "còn " + ", ".join(parts)
+    rem = next((v for k, v in low.items() if "remaining" in k), None)  # ten header khac (du phong)
     lim = next((v for k, v in low.items() if k.endswith("limit") and "remaining" not in k), None)
     if rem and lim:
-        return f"còn {rem}/{lim} lượt/phút"
+        return f"còn {rem}/{lim} lượt"
     if rem:
         return f"còn {rem} lượt"
     return ""
 
 
-_LANG_PREFIX = {"vi": ("viet",), "cs": ("czech", "cze"), "en": ("english",)}
+# Ten ngon ngu SubSource that (do 2026-11-09): "chinese_bg_code" (gian the), "big_5_code" (phon the),
+# "portuguese" + "brazilian_portuguese", "farsi_persian"...
+_LANG_PREFIX = {"vi": ("viet",), "cs": ("czech", "cze"), "en": ("english",), "zh": ("chinese", "big_5", "big5"),
+                "pt": ("portuguese", "brazilian_portuguese", "brazillian_portuguese")}
 
 
 def lang_matches(sub: dict, code: str) -> bool:

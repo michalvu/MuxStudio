@@ -241,9 +241,9 @@ def test_check_connection_with_fake_apis():
 def test_import_rows_mask_secrets_and_filter(tmp_path):
     p = tmp_path / "MuxTool [cu].bat"
     p.write_text("<# : batch\n@echo off\n#>\n$DonorFolder = 'audio_x'\n$TmdbApiKey = 'demo-tmdb-key-0123456789abcdef01'\n"
-                 "$MaxShiftSeconds = 99\n", encoding="utf-8")
+                 "$MaxShiftSeconds = 99\n", encoding="utf-8", newline="")
     q = tmp_path / "MuxTool2.bat"
-    q.write_text("<# : batch\n#>\n$DonorFolder = 'audio_y'\n", encoding="utf-8")
+    q.write_text("<# : batch\n#>\n$DonorFolder = 'audio_y'\n", encoding="utf-8", newline="")
     imp = C.import_from_bat([p, q])
     rows = SV.import_rows(imp, C.Config({}), lambda k: "demo-cu-0123456789" if k == "TmdbApiKey" else "")
     sec = next(r for r in rows if r.key == "TmdbApiKey")
@@ -390,7 +390,7 @@ def test_mux_grid_data_and_choice(mlib):
     TM, lib = mlib
     a = lib.add("Show.S01E01.1080p", TM.J(TM.V(), TM.A(1), TM.S(2, "eng"), TM.S(3, "eng", sdh=True, name="SDH")))
     b = lib.add("Show.S01E02.1080p", TM.J(TM.V(), TM.A(1), TM.S(2, "eng")))
-    (lib.root / "Show.S01E01.1080p.vi.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nx\n", encoding="utf-8")
+    (lib.root / "Show.S01E01.1080p.vi.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nx\n", encoding="utf-8", newline="")
     pa, pb = lib.plan(a), lib.plan(b)
     d = MV.grid_data([pa, pb])
     assert d["rows"] == ["m0", "m1"] and d["cols"][0] == "E|vi"
@@ -425,7 +425,7 @@ def test_mux_parse_inputs_and_summary():
 def test_undo_entries_all_steps_newest_first(movie_dir):
     cfg = C.Config({})
     f = movie_dir / "a.srt"
-    f.write_text("x", encoding="utf-8")
+    f.write_text("x", encoding="utf-8", newline="")
     import datetime as dt
 
     for step, key, day in (("subfetch", "SubFetchLogDir", 1), ("mux", "MuxLogDir", 3), ("subprep", "SubPrepLogDir", 2)):
@@ -595,3 +595,65 @@ def test_tool_status_texts_and_startup_summary():
     # 5 o cong cu nam DAU nhom "Chung"
     chung = [f.key for f in C.FIELDS if f.group == "chung"]
     assert chung[:5] == ["MkvmergePath", "MkvextractPath", "AlassPath", "FfprobePath", "FfmpegPath"]
+
+
+# ==========================================================================
+#  sau duyet GD6: thanh cac buoc, keo khung nhat ky, don file nguon sau mux
+# ==========================================================================
+
+
+def test_step_states_next_is_first_undone_and_enabled():
+    # chua chon thu muc phim: buoc 1 khoa -> KHONG buoc nao sang (khong nhay qua buoc dang khoa)
+    assert W.step_states([False, False, False, False], [False, False, False, True]) == ["off", "off", "off", "todo"]
+    assert W.step_states([False, False, False, False], [True, False, False, True]) == ["next", "off", "off", "todo"]
+    assert W.step_states([True, False, False, False], [True, True, True, True]) == ["done", "next", "todo", "todo"]
+    assert W.step_states([True, True, True, False], [True, True, True, True]) == ["done", "done", "done", "next"]
+    # buoc da xong van bam lai duoc (vd quet lai) nhung hien ✓
+    assert W.step_label(0, "Quét thư mục", "done") == "✓ 1. Quét thư mục"
+    assert W.step_label(1, "Tìm phụ đề", "next") == "▶ 2. Tìm phụ đề"
+    assert W.step_label(3, "Sang ② →", "todo", numbered=False) == "Sang ② →"
+
+
+def test_step_bar_fit_size_shrinks_only_when_needed():
+    class Btn:
+        def __init__(self, t):
+            self.t = t
+
+        def cget(self, _k):
+            return self.t
+
+    bar = W.StepBar.__new__(W.StepBar)
+    bar._base = 15
+    bar.buttons = {"a": Btn("▶ 1. Trích phụ đề gốc"), "b": Btn("2. Đổi tên")}
+    measure = lambda size, text: len(text) * size * 0.6  # noqa: E731
+    assert bar.fit_size({"a": 400, "b": 400}, measure) == 15  # du cho: giu co goc
+    assert bar.fit_size({"a": 170, "b": 170}, measure) == 12  # 720p: 21 ky tu * 12 * 0,6 + 18 = 169 <= 170
+    assert bar.fit_size({"a": 40, "b": 40}, measure) == 10  # khong nho hon 10
+
+
+def test_log_drag_height():
+    from gui import log_panel as LP
+
+    assert LP.drag_height(120, -80, 1.0, 600) == 200  # keo LEN 80 px -> cao them 80
+    assert LP.drag_height(120, -80, 1.25, 600) == 184  # Windows 125%: 80 px = 64 don vi logic
+    assert LP.drag_height(120, 500, 1.0, 600) == LP.MIN_HEIGHT  # khong nho hon ~2 dong
+    assert LP.drag_height(120, -2000, 1.0, 600) == 600  # khong che het cac the
+
+
+def test_trash_dialog_rows(tmp_path):
+    from core.mux import UsedFile
+
+    assert [MV.size_text(n) for n in (0, 999, 1536, 734003200, 5 * (1 << 30) + (1 << 29))] == [
+        "0 B", "999 B", "1,5 KB", "700 MB", "5,5 GB"]
+    root = tmp_path / "[YTS.MX] Phim (2020)"
+    f = root / "Phim.2020.vi.srt"
+    f.parent.mkdir()
+    f.write_bytes(b"x" * 2048)
+    v = MV.trash_values(UsedFile(f, "sub", ["Phim (2020).mkv"]), str(root))
+    assert v == {"kind": "Phụ đề ngoài", "file": "Phim.2020.vi.srt", "size": "2,0 KB", "used": "Phim (2020).mkv"}
+    assert MV.trash_values(UsedFile(root / "mat.mkv", "video"), None)["size"] == "?"
+
+
+def test_new_config_key_trash_after_mux():
+    assert C.Config({})["AskTrashSourcesAfterMux"] is True
+    assert C.FIELD_BY_KEY["AskTrashSourcesAfterMux"].group == "mux"

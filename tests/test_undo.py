@@ -21,7 +21,7 @@ class FakeTrash:
 
 def write(p, text="x"):
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(text, encoding="utf-8")
+    p.write_text(text, encoding="utf-8", newline="")
     return p
 
 
@@ -101,7 +101,7 @@ def test_reads_old_bat_logs(movie_dir):
     d.mkdir()
     made = write(movie_dir / "srt_can_sync" / "vi" / "x.vi.srt")
     (d / "actions_20250101_120000.csv").write_text(
-        '"Time","Action","From","To"\r\n"10:00:00","Create","Release.Name","' + os.fspath(made) + '"\r\n', encoding="utf-8-sig")
+        '"Time","Action","From","To"\r\n"10:00:00","Create","Release.Name","' + os.fspath(made) + '"\r\n', encoding="utf-8-sig", newline="")
     runs = U.list_runs(movie_dir, "_subfetch_logs", "subfetch")
     assert runs[0].undoable
     trash = FakeTrash()
@@ -112,14 +112,14 @@ def test_reads_old_bat_logs(movie_dir):
     d2.mkdir()
     (d2 / "run_20250101_120000.csv").write_text(
         '"Time","Action","From","To","Detail"\r\n"10:00:00","Encoding","a.srt","","cp1258 -> utf8"\r\n'
-        '"10:00:01","Delete","b.srt","","Thung rac"\r\n', encoding="utf-8-sig")
+        '"10:00:01","Delete","b.srt","","Thung rac"\r\n', encoding="utf-8-sig", newline="")
     plan = U.plan_undo(d2 / "run_20250101_120000.csv")
     assert not plan.ops and len(plan.notes) == 2
 
     d3 = movie_dir / "_muxtool_logs"
     d3.mkdir()
     (d3 / "mux_20250101_120000.csv").write_text(
-        '"Time","File","Status","Output","Detail"\r\n"10:00:00","a.mkv","OK","a","x"\r\n', encoding="utf-8-sig")
+        '"Time","File","Status","Output","Detail"\r\n"10:00:00","a.mkv","OK","a","x"\r\n', encoding="utf-8-sig", newline="")
     runs = U.list_runs(movie_dir, "_muxtool_logs", "mux")
     assert not runs[0].undoable and "cũ" in runs[0].note
 

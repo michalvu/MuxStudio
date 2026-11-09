@@ -106,7 +106,7 @@ def test_nhap_tu_bat_reference_folder(config_dir, capsys):
 
 def test_nhap_tu_bat_puts_secrets_in_keyring(tmp_path, memory_keyring, capsys):
     bat = tmp_path / "SubFetch_moi.bat"
-    bat.write_text("<# :\n#>\n$SubSourceApiKey = '" + SS_KEY + "'\n$OsPassword = 'matkhau-that'\n", encoding="utf-8")
+    bat.write_text("<# :\n#>\n$SubSourceApiKey = '" + SS_KEY + "'\n$OsPassword = 'matkhau-that'\n", encoding="utf-8", newline="")
     assert nhap_tu_bat.main([str(tmp_path)]) == 0
     assert S.store.get("SubSourceApiKey") == SS_KEY and S.store.get("OsPassword") == "matkhau-that"
     out = capsys.readouterr().out

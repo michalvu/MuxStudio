@@ -75,7 +75,7 @@ def test_measure_timing_uses_external_en_srt_and_falls_back_to_duration(tmp_path
     ext = tmp_path / "Mine.en.srt"
     from synth import srt_text
 
-    ext.write_text(srt_text(ref), encoding="utf-8")
+    ext.write_text(srt_text(ref), encoding="utf-8", newline="")
     mine_j = J(V(), A(1), dur=3000)
     donor_j = J(V(), A(1, "cze"), S(3, "eng"), dur=3000.4)
     tm = D.measure_timing(tmp_path / "Mine.mkv", mine_j, Path("/d/Donor.mkv"), donor_j,

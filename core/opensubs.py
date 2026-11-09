@@ -66,7 +66,8 @@ class OpenSubtitlesClient:
 
     def request(self, method: str, path: str, params: dict | None = None, body: dict | None = None) -> Any:
         """``Invoke-Os``. Dựng lại URL ở MỖI lần thử (sau khi đăng nhập lại, máy chủ/token có thể đổi)."""
-        q = {k: str(v) for k, v in (params or {}).items() if v is not None and str(v) != ""}
+        # tham so theo thu tu chu cai: OpenSubtitles chuyen huong (301) moi request khong dung thu tu -> ton them mot luot
+        q = {k: str(v) for k, v in sorted((params or {}).items()) if v is not None and str(v) != ""}
         for attempt in range(1, 4):
             headers = {"Api-Key": self.api_key, "Accept": "application/json", "User-Agent": self.user_agent}
             if self.token:
@@ -196,7 +197,7 @@ class OpenSubtitlesClient:
         """``Get-OsCandidates``: (1) có ``order_by`` → (2) bỏ sắp xếp → (3) theo tên + năm."""
         if self.disabled:
             return []
-        p: dict[str, Any] = {"languages": lang}
+        p: dict[str, Any] = {"languages": os_languages(lang)}
         if imdb:
             p["imdb_id"] = re.sub(r"^tt", "", imdb)
         elif title:
@@ -205,9 +206,14 @@ class OpenSubtitlesClient:
                 p["year"] = year
         else:
             return []
+        no_season = episode is not None and not season
         if episode is not None:
             if season:
                 p["season_number"] = season
+            elif "imdb_id" not in p:
+                # Do that 2026-11-09 (SPEC 7.E): query + episode_number KHONG kem season -> 0 ket qua -> khoi hoi
+                self.job.dim("        (OpenSubtitles: tập đánh số tuyệt đối mà không rõ season → máy chủ không tìm được, bỏ qua)")
+                return []
             p["episode_number"] = episode
         r = self.request("GET", "/subtitles", {**p, "order_by": "download_count", "order_direction": "desc"})
         if r and r.get("data"):
@@ -218,7 +224,7 @@ class OpenSubtitlesClient:
         r = self.request("GET", "/subtitles", p)
         if r and r.get("data"):
             return list(r["data"])
-        if "imdb_id" in p and title and not self.disabled:
+        if "imdb_id" in p and title and not self.disabled and not no_season:
             self.sleep(self.pause)
             p3 = {k: v for k, v in p.items() if k != "imdb_id"}
             p3["query"] = title
@@ -298,6 +304,17 @@ class OpenSubtitlesClient:
 # ======================================================================
 #  Hàm không cần mạng
 # ======================================================================
+
+
+#: Mã ngôn ngữ OpenSubtitles khác mã 2 chữ — dò thật ``GET /infos/languages`` (2026-11-09): KHÔNG có ``zh``, ``pt``;
+#: có ``zh-cn`` / ``zh-tw`` (+ ``zh-ca`` Quảng Đông), ``pt-pt`` / ``pt-br``. Nhiều mã: cách nhau dấu phẩy, theo chữ cái.
+OS_LANG_CODES: dict[str, tuple[str, ...]] = {"zh": ("zh-cn", "zh-tw"), "pt": ("pt-br", "pt-pt")}
+
+
+def os_languages(code: str) -> str:
+    """Mã ngôn ngữ của MuxStudio → tham số ``languages`` của OpenSubtitles (``zh`` → ``zh-cn,zh-tw``)."""
+    c = (code or "").strip().lower()
+    return ",".join(sorted(OS_LANG_CODES.get(c, (c,))))
 
 
 def is_machine(item: dict) -> bool:

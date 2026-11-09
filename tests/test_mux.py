@@ -434,3 +434,69 @@ def test_keep_original_names_for_pending(movie_dir, monkeypatch):
     assert plans[0].status == "need_choice" and plans[0].name.candidates[0].title == "Khac Han"
     (np,) = lib.s.keep_original_names(plans)
     assert np.status == "ok" and np.out_base.startswith("Phim.Thu.2020.1080p - ")
+
+
+# ---------------------------------------------------------------- mux xong: de xuat dua file nguon vao Thung rac
+def _done(plan: mux.MuxPlan, out: Path | None) -> mux.MuxPlan:
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(b"\x1a\x45\xdf\xa3 ket qua")
+    plan.result = mux.MuxResult(code=0, ok=out is not None, out=out)
+    return plan
+
+
+def test_used_sources_only_successful_and_not_still_needed(movie_dir):
+    """Chỉ file của dòng mux THÀNH CÔNG; bỏ file vẫn cần cho dòng chưa mux / lỗi (dùng chung), file trong Output,
+    file đã mất; mỗi file một lần, ghi rõ đã dùng cho file kết quả nào."""
+    from core import donor as D
+    from core import naming
+
+    def mk(name: str) -> Path:
+        p = movie_dir / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(b"x")
+        return p
+
+    out = movie_dir / "Output"
+    v1, v2, v3 = mk("A.S01E01.mkv"), mk("A.S01E02.mkv"), mk("A.S01E03.mkv")
+    s1, s2 = mk("A.S01E01.vi.srt"), mk("A.S01E02.vi.srt")
+    shared = mk("audio_nguon/A.CZ.mka")  # nguon audio ghep dung chung cho tap 1 va tap 3
+    inside = mk("Output/cu.vi.srt")
+
+    def plan(src, subs, donors=()):
+        p = mux.MuxPlan(src=src, rel=src.name, name=naming.OutputName(src.stem))
+        p.ext_subs = [mux.ExtSub(x, "vi", 0) for x in subs]
+        p.donor.tracks = [D.DonorTrack(source=d, tid=1, a_index=0, code="cs", name="Czech", offset_ms=0) for d in donors]
+        return p
+
+    p1 = _done(plan(v1, [s1, inside], [shared]), out / "A.S01E01.mkv")
+    p2 = _done(plan(v2, [s2]), out / "A.S01E02.mkv")
+    p3 = _done(plan(v3, [], [shared]), None)  # mux LOI -> nguon audio ghep van can
+    got = mux.used_sources([p1, p2, p3], out)
+    assert [(u.path.name, u.kind) for u in got] == [("A.S01E01.mkv", "video"), ("A.S01E02.mkv", "video"),
+                                                     ("A.S01E01.vi.srt", "sub"), ("A.S01E02.vi.srt", "sub")]
+    assert got[0].used_for == ["A.S01E01.mkv"] and got[0].kind_text == "Phim gốc"
+    # tap 3 mux xong -> nguon audio ghep dung chung moi duoc de xuat (mot lan, ghi ca hai file ket qua)
+    _done(p3, out / "A.S01E03.mkv")
+    got = mux.used_sources([p1, p2, p3], out)
+    sh = [u for u in got if u.kind == "donor"]
+    assert len(sh) == 1 and sh[0].path == shared and sh[0].used_for == ["A.S01E01.mkv", "A.S01E03.mkv"]
+    # ket qua mux bi xoa mat / file nguon khong con -> khong de xuat
+    (out / "A.S01E02.mkv").unlink()
+    v1.unlink()
+    names = [u.path.name for u in mux.used_sources([p1, p2, p3], out)]
+    assert "A.S01E02.mkv" not in names and "A.S01E01.mkv" not in names and "A.S01E02.vi.srt" not in names
+
+
+def test_trash_sources_logs_delete(lib, monkeypatch):
+    trashed = []
+    monkeypatch.setattr(undo, "trash", lambda p, rb=True: trashed.append((os.fspath(p), rb)) or os.remove(p) or True)
+    a = lib.add("Phim.2020", J(V(), A(1)))
+    srt_ = lib.root / "Phim.2020.vi.srt"
+    srt_.write_text("x", encoding="utf-8", newline="")
+    rep = lib.s.trash_sources([mux.UsedFile(a, "video"), srt_, lib.root / "khong co.srt"])
+    assert rep.done == [a, srt_] and not rep.failed and not a.exists()
+    assert [rb for _p, rb in trashed] == [True, True]  # mac dinh: vao Thung rac
+    txt = Path(lib.s.log.path).read_text(encoding="utf-8-sig")  # nhat ky cua luot mux (man hinh Hoan tac doc)
+    assert txt.count('"Delete"') == 2 and "file nguồn đã mux xong → Thùng rác" in txt
+    assert "DỌN FILE NGUỒN: 2 file vào Thùng rác" in "\n".join(m for _l, m in lib.s.job.lines)

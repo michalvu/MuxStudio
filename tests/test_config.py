@@ -48,7 +48,7 @@ def test_secrets_never_written_or_read_from_json(config_dir):
     with pytest.raises(KeyError):
         cfg["TmdbApiKey"] = "abc"
     config_dir.mkdir(parents=True, exist_ok=True)
-    (config_dir / "config.json").write_text(json.dumps({"OsPassword": "lo", "ApiPauseMs": 900}), encoding="utf-8")
+    (config_dir / "config.json").write_text(json.dumps({"OsPassword": "lo", "ApiPauseMs": 900}), encoding="utf-8", newline="")
     cfg = C.load_config()
     assert "OsPassword" not in cfg.to_json_dict()
     assert any("OsPassword" in w for w in cfg.warnings)
@@ -59,7 +59,7 @@ def test_secrets_never_written_or_read_from_json(config_dir):
 
 def test_bad_values_fall_back_to_default(config_dir):
     config_dir.mkdir(parents=True, exist_ok=True)
-    (config_dir / "config.json").write_text(json.dumps({"MinVerifyVotes": "nhieu", "ExistingRenameMode": "xoa"}), encoding="utf-8")
+    (config_dir / "config.json").write_text(json.dumps({"MinVerifyVotes": "nhieu", "ExistingRenameMode": "xoa"}), encoding="utf-8", newline="")
     cfg = C.load_config()
     assert cfg["MinVerifyVotes"] == 20
     assert cfg["ExistingRenameMode"] == "copy"
@@ -68,7 +68,7 @@ def test_bad_values_fall_back_to_default(config_dir):
 
 def test_broken_json_uses_defaults(config_dir):
     config_dir.mkdir(parents=True, exist_ok=True)
-    (config_dir / "config.json").write_text("{hong", encoding="utf-8")
+    (config_dir / "config.json").write_text("{hong", encoding="utf-8", newline="")
     cfg = C.load_config()
     assert cfg["MinVerifyVotes"] == 20 and cfg.warnings
 
@@ -102,7 +102,8 @@ def test_import_from_reference_bats():
     ignored = {n for _, n, _ in imp.ignored}
     assert {"UseColors", "DryRun", "UndoLastRun", "ConsoleCols"} <= ignored
     # moi khoa cau hinh (tru khoa moi) deu doc duoc tu .bat
-    new_keys = {"MkvmergePath", "MkvextractPath", "FfmpegPath", "FfprobePath", "AlassPath", "SubFetchLogDir", "UiScale"}
+    new_keys = {"MkvmergePath", "MkvextractPath", "FfmpegPath", "FfprobePath", "AlassPath", "SubFetchLogDir", "UiScale",
+                "AskTrashSourcesAfterMux"}
     assert set(C.FIELD_BY_KEY) - set(v) == new_keys
 
 
@@ -140,7 +141,7 @@ $ApiPauseMs = 1000 + 100
 
 def test_import_snippet_parsing_and_secrets_to_keyring(tmp_path, memory_keyring):
     p = tmp_path / "[Judas] SubFetch_moi.bat"
-    p.write_text(BAT_SNIPPET, encoding="utf-8")
+    p.write_text(BAT_SNIPPET, encoding="utf-8", newline="")
     imp = C.import_from_bat([p])
     v = {k: it.value for k, it in imp.values.items()}
     assert v["Languages"] == ["vi", "cs", "ja", "pt", "ru"]
@@ -167,8 +168,8 @@ def test_import_snippet_parsing_and_secrets_to_keyring(tmp_path, memory_keyring)
 def test_import_conflicts_need_resolution(tmp_path):
     a = tmp_path / "a.bat"
     b = tmp_path / "b.bat"
-    a.write_text("<# :\n#>\n$AlassArgsAudioMode = @()\n$MkvToolNixDir = 'C:\\A'\n", encoding="utf-8")
-    b.write_text("<# :\n#>\n$DonorFolder = 'x'\n$UserMkvToolNix = \"C:\\B\"\n", encoding="utf-8")
+    a.write_text("<# :\n#>\n$AlassArgsAudioMode = @()\n$MkvToolNixDir = 'C:\\A'\n", encoding="utf-8", newline="")
+    b.write_text("<# :\n#>\n$DonorFolder = 'x'\n$UserMkvToolNix = \"C:\\B\"\n", encoding="utf-8", newline="")
     imp = C.import_from_bat([a, b])
     assert "MkvToolNixDir" in imp.conflicts
     cfg = C.Config()
@@ -180,6 +181,6 @@ def test_import_conflicts_need_resolution(tmp_path):
 
 def test_import_unknown_file(tmp_path):
     p = tmp_path / "khac.bat"
-    p.write_text("@echo off\n", encoding="utf-8")
+    p.write_text("@echo off\n", encoding="utf-8", newline="")
     imp = C.import_from_bat([p])
     assert imp.files[0][1] is None and imp.problems

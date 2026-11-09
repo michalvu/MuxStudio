@@ -5,7 +5,7 @@ MuxStudio thay ba file `SubFetch_v30.bat`, `SubPrep_v20.bat`, `MuxTool_v17.bat` 
 
 Mục lục: [1. Tạo MuxStudio.exe](#1-tạo-muxstudioexe-một-lần) · [2. Công cụ ngoài](#2-công-cụ-ngoài-cần-có) ·
 [3. Cấu hình lần đầu](#3-cấu-hình-lần-đầu) · [4. Quy trình làm việc](#4-quy-trình-làm-việc) ·
-[5. Dừng, Hoàn tác](#5-dừng-và-hoàn-tác) · [6. Báo lỗi](#6-báo-lỗi) · [7. Bị chặn khi chạy](#7-bị-chặn-khi-chạy) ·
+[5. Dừng, Hoàn tác, Nhật ký](#5-dừng-hoàn-tác-khung-nhật-ký) · [6. Báo lỗi](#6-báo-lỗi) · [7. Bị chặn khi chạy](#7-bị-chặn-khi-chạy) ·
 [8. Việc khác](#8-việc-khác-tuỳ-chọn)
 
 ---
@@ -66,7 +66,11 @@ Nơi lưu: cấu hình `%APPDATA%\MuxStudio\config.json` (nút **Mở thư mục
 
 ## 4. Quy trình làm việc
 
-Làm lần lượt ① → ② → ③. Chọn **Thư mục phim** ở đầu cửa sổ (**Chọn…**) — dùng chung cho cả ba bước. Mỗi thẻ có nút **Sang bước … →**.
+Làm lần lượt ① → ② → ③. Chọn **Thư mục phim** ở đầu cửa sổ (**Chọn…**) — dùng chung cho cả ba bước.
+
+Mỗi thẻ có một **thanh các bước** (hàng nút to, đánh số, có mũi tên ➜): nút **xanh dương có ▶** = bước nên bấm tiếp
+theo; **xanh lá có ✓** = đã xong (vẫn bấm lại được); xám mờ = chưa bấm được. Nút cuối thanh chuyển sang thẻ kế tiếp.
+Các nút nhỏ màu xám (Xem lệnh, Xuất CSV…, Bỏ qua…) là việc phụ, không bắt buộc.
 
 **① Tải phụ đề** (thay SubFetch)
 1. Tick ngôn ngữ cần tải, bật/tắt nguồn (SubSource, kho `srt_pool`, OpenSubtitles); **Kiểm tra nguồn** để xem key /
@@ -75,28 +79,38 @@ Làm lần lượt ① → ② → ③. Chọn **Thư mục phim** ở đầu c�
    (cột **Lệch** = độ lệch đo thật / `~` ước tính) → bấm đúp ứng viên (hoặc **Chọn bản này** / **Bỏ qua ngôn ngữ này**).
 3. **3. Tải phụ đề** → phụ đề vào `srt_can_sync\<mã ngôn ngữ>\`. Bước này **không** sửa thời gian phụ đề.
 
-**② Chuẩn bị phụ đề** (thay SubPrep)
-1. `srt_goc` trống → bấm **Trích phụ đề gốc từ MKV…** (khi đồng bộ theo phụ đề gốc).
-2. Chọn **Mốc đồng bộ** (*Phụ đề gốc trong 'srt_goc'* hoặc *Audio của file phim*) và **Ngôn ngữ**.
-3. **Xem trước đổi tên** → kiểm tra cột lý do → **Đổi tên các dòng đã tick**.
-4. **Lập cặp đồng bộ** → (tuỳ chọn **Xem lệnh**) → **Chạy đồng bộ**. Mỗi dòng có mức sức khoẻ **TỐT** (xanh) /
+**② Chuẩn bị phụ đề** (thay SubPrep) — trước tiên chọn **Mốc đồng bộ** (*Phụ đề gốc trong 'srt_goc'* hoặc *Audio
+của file phim*) và **Ngôn ngữ**, rồi theo thanh các bước:
+1. **Trích phụ đề gốc** — chỉ cần khi `srt_goc` trống và mốc là phụ đề gốc (có sẵn thì bước này đã ✓).
+2. **Xem trước đổi tên** → kiểm tra cột lý do → 3. **Đổi tên**.
+4. **Lập cặp đồng bộ** → (tuỳ chọn **Xem lệnh**) → 5. **Chạy đồng bộ**. Mỗi dòng có mức sức khoẻ **TỐT** (xanh) /
    **CẦN XEM** (vàng) / **CÓ VẤN ĐỀ** (đỏ); **Chỉ hiện file cần xem**, **Xuất CSV…**.
-5. **Dọn dẹp…** (xoá file nguồn đã dùng — vào Thùng rác).
+6. **Dọn dẹp** (xoá file nguồn đã dùng — vào Thùng rác).
 
 **③ Mux** (thay MuxTool)
-1. **Đặt tên theo (bắt buộc chọn):** TMDB / TVDB / Không đổi tên — không có lựa chọn sẵn.
+1. **Đặt tên theo (bắt buộc chọn):** TMDB / TVDB / Không đổi tên — không có lựa chọn sẵn (chưa chọn thì thanh các
+   bước còn khoá).
 2. **1. Quét & lập kế hoạch** → bảng tổng quan. Dòng vàng *"Cần chọn"*: bấm đúp để chọn tên (danh sách kết quả,
    **Tìm lại với tên:**, *giữ tên file gốc*) hoặc chọn audio (tick track muốn xoá, **Áp dụng cho mọi file còn lại**).
-3. Xem / sửa bảng chọn phụ đề theo tập, audio ghép từ `audio_nguon` (sửa độ lệch tay ngay trong bảng); **Xem lệnh** để
-   xem đúng lệnh `mkvmerge` / `ffmpeg` sẽ chạy.
-4. **2. Bắt đầu mux** → kết quả trong thư mục `Output\` (**Mở thư mục Output**). File gốc không bị sửa.
+3. Xem / sửa **Bảng chọn phụ đề theo tập** (ô tick xanh = giữ; ô **vàng** = khác quy tắc tự động; ô tối có "—" = tập đó
+   không có loại phụ đề này; bấm tiêu đề cột / tên tập = cả cột / cả dòng), audio ghép từ `audio_nguon` (sửa độ lệch
+   tay ngay trong bảng); **Xem lệnh** để xem đúng lệnh `mkvmerge` / `ffmpeg` sẽ chạy.
+4. **2. Bắt đầu mux** → kết quả trong thư mục `Output\`. File gốc không bị sửa.
+5. **3. Dọn file nguồn đã dùng** — mux xong chương trình **tự hỏi** (tắt được trong Cài đặt › ③ Mux): danh sách MKV gốc,
+   phụ đề ngoài, file nguồn audio ghép của các file mux **thành công**, tick sẵn → bỏ tick file muốn giữ → **Đưa các
+   file đã tick vào Thùng rác**. File vẫn cần cho file chưa mux / mux lỗi không có trong danh sách. Lỡ tay: mở Thùng
+   rác › chuột phải › *Restore*. Bấm "Không xoá" thì vẫn mở lại được bằng nút này.
+6. **Mở thư mục Output**.
 
-## 5. Dừng và Hoàn tác
+## 5. Dừng, Hoàn tác, khung Nhật ký
 
 - Đang chạy: **Dừng sau file này** (làm xong file hiện tại rồi dừng) hoặc **■ Dừng ngay** (kết thúc ngay, xoá file dở dang).
 - Nút **Hoàn tác…** ở đầu cửa sổ: danh sách các lần chạy của cả ba bước (mới nhất ở trên, giữ 20 lần mỗi bước) → tick →
   **Hoàn tác các lần đã tick…**. File tạo ra → **Thùng rác**; file đã đổi tên / di chuyển → trả về chỗ cũ.
-  Đọc được cả nhật ký cũ của SubFetch / SubPrep (.bat).
+  File nguồn đã đưa vào Thùng rác (dọn dẹp ở ② / ③) thì khôi phục bằng tay từ Thùng rác. Đọc được cả nhật ký cũ của
+  SubFetch / SubPrep (.bat).
+- **Khung Nhật ký**: kéo **tay kéo** (vạch nhỏ ở mép trên khung, con trỏ ↕) lên để khung cao hơn, xuống để thấp hơn —
+  chương trình nhớ chiều cao cho lần mở sau. **▾ Nhật ký** = thu gọn / mở lại.
 
 ## 6. Báo lỗi
 

@@ -50,7 +50,7 @@ class FakeAlass:
 
     def set(self, **kw):
         kw.setdefault("log", str(self.log))
-        self.conf.write_text(json.dumps(kw), encoding="utf-8")
+        self.conf.write_text(json.dumps(kw), encoding="utf-8", newline="")
 
     def calls(self):
         return [json.loads(x) for x in self.log.read_text(encoding="utf-8").splitlines()] if self.log.exists() else []
@@ -221,12 +221,12 @@ def test_health_messages(tmp_path):
 def test_health_reads_ass_and_vtt(tmp_path):
     """TĐ-14: ASS/VTT được đọc mốc (bản .bat báo 'CÓ VẤN ĐỀ: không đọc được nội dung')."""
     p = tmp_path / "a.ass"
-    p.write_text(ass_text(HREF), encoding="utf-8")
+    p.write_text(ass_text(HREF), encoding="utf-8", newline="")
     h = subprep.sub_health(p, HREF, HREF[-1] + 30, 400, None)
     assert (h.level, h.fmt, h.cues) == (0, "ass", 400)
     v = tmp_path / "a.vtt"
     v.write_text("WEBVTT\n\n" + "".join(f"{srt.format_stamp(t).replace(',', '.')} --> {srt.format_stamp(t + 1).replace(',', '.')}\nx\n\n"
-                                       for t in HREF), encoding="utf-8")
+                                       for t in HREF), encoding="utf-8", newline="")
     h = subprep.sub_health(v, HREF, HREF[-1] + 30, 400, None)
     assert (h.level, h.fmt) == (0, "vtt")
     e = tmp_path / "e.srt"
@@ -443,7 +443,7 @@ def test_sync_ass_stays_ass(lib, fa):
     """Q7 + TĐ-14: phụ đề ASS giữ ASS, không cắt recap (ghi lý do), sức khoẻ đọc được."""
     a = lib.can / "vi" / f"{SHOW[0]}.vi.ass"
     a.parent.mkdir(parents=True)
-    a.write_text(ass_text([r + 3 for r in lib.ref[SHOW[0]]]), encoding="utf-8")
+    a.write_text(ass_text([r + 3 for r in lib.ref[SHOW[0]]]), encoding="utf-8", newline="")
     fa.set(offset=-3.0)
     with sess(lib.root, fa) as s:
         pairs = s.plan_sync("sub")

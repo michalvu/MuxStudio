@@ -152,7 +152,8 @@ def test_audio_choice_index_and_lang(movie_dir, fa):
 @need_alass
 def test_real_alass_sub_mode_recovers_offset(movie_dir):
     ref = make_ref_times(500, seed=11, min_gap=1.5, max_gap=8)
-    make_mkv(movie_dir / f"{STEM}.mkv", audio=False)
+    # phim phai DAI bang phu de (~40 phut): phim 3 s -> suc khoe bao dung "dong cuoi vuot thoi luong phim" (muc 2)
+    make_mkv(movie_dir / f"{STEM}.mkv", audio=False, dur=int(ref[-1]) + 30)
     write_srt(movie_dir / "srt_goc" / f"{STEM}.srt", ref)
     write_srt(movie_dir / "srt_can_sync" / "vi" / f"{STEM}.vi.srt", [r + 7.5 for r in ref])
     with sess(movie_dir) as s:

@@ -15,7 +15,9 @@ import json
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -62,6 +64,24 @@ def ui(monkeypatch):
     monkeypatch.setattr(W, "info", lambda _p, t, m: shown["info"].append((t, m)))
     monkeypatch.setattr(W, "warn", lambda _p, t, m: shown["warn"].append((t, m)))
     monkeypatch.setattr(W, "show_text", lambda _p, t, text, note="": shown["text"].append(text))
+    from gui import mux_view as MV
+
+    class FakeTrashDialog:
+        """Hộp thoại "Dọn file nguồn đã dùng" giả (không chặn): ghi lại danh sách, trả lời theo ``answer``."""
+
+        answer: Any = None  # None = "Khong xoa"; ham(cands) -> danh sach file tick
+
+        def __init__(self, _view, cands):
+            shown["trash"].append(list(cands))
+            self.cands = cands
+
+        def run(self):
+            a = FakeTrashDialog.answer
+            return a(self.cands) if callable(a) else a
+
+    shown["trash"] = []
+    shown["TrashDialog"] = FakeTrashDialog
+    monkeypatch.setattr(MV, "TrashDialog", FakeTrashDialog)
     apps = []
 
     def make(folder, cfg=None):
@@ -124,13 +144,13 @@ def mkv_tracks(path):
 @need_media
 def test_mux_tab_end_to_end(movie_dir, tmp_path, ui):
     en = tmp_path / "en.srt"
-    en.write_text(srt_text(make_ref_times(40, seed=3)), encoding="utf-8")
+    en.write_text(srt_text(make_ref_times(40, seed=3)), encoding="utf-8", newline="")
     eps = []
     for n in (1, 2):
         p = movie_dir / f"Show.S01E0{n}.1080p.WEB.mkv"
         mux_mkv(p, [(en, "eng", ""), (en, "eng", "English SDH")])
         eps.append(p)
-    (movie_dir / "Show.S01E01.1080p.WEB.vi.srt").write_text(srt_text(make_ref_times(40, seed=4)), encoding="utf-8")
+    (movie_dir / "Show.S01E01.1080p.WEB.vi.srt").write_text(srt_text(make_ref_times(40, seed=4)), encoding="utf-8", newline="")
     a = ui(movie_dir)
     v = a.mux
     a.goto("③ Mux")
@@ -188,6 +208,21 @@ def test_mux_tab_end_to_end(movie_dir, tmp_path, ui):
     assert all(p.result is not None and p.result.ok for p in v.plans)
     assert not any(p.selected for p in v.plans)  # da mux xong -> bo tick (khong mux lai)
     assert "Thành công: 2" in v.summary.cget("text")
+    # Mux xong: tu de xuat dua file nguon da dung vao Thung rac (yeu cau sau duyet GD6)
+    for _ in range(40):
+        if a.shown["trash"]:
+            break
+        a.root.update()
+        time.sleep(0.05)
+    srt_vi = movie_dir / "Show.S01E01.1080p.WEB.vi.srt"
+    assert [(u.path, u.kind) for u in a.shown["trash"][0]] == [(eps[0], "video"), (eps[1], "video"), (srt_vi, "sub")]
+    assert v.steps.states["trash"] == "done" and v.steps.states["out"] == "next"  # bam "Khong xoa"
+    a.shown["TrashDialog"].answer = lambda cands: [u for u in cands if u.path != eps[1]]
+    v.offer_trash()  # bam lai nut "3. Don file nguon da dung", tick 2/3 file
+    pump(a)
+    assert not eps[0].exists() and not srt_vi.exists() and eps[1].exists() and all(o.is_file() for o in outs)
+    assert "DỌN FILE NGUỒN: 2 file đã XOÁ HẲN" in log_text(a)  # fixture: DeleteToRecycleBin tat
+    assert [u.path for u in v.trash_cands] == [eps[1]]
     t1 = mkv_tracks(outs[0])
     names = [t["properties"].get("track_name") for t in t1 if t["type"] == "audio"]
     assert names == ["English AAC 5.1", "Czech AAC 2.0"]
@@ -197,7 +232,7 @@ def test_mux_tab_end_to_end(movie_dir, tmp_path, ui):
     from gui import app as A
 
     ents = A.undo_entries(movie_dir, a.cfg)
-    assert [e.step for e in ents] == ["mux"] and "2 tạo" in A.counts_text(ents[0].run.counts)
+    assert [e.step for e in ents] == ["mux"] and A.counts_text(ents[0].run.counts) == "1 thư mục mới, 2 tạo, 2 vào Thùng rác"
     d = A.UndoDialog(a, str(movie_dir))
     d.t.update("u0", checked=True)
     d.do_undo()
@@ -284,12 +319,12 @@ def test_fetch_tab_pool_choose_and_download(movie_dir, ui):
     ref = make_ref_times(400, seed=11)
     goc = movie_dir / "srt_goc"
     goc.mkdir()
-    (goc / f"{stem}.srt").write_text(srt_text(ref), encoding="utf-8")
+    (goc / f"{stem}.srt").write_text(srt_text(ref), encoding="utf-8", newline="")
     pool = movie_dir / "srt_pool" / "vi"
     pool.mkdir(parents=True)
-    (pool / "Phim.Thu.2020.BluRay.vi.srt").write_text(srt_text(transform_times(ref, 1.0, 1.5, seed=5)), encoding="utf-8")
-    (pool / "Phim.Thu.2020.WEB-DL.vi.srt").write_text(srt_text(transform_times(ref, 1.0, -0.8, seed=6)), encoding="utf-8")
-    (pool / "Phim.Khac.2019.vi.srt").write_text(srt_text(make_ref_times(400, seed=99)), encoding="utf-8")
+    (pool / "Phim.Thu.2020.BluRay.vi.srt").write_text(srt_text(transform_times(ref, 1.0, 1.5, seed=5)), encoding="utf-8", newline="")
+    (pool / "Phim.Thu.2020.WEB-DL.vi.srt").write_text(srt_text(transform_times(ref, 1.0, -0.8, seed=6)), encoding="utf-8", newline="")
+    (pool / "Phim.Khac.2019.vi.srt").write_text(srt_text(make_ref_times(400, seed=99)), encoding="utf-8", newline="")
     a = ui(movie_dir)
     v = a.fetch
     a.goto("① Tải phụ đề")
@@ -325,7 +360,7 @@ def test_fetch_tab_pool_choose_and_download(movie_dir, ui):
 # ---------------------------------------------------------------- ② Chuan bi phu de
 def test_subprep_tab_rename_sync_export(movie_dir, ui, tmp_path, monkeypatch):
     conf = tmp_path / "fake_alass.json"
-    conf.write_text(json.dumps({"offset": 0}), encoding="utf-8")
+    conf.write_text(json.dumps({"offset": 0}), encoding="utf-8", newline="")
     monkeypatch.setenv("FAKE_ALASS", str(conf))
     real = tools.find_all_tools
     monkeypatch.setattr(tools, "find_all_tools",
@@ -335,12 +370,12 @@ def test_subprep_tab_rename_sync_export(movie_dir, ui, tmp_path, monkeypatch):
         (movie_dir / f"Show.S01E0{n}.1080p.mkv").write_bytes(b"\x1a\x45\xdf\xa3")
     goc = movie_dir / "srt_goc"
     goc.mkdir()
-    (goc / "Show.S01E01.1080p.srt").write_text(srt_text(ref), encoding="utf-8")
-    (goc / "Show.S01E02.1080p.srt").write_text(srt_text(make_ref_times(300, seed=22)), encoding="utf-8")
+    (goc / "Show.S01E01.1080p.srt").write_text(srt_text(ref), encoding="utf-8", newline="")
+    (goc / "Show.S01E02.1080p.srt").write_text(srt_text(make_ref_times(300, seed=22)), encoding="utf-8", newline="")
     vi = movie_dir / "srt_can_sync" / "vi"
     vi.mkdir(parents=True)
     src = vi / "Show - 01x01 - WEB.srt"
-    src.write_text(srt_text(transform_times(ref, 1.0, 2.0, seed=7)), encoding="utf-8")
+    src.write_text(srt_text(transform_times(ref, 1.0, 2.0, seed=7)), encoding="utf-8", newline="")
     a = ui(movie_dir, {"AskCleanup": False})
     v = a.prep
     a.goto("② Chuẩn bị phụ đề")
@@ -367,7 +402,9 @@ def test_subprep_tab_rename_sync_export(movie_dir, ui, tmp_path, monkeypatch):
     pump(a)
     new = vi / "Show.S01E01.1080p.vi.srt"
     assert new.is_file() and not src.exists()
-    assert v.inner.get() == "Bước 2 — Đồng bộ"
+    from gui import subprep_view as PV
+
+    assert v.inner.get() == PV.INNER_SYNC
     v.plan_sync()
     pump(a)
     assert len(v.pairs) == 1 and v.pairs[0].ok
@@ -588,3 +625,58 @@ def test_settings_tools_block_shows_used_files_and_wrong_pick(movie_dir, ui, tmp
     pump(a)
     assert fr.status.cget("text").startswith("✗ không có file này")
     a.goto(A.TAB_SETTINGS)
+
+
+def test_log_drag_resize_remembered_and_step_bars(movie_dir, ui):
+    """Sau duyệt GĐ6: kéo tay kéo khung Nhật ký (lên = cao hơn, nhớ ``UiLogHeight``); thanh các bước ở 3 thẻ."""
+    from gui import widgets as W
+
+    a = ui(movie_dir)
+    lp = a.log_panel
+    h0 = lp.height
+
+    class Ev:
+        def __init__(self, y):
+            self.y_root = y
+
+    lp._drag_start(Ev(500))
+    lp._drag(Ev(440))  # keo LEN 60 px
+    lp._drag_end(Ev(440))
+    sc = float(W.ctk.ScalingTracker.get_widget_scaling(lp.box))
+    assert lp.height == round(h0 + 60 / sc) and a.cfg["UiLogHeight"] == lp.height
+    lp.toggle()  # thu gon roi keo -> tu mo lai
+    lp._drag_start(Ev(500))
+    lp._drag(Ev(520))
+    lp._drag_end(Ev(520))
+    assert lp.expanded and a.cfg["UiLogHeight"] == lp.height < round(h0 + 60 / sc)
+    b = ui(movie_dir, {"UiLogHeight": 150})  # mo lai: dung chieu cao da keo
+    assert b.log_panel.height == min(150, b._log_max())
+    # thanh cac buoc: da chon thu muc -> buoc 1 cua the ① sang; the ③ chua chon database -> khong buoc nao sang
+    assert a.fetch.steps.states == {"scan": "next", "gather": "off", "run": "off", "next": "todo"}
+    assert a.mux.steps.states["plan"] == "off" and "next" not in a.mux.steps.states.values()
+    a.mux.db.set("none")
+    a.mux.update_buttons()
+    assert a.mux.steps.states["plan"] == "next"
+    assert a.prep.steps.states["extract"] == "next"  # srt_goc trong, moc = phu de goc
+
+
+def test_sub_grid_hover_frame_and_boxes(movie_dir, ui):
+    from gui import widgets as W
+
+    a = ui(movie_dir)
+    g = W.CheckGrid(a.root)
+    g.frame.pack()
+    m = W.GridModel(["r1", "r2"], ["E|vi", "I|2"], {("r1", "E|vi"): True, ("r1", "I|2"): False, ("r2", "E|vi"): True})
+    g.set_model(m, {"E|vi": "NGOÀI\nVietnamese", "I|2": "TRONG MKV\nEnglish"}, {"r1": "Tập 1", "r2": "Tập 2"})
+    a.root.update()
+    g.redraw()
+    lines = [i for i in g.cv.find_all() if g.cv.type(i) == "line"]
+    assert len(lines) == 2  # 2 o da tick = 2 dau ✓ ve bang net (o chua tick: chi co hop)
+    g._set_hover("r2")
+    (hv,) = g.cv.find_withtag("hover")
+    assert g.cv.coords(hv)[1] == g.head_h + g.row_h + 1
+    m.toggle_cell("r1", "I|2")
+    g.redraw()  # ve lai van giu khung re chuot
+    assert g.cv.find_withtag("hover") and len([i for i in g.cv.find_all() if g.cv.type(i) == "line"]) == 3
+    g._set_hover(None)
+    assert not g.cv.find_withtag("hover")

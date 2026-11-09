@@ -111,33 +111,33 @@ def ps(tmp_path_factory):
 
     for k, t in TRIM.items():
         p = d / f"trim_{k}.srt"
-        p.write_text(srt_text(t, 1.0), encoding="utf-8")
+        p.write_text(srt_text(t, 1.0), encoding="utf-8", newline="")
         ids[("trim", k)] = case("Remove-LeadingExtra", str(p), REF)
     for k, t in REPAIR.items():
         p = d / f"rep_{k}.srt"
-        p.write_text(srt_text(t, 1.0), encoding="utf-8")
+        p.write_text(srt_text(t, 1.0), encoding="utf-8", newline="")
         ids[("rep", k)] = case("Repair-CollapsedCues", str(p))
     for k, (t, ref, dur, before, src, ln) in HEALTH.items():
         p = d / f"h_{k}.srt"
-        p.write_text(srt_text(t, ln), encoding="utf-8")
+        p.write_text(srt_text(t, ln), encoding="utf-8", newline="")
         ids[("h", k)] = case("Test-SubHealth", str(p), ref, dur, before, src)
     bad = d / "h_badchar.srt"
     bad.write_bytes(srt_text(HREF, 1.0).encode("utf-8").replace("Dòng 7".encode(), b"D\xffng 7"))
     ids[("h", "badchar")] = case("Test-SubHealth", str(bad), HREF, 0, 0, None)
     ass = d / "h_ass.ass"
-    ass.write_text(ass_text(HREF), encoding="utf-8")
+    ass.write_text(ass_text(HREF), encoding="utf-8", newline="")
     ids[("h", "ass")] = case("Test-SubHealth", str(ass), HREF, HREF[-1] + 30, 400, None)
     for name, (files, kind, n, subs) in TREES.items():
         root = d / name
         for f in files:
             (root / f).parent.mkdir(parents=True, exist_ok=True)
             if f.endswith(".srt"):
-                (root / f).write_text(srt_text(REF[:50]), encoding="utf-8")
+                (root / f).write_text(srt_text(REF[:50]), encoding="utf-8", newline="")
             else:
                 (root / f).write_bytes(b"")
         ids[("rr", name)] = case("Resolve-Ref", str(root), kind, n, list(subs))
     inp, out = d / "in.json", d / "out.json"
-    inp.write_text(json.dumps(cases), encoding="utf-8")
+    inp.write_text(json.dumps(cases), encoding="utf-8", newline="")
     r = subprocess.run([PWSH, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File",
                         str(ROOT / "tests" / "golden" / "ps_harness.ps1"), "-BatDir", str(REFERENCE), "-InFile", str(inp),
                         "-OutFile", str(out)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)

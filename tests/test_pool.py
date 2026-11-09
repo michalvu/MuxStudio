@@ -8,7 +8,7 @@ from synth import make_ref_times, srt_text, transform_times
 
 def write(p, times):
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(srt_text(times), encoding="utf-8")
+    p.write_text(srt_text(times), encoding="utf-8", newline="")
     return p
 
 

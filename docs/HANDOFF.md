@@ -1,6 +1,6 @@
 # Bàn giao giữa các phiên làm việc (đọc file này TRƯỚC)
 
-Cập nhật: 2026-11-09, Giai đoạn 6 (đóng gói) XONG — **chờ người dùng duyệt** (build `.exe` trên Windows). Repo `michalvu/MuxStudio`.
+Cập nhật: 2026-11-09, Giai đoạn 6 (đóng gói) + sửa theo **duyệt lần 1** XONG — **chờ người dùng duyệt lần 2**. Repo `michalvu/MuxStudio`.
 Nhánh: GĐ6 làm trên nhánh phiên `ccr-e18d248b-a69t65`, đẩy cả `claude/new-session-eckanp` (người dùng yêu cầu: hai nhánh giống nhau).
 Phiên sau: làm trên nhánh phiên được giao; đẩy cả `claude/new-session-eckanp`.
 
@@ -24,19 +24,16 @@ Người dùng **không phải lập trình viên**: trả lời + giao diện *
 | 3 | Bước ② `subprep` + test | ✅ đã duyệt (2026-11-09, gồm TĐ-31, TĐ-32) |
 | 4 | Bước ③ `mux donor tvdb` + phần bước ③ của `probe tmdb naming` + test | ✅ đã duyệt (2026-11-09, gồm TĐ-33, TĐ-34) |
 | 5 | GUI `gui/` (4 thẻ + log + luồng phụ + Dừng + Hoàn tác) + test giao diện + tối ưu 720p/1080p/1440p + khối "Công cụ ngoài" | ✅ đã duyệt (2026-11-09) |
-| 6 | Đóng gói: `MuxStudio.pyw`, `MuxStudio.spec`, `build.bat`, icon, 1.0.0, `--kiem-tra`, `HUONG_DAN.md` + 23 test | ✅ xong, **chờ duyệt** (mục 10) |
+| 6 | Đóng gói: `MuxStudio.pyw`, `MuxStudio.spec`, `build.bat`, icon, 1.0.0, `--kiem-tra`, `HUONG_DAN.md` + test; sau duyệt lần 1: 15 test Windows, dò API thật, thanh các bước, màu lưới phụ đề, kéo Nhật ký, dọn file nguồn sau mux | ✅ xong, **chờ duyệt lần 2** (mục 10, 11) |
 
-**Việc kế tiếp:** chờ người dùng duyệt GĐ6: bấm đúp `build.bat` trên Windows → đọc báo cáo tự kiểm tra (`kiem_tra_exe.txt`)
-→ chạy `MuxStudio.exe`, làm thử ① → ② → ③. Người dùng CHƯA thử giao diện trên Windows (chấp nhận sửa lỗi sau khi có
-.exe) → các phần chỉ giả lập trên Linux (Credential Manager, Thùng rác, DPI 125/150%, alass thật, đường dẫn `C:\`,
-SmartScreen/antivirus) có thể lộ lỗi: hỏi báo cáo tự kiểm tra + "Lưu log" + ảnh; sửa ở mã nguồn + test, đẩy, người
-dùng build lại (chép đè `dist\MuxStudio`). Lỗi ở bản `.exe` mà mã nguồn không có → xem mục 10 (spec, hiddenimports). Bất cứ lúc nào người dùng gửi `ket_qua_do_api.txt` → so với giả định trong `core/subsource.py`, `core/opensubs.py`,
-`core/tmdb.py` (và `tvdb` sau). Chỗ nào khác: viết lại hàm giữ nguyên tên/chữ ký, thêm test, ghi vào SPEC mục 7.E
-(hàm nào, vì sao hỏng, cách mới, kiểm chứng ra sao). Những điểm đang chờ dò:
-- mã ngôn ngữ OpenSubtitles (`zh` hay `zh-cn`, `pt`…) — bước 2 của `probe_opensubs`;
-- OpenSubtitles tìm anime theo `episode_number` không kèm season (TĐ-29) — bước 7;
-- tên header giới hạn lượt của SubSource (để "Kiểm tra kết nối" hiện "còn 58/60 lượt/phút");
-- `limit=100`, tên trường SubSource, `base_url` VIP OpenSubtitles.
+**Việc kế tiếp:** chờ người dùng duyệt lần 2: chạy lại `run_tests.bat` (lần 1 hỏng 15 test — đã sửa, mục 11) và
+`build.bat`, thử giao diện mới (thanh các bước, lưới phụ đề, kéo Nhật ký, dọn file nguồn sau mux). Lỗi chỉ lộ trên
+Windows (Credential Manager, Thùng rác, DPI 125/150%, alass thật, ffmpeg cũ, SmartScreen/antivirus) → hỏi báo cáo tự
+kiểm tra + "Lưu log" + ảnh; tái hiện bằng `tools/winemu.py` nếu được (mục 6); sửa ở mã nguồn + test, đẩy, người dùng
+build lại (chép đè `dist\MuxStudio`). Lỗi ở bản `.exe` mà mã nguồn không có → xem mục 10 (spec, hiddenimports).
+
+Kết quả dò API thật (lần 2, có key) đã áp dụng — SPEC 7.E. Còn có thể dò thêm nếu cần: OpenSubtitles tìm tập tuyệt đối
+theo **IMDb** (không season) — lần dò chỉ thử theo tên (0 kết quả); mã hiện vẫn thử theo IMDb 2 lượt.
 
 
 ## 3. Quyết định đã chốt (đừng hỏi lại)
@@ -58,12 +55,13 @@ core/   timing pgs srt encoding episodes naming config secrets undo   (GĐ1)
         + set_job (3 phiên), naming.search_candidates, MuxSession.search_name (GĐ5)
 gui/    app widgets log_panel settings_view fetch_view subprep_view mux_view (GĐ5)
         + build_info / self_check (--kiem-tra) / write_startup_error trong app; resource_path / set_window_icon (GĐ6)
-tests/  pytest — 637 test (2 test alass thật tự bỏ qua nếu không có alass; 10 test test_gui_app.py + 1 test_packaging
+tests/  pytest — 650 test (2 test alass thật tự bỏ qua nếu không có alass; 12 test test_gui_app.py + 1 test_packaging
         tự bỏ qua nếu không có tkinter/màn hình); test_packaging.py (GĐ6); test_gui_logic.py (logic giao diện, không cần Tk); fakehttp.py (API giả),
         synth.py (phụ đề/PGS giả), fake_alass.py (alass GIẢ: ghi lại từng lần gọi, dịch phụ đề theo cấu hình),
         test_golden_powershell.py + test_golden_subprep.py + test_golden_mux.py + golden/ps_harness.ps1 (chạy HÀM GỐC
         trong reference/*.bat bằng pwsh và so; Invoke-TmdbApi/Invoke-TvdbApi thay bằng API giả cùng dữ liệu)
-tools/  verify_bat/KiemChung_LoiBat.ps1, sanitize_bat.py, probe_*.py, probe_all.py, nhap_tu_bat.py, make_icon.py (GĐ6)
+tools/  verify_bat/KiemChung_LoiBat.ps1, sanitize_bat.py, probe_*.py, probe_all.py, nhap_tu_bat.py, make_icon.py (GĐ6),
+        winemu.py (plugin pytest giả lập Windows)
 reference/  3 file .bat gốc ĐÃ XOÁ 7 bí mật (dùng cho test đối chiếu)
 run_tests.bat, chay_do_api.bat, chay_muxstudio.bat (CRLF, cho Windows; chay_muxstudio = chạy giao diện từ mã nguồn)
 GĐ6: MuxStudio.pyw (điểm vào), MuxStudio.spec, build.bat, requirements-build.txt, HUONG_DAN.md,
@@ -113,6 +111,15 @@ GĐ6: MuxStudio.pyw (điểm vào), MuxStudio.spec, build.bat, requirements-buil
 - **Không chạy được file .exe/nhị phân tải từ mạng** trong container (bộ phân loại an toàn chặn, kể cả alass bản Linux) →
   test alass thật tự bỏ qua ở đây; dùng `tests/fake_alass.py`. Trên Windows `run_tests.bat` tìm alass thật như nút "Tự tìm".
   (Bản đóng gói Linux do PyInstaller build NGAY trong container thì chạy được — mục 10.)
+- **Test chạy trên Windows của người dùng (bài học lần 1: 15 test hỏng, không lỗi nào ở mã chương trình):**
+  (1) `Path.write_text` / `open(..., "w")` trên Windows đổi `\n` → `\r\n`; dữ liệu SRT giả đã có `\r\n` → `\r\r\n`
+  (SRT hỏng) ⇒ trong test LUÔN `write_text(..., encoding="utf-8", newline="")`. (2) Python con (alass giả, `python -c`) ghi
+  ra ống dẫn bằng bảng mã ANSI (cp1250 ở máy tiếng Séc) → chữ có dấu làm chết tiến trình ⇒ Python con phải
+  `sys.stdout.reconfigure(encoding="utf-8")`. (3) ffmpeg cũ (bản đi kèm alass) không cắt "đoạn mồi" của AAC (~21 ms) /
+  E-AC-3 (~5 ms) khi giải mã ⇒ test tiếng bíp dùng audio gốc PCM, ngưỡng thực tế 10 ms (yêu cầu 20 ms). (4) Test alass
+  THẬT chỉ chạy được trên Windows — dữ liệu phải hợp lý (phim giả 3 s + phụ đề 40 phút ⇒ sức khoẻ báo đúng "vượt thời
+  lượng"). (5) Test tìm công cụ phải dùng `tools.find_tool` (trên Windows mkvmerge thường không có trong PATH).
+  Kiểm tra trước khi đẩy: `tools/winemu.py` (mục 6) giả lập (1) + (2) trên Linux.
 - **Test giao diện phụ thuộc cỡ màn hình:** `xvfb-run -a` ở container này cho màn hình 1280×1024 (< 1400×860) → cửa sổ tự
   phóng to hết màn hình; Xvfb không có trình quản lý cửa sổ nên Tk KHÔNG bỏ phóng to được (`-zoomed` kẹt ở 1). Test nào
   đặt cỡ cửa sổ phải xét `a.window.zoomed` (đã sửa `test_window_fits_screen_and_remembers_logical_size` ở GĐ6 — trước đó
@@ -131,9 +138,11 @@ pip install -q uv && uv python install 3.11   # chạy test trên 3.11 (bản uv
 uv venv -p 3.11 /tmp/v311 && uv pip install -p /tmp/v311/bin/python keyring send2trash requests pytest customtkinter
 # Python 3.12 của Ubuntu + Tk 8.6 (GIỐNG Windows nhất — dùng để chụp ảnh giao diện):
 /usr/bin/python3.12 -m venv /tmp/v312 && /tmp/v312/bin/pip install -q customtkinter keyring send2trash requests pytest
-.venv/bin/python -m pytest -q              # không có Tk: 624 passed, 13 skipped (11 test cần Tk + 2 alass thật)
-xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 635 passed, 2 skipped
-xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 635 passed, 2 skipped
+.venv/bin/python -m pytest -q              # không có Tk: 635 passed, 15 skipped (13 test cần Tk + 2 alass thật)
+xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 648 passed, 2 skipped
+xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 648 passed, 2 skipped
+# Giả lập Windows (ghi file chữ \n→\r\n, Python con in cp1250) — phải qua hết:
+PYTHONPATH=tools xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider -p winemu   # 648 passed, 2 skipped
 # Thử đóng gói (GĐ6) — PyInstaller trên Python 3.12 của Ubuntu (Tk 8.6), kết quả để ngoài repo:
 /usr/bin/python3.12 -m venv /tmp/vbuild && /tmp/vbuild/bin/pip install -q -r requirements-build.txt
 /tmp/vbuild/bin/python -m PyInstaller --noconfirm --clean --distpath /tmp/pyi/dist --workpath /tmp/pyi/build MuxStudio.spec
@@ -261,3 +270,27 @@ Hoàn tác, báo lỗi, SmartScreen/antivirus/Unblock, run_tests, dò API).
 
 Tiêu chí hoàn thành của cả dự án: PROMPT §10 (mở .exe bằng bấm đúp, không cần cài Python, …) — chờ người dùng xác nhận
 trên Windows.
+
+## 11. Sau duyệt GĐ6 lần 1 (2026-11-09)
+
+Người dùng gửi: ảnh `run_tests.bat` (15 failed, 618 passed), `ket_qua_do_api.txt` (có key), 4 yêu cầu giao diện.
+
+- **15 test hỏng trên Windows** — đều do test (mục 5 "bài học"): 64 lời gọi `write_text` trong `tests/` thêm `newline=""`;
+  `fake_alass.py` ép stdout UTF-8; test `tools.run` cho Python con in UTF-8; test tiếng bíp audio gốc PCM + ngưỡng 10 ms;
+  test alass thật: phim dài bằng phụ đề; `test_e2e_mkv.py` tìm công cụ như "Tự tìm". Đã tái hiện 12/15 bằng
+  `tools/winemu.py`, 3 ca còn lại (ffmpeg cũ ×2, alass thật) chứng minh bằng mô phỏng (ghi trong commit).
+- **Dò API thật** (SPEC 7.E): `opensubs.os_languages` (`zh`→`zh-cn,zh-tw`, `pt`→`pt-br,pt-pt`), tập tuyệt đối không
+  season không tìm theo tên, tham số theo chữ cái (tránh 301); SubSource `_rate_text` đọc `X-RateLimit-*` (phút/giờ/ngày),
+  tên ngôn ngữ thật `chinese_bg_code` / `big_5_code` / `brazilian_portuguese`.
+- **(1) Màu lưới chọn phụ đề**: `W.GRID_COLORS`; ô tick vẽ thành hộp (`CheckGrid._box`), dòng xen kẽ, khung rê chuột
+  (`_set_hover`, tag `hover`), tiêu đề cột `E|…` (phụ đề NGOÀI) màu riêng, chữ 11. `ROW_BG["need"]` tối sáng hơn.
+- **(2) Nút các bước**: `W.StepBar` (+ hàm thuần `step_states`, `step_label`): mỗi thẻ một hàng nút to đánh số, mũi tên;
+  bước kế tiếp = bước CHƯA xong đầu tiên nếu bấm được (▶ xanh, viền), xong = ✓ xanh lá; tự thu chữ khi hẹp
+  (`fit_size`, đo bằng `tkfont` × tỉ lệ CTk). ① quét/tìm/tải/sang ②; ② trích gốc/xem trước/đổi tên/lập cặp/đồng bộ/
+  dọn dẹp/sang ③ (thẻ con đổi tên `INNER_RENAME`, `INNER_SYNC`); ③ lập kế hoạch/mux/dọn file nguồn/mở Output. Thuộc
+  tính nút cũ (`scan_btn`, `plan_btn`, …) trỏ vào nút trên thanh. 4 thẻ chính chữ 15 đậm.
+- **(3) Kéo khung Nhật ký**: tay kéo `LogPanel.grip`, `drag_height` (thuần), nhớ khoá lạ `UiLogHeight`, tối đa = cửa sổ − 300.
+- **(4) Mux xong hỏi dọn file nguồn**: `mux.used_sources(plans, out_dir)` + `MuxSession.trash_sources` (log `Delete`
+  vào nhật ký lượt mux, lưu lại); `mux_view.TrashDialog` (tick sẵn, nút "Đưa các file đã tick vào Thùng rác"; tắt
+  `DeleteToRecycleBin` → chữ đỏ "XOÁ HẲN"); khoá mới `AskTrashSourcesAfterMux` (mặc định bật). Test giao diện thay
+  `TrashDialog` bằng bản giả (fixture `ui`, `shown["TrashDialog"].answer`) — hộp thoại thật sẽ chặn test.

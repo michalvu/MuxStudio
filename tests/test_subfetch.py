@@ -37,7 +37,7 @@ class Lib:
             (root / f"{stem}.mkv").write_bytes(b"\x1a\x45\xdf\xa3")
             p = root / "srt_goc" / f"{stem}.srt"
             p.parent.mkdir(exist_ok=True)
-            p.write_text(srt_text(self.ref[stem]), encoding="utf-8")
+            p.write_text(srt_text(self.ref[stem]), encoding="utf-8", newline="")
         # video trong Output / audio_nguon / srt_pool: KHONG duoc tai (Q6)
         for d in ("Output/Show (2019) [tmdbid-1]/Season 01", "audio_nguon", "srt_pool"):
             (root / d).mkdir(parents=True, exist_ok=True)
@@ -137,12 +137,12 @@ def test_full_run(lib):
     # file ban tu bo vao srt_can_sync: dung tap 2 (do duoc) + ten giong nhung TAP KHAC
     sc = lib.root / "srt_can_sync" / "en"
     sc.mkdir(parents=True)
-    (sc / "random name from web.srt").write_text(srt_text(lib.sub(EP2, 0.8, seed=15)), encoding="utf-8")
-    (sc / "Show.S01E05.1080p.WEB-DL.en.srt").write_text(srt_text(lib.sub(EP2, 0.0, seed=16)), encoding="utf-8")
+    (sc / "random name from web.srt").write_text(srt_text(lib.sub(EP2, 0.8, seed=15)), encoding="utf-8", newline="")
+    (sc / "Show.S01E05.1080p.WEB-DL.en.srt").write_text(srt_text(lib.sub(EP2, 0.0, seed=16)), encoding="utf-8", newline="")
     # kho noi bo co ban khop cho Dune en -> khong hoi mang cho ngon ngu do
     pl = lib.root / "srt_pool" / "en"
     pl.mkdir(parents=True)
-    (pl / "Dune.Part.Two.2024.en.srt").write_text(srt_text(lib.sub(DUNE, -3.0, seed=17)), encoding="utf-8")
+    (pl / "Dune.Part.Two.2024.en.srt").write_text(srt_text(lib.sub(DUNE, -3.0, seed=17)), encoding="utf-8", newline="")
 
     s, job = session(lib, http)
     asked = []
@@ -230,7 +230,7 @@ def test_no_subsource_entry_and_os_off_still_uses_pool(lib):
     """TĐ-06 + TĐ-07: không có SubSource key, OpenSubtitles tắt → kho nội bộ vẫn chạy."""
     pl = lib.root / "srt_pool" / "vi"
     pl.mkdir(parents=True)
-    (pl / "Dune.Part.Two.2024.vi.srt").write_text(srt_text(lib.sub(DUNE, 1.0)), encoding="utf-8")
+    (pl / "Dune.Part.Two.2024.vi.srt").write_text(srt_text(lib.sub(DUNE, 1.0)), encoding="utf-8", newline="")
     http = FakeHTTP()
     s, job = session(lib, http, C.Config({"Languages": ["vi"], "UseOpenSubtitles": False}), secrets={})
     s.plan_all()
@@ -296,7 +296,7 @@ def test_skip_language_button(lib):
 def test_skip_if_exists_and_srt_goc_before_mkv(lib):
     dest = lib.root / "srt_can_sync" / "vi" / f"{DUNE}.vi.ass"
     dest.parent.mkdir(parents=True)
-    dest.write_text("x", encoding="utf-8")
+    dest.write_text("x", encoding="utf-8", newline="")
     s, _ = session(lib, FakeHTTP(), C.Config({"Languages": ["vi"]}), secrets={})
     s.scan()
     it = item(s, DUNE, "vi")

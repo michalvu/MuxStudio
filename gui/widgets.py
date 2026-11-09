@@ -49,12 +49,28 @@ LEVEL_COLORS: dict[str, tuple[str, str]] = {
     "head": ("#1a5fb4", "#8ab4f8"),
 }
 ROW_BG: dict[str, tuple[str, str]] = {
-    "need": ("#fff3c4", "#4a3d00"),  # Can chon / khac quy tac
+    "need": ("#fff3c4", "#6b5500"),  # Can chon / khac quy tac (toi: vang dam vua du sang de doc chu)
     "bad": ("#fde0dc", "#5a1f1f"),
     "good": ("#e3f5e1", "#1d3b21"),
     "absent": ("#e2e2e2", "#3a3a3a"),
 }
 
+
+#: Màu bảng chọn phụ đề theo tập (sáng, tối). Ô tick vẽ thành HỘP thật (to, rõ) thay cho ký hiệu chữ ☑/☐.
+GRID_COLORS: dict[str, tuple[str, str]] = {
+    "bg": ("#ffffff", "#2b2b2b"),
+    "stripe": ("#f3f6f9", "#323232"),  # dong xen ke
+    "fg": ("#1f1f1f", "#f0f0f0"),
+    "line": ("#d3d8de", "#4a4a4a"),
+    "head": ("#e6e9ed", "#3c3c3c"),
+    "head_ext": ("#d6e6f7", "#284660"),  # cot phu de NGOAI (file .srt/.ass canh phim)
+    "changed": ("#ffe082", "#9c7a00"),  # khac quy tac tu dong
+    "absent": ("#e3e3e3", "#1e1e1e"),  # tap nay khong co loai phu de nay
+    "absent_fg": ("#9a9a9a", "#6e6e6e"),
+    "box_on": ("#1f6aa5", "#3b8ed0"),  # hop da tick
+    "box_off": ("#7d858d", "#a5abb1"),  # vien hop chua tick
+    "hover": ("#1f6aa5", "#7cc0ff"),  # khung dong dang re chuot
+}
 
 # ==========================================================================
 #  PHẦN THUẦN
@@ -233,6 +249,119 @@ def open_path(path: str | os.PathLike[str]) -> bool:
         return True
     except OSError:
         return False
+
+
+def step_states(done: Sequence[bool], enabled: Sequence[bool]) -> list[str]:
+    """Trạng thái từng nút của thanh các bước: ``done`` (đã xong ✓) | ``next`` (nên bấm tiếp — nổi bật) | ``todo`` |
+    ``off`` (chưa bấm được). Bước kế tiếp = bước CHƯA xong đầu tiên, chỉ khi bấm được (không nhảy qua bước đang khoá —
+    vd chưa chọn thư mục phim thì không bước nào sáng)."""
+    first = next((i for i, d in enumerate(done) if not d), None)
+    nxt = first if first is not None and first < len(enabled) and enabled[first] else None
+    out = []
+    for i, (d, e) in enumerate(zip(done, enabled)):
+        out.append("next" if i == nxt else "done" if d else "todo" if e else "off")
+    return out
+
+
+def step_label(i: int, title: str, state: str, numbered: bool = True) -> str:
+    """Chữ trên nút bước: ``1. Quét thư mục``; đã xong: ``✓ 1. Quét thư mục``; bước kế tiếp: ``▶ 1. Quét thư mục``."""
+    base = f"{i + 1}. {title}" if numbered else title
+    return {"done": "✓ ", "next": "▶ "}.get(state, "") + base
+
+
+#: Màu nút bước: (nền sáng, nền tối), (rê chuột sáng, tối), (chữ sáng, chữ tối)
+STEP_COLORS: dict[str, tuple[tuple[str, str], tuple[str, str], tuple[str, str]]] = {
+    "next": (("#1f6aa5", "#1f6aa5"), ("#174f7c", "#2a7fc2"), ("#ffffff", "#ffffff")),
+    "done": (("#2e7d32", "#2e7d32"), ("#256628", "#38933d"), ("#ffffff", "#ffffff")),
+    "todo": (("#d5dde6", "#3b4550"), ("#c2ccd7", "#4a5663"), ("#1f2933", "#e8edf2")),
+}
+
+
+class StepBar:
+    """Thanh các bước của một thẻ: nút TO, đánh số theo thứ tự, mũi tên giữa các nút. Bước kế tiếp nên bấm sáng màu
+    xanh (▶), bước đã xong xanh lá (✓), còn lại xám. ``update(done, enabled, busy)`` sau mỗi thay đổi.
+
+    ``steps``: ``[(khoá, tên, hàm)]``; bước cuối có thể là "Sang bước … →" (``numbered=False`` cho bước đó qua
+    ``plain``)."""
+
+    def __init__(self, master: Any, steps: Sequence[tuple[str, str, Callable[[], None]]], compact: bool = False,
+                 plain: Iterable[str] = ()):
+        self.frame = ctk.CTkFrame(master, corner_radius=10, fg_color=("#e9eef3", "#25292e"),
+                                  border_width=1, border_color=("#c9d3dd", "#3a424b"))
+        self.keys = [k for k, _t, _f in steps]
+        self.titles = {k: t for k, t, _f in steps}
+        self.plain = set(plain)
+        self.buttons: dict[str, Any] = {}
+        self.states: dict[str, str] = {k: "todo" for k in self.keys}
+        self._base = 13 if compact else 15
+        self.font = font = ctk.CTkFont(size=self._base, weight="bold")
+        self._fit_id: Any = None
+        h = 34 if compact else 44
+        col = 0
+        for i, (k, t, fn) in enumerate(steps):
+            if i:
+                ctk.CTkLabel(self.frame, text="➜", font=ctk.CTkFont(size=15 if compact else 18, weight="bold"),
+                             text_color=("#8a96a3", "#7d8894"), width=14).grid(row=0, column=col, padx=0)
+                col += 1
+            b = ctk.CTkButton(self.frame, text=step_label(i, t, "todo", k not in self.plain), height=h, font=font,
+                              command=fn, corner_radius=8, border_width=0, border_color=("#0d3a5c", "#9fd0ff"),
+                              text_color_disabled=("#8d969f", "#727b85"))
+            b.grid(row=0, column=col, sticky="ew", padx=4, pady=6 if compact else 8)
+            self.frame.columnconfigure(col, weight=1, uniform="step")
+            self.buttons[k] = b
+            col += 1
+        self.frame.bind("<Configure>", lambda _e: self._fit_later(), add="+")
+        self.update([False] * len(self.keys), [True] * len(self.keys), False)
+
+    def _fit_later(self) -> None:
+        if self._fit_id is None:
+            try:
+                self._fit_id = self.frame.after(60, self._fit)
+            except Exception:  # noqa: BLE001 - cua so dang dong
+                self._fit_id = None
+
+    def fit_size(self, widths: dict[str, float], measure: Callable[[int, str], float]) -> int:
+        """Cỡ chữ lớn nhất (≤ cỡ gốc, ≥ 10) để chữ của MỌI nút vừa bề ngang nút (đơn vị logic)."""
+        size = self._base
+        while size > 10 and any(measure(size, self.buttons[k].cget("text")) + 18 > w for k, w in widths.items()):
+            size -= 1
+        return size
+
+    def _fit(self) -> None:
+        """Màn hình hẹp (720p, nhiều bước): thu nhỏ chữ cho khỏi bị cắt; rộng ra thì to lại."""
+        self._fit_id = None
+        try:
+            from tkinter import font as tkfont  # noqa: PLC0415
+
+            sc = float(ctk.ScalingTracker.get_widget_scaling(self.frame))
+            widths = {k: b.winfo_width() / sc for k, b in self.buttons.items()}
+            if min(widths.values()) <= 2:
+                return
+            fam = self.font.cget("family")
+            cache: dict[int, Any] = {}
+
+            def measure(size: int, text: str) -> float:
+                if size not in cache:
+                    cache[size] = tkfont.Font(root=self.frame, family=fam, size=-size, weight="bold")
+                return cache[size].measure(text)
+
+            size = self.fit_size(widths, measure)
+            if size != abs(int(self.font.cget("size"))):
+                self.font.configure(size=size)
+        except Exception:  # noqa: BLE001 - chi la can chinh co chu
+            pass
+
+    def update(self, done: Sequence[bool], enabled: Sequence[bool], busy: bool) -> list[str]:
+        sts = step_states(done, enabled)
+        for i, k in enumerate(self.keys):
+            s = sts[i]
+            fg, hover, txt = STEP_COLORS["next" if s == "next" else "done" if s == "done" else "todo"]
+            self.buttons[k].configure(text=step_label(i, self.titles[k], s, k not in self.plain), fg_color=fg,
+                                      hover_color=hover, text_color=txt, border_width=2 if s == "next" else 0,
+                                      state="normal" if enabled[i] and not busy else "disabled")
+            self.states[k] = s
+        self._fit_later()
+        return sts
 
 
 def is_frozen() -> bool:
@@ -1077,11 +1206,12 @@ class CheckGrid:
         hs.grid(row=1, column=0, sticky="ew")
         self.frame.rowconfigure(0, weight=1)
         self.frame.columnconfigure(0, weight=1)
-        self.font = ui_font(10)
-        self.bold = ui_font(10, "bold")
+        self.font = ui_font(11)
+        self.bold = ui_font(11, "bold")
         lh = self.font.metrics("linespace")
-        self.row_h = row_h or int(lh * 1.6)
-        self.head_h = int(lh * 2.9)
+        self.row_h = row_h or int(lh * 1.9)
+        self.head_h = int(lh * 3.0)
+        self._hover_row: str | None = None
         self.min_label_w = px(self.frame, label_width)
         self.label_w = self.min_label_w
         self.col_w = px(self.frame, col_width)
@@ -1097,6 +1227,8 @@ class CheckGrid:
         self.cv.bind("<Button-4>", lambda e: self.cv.yview_scroll(-1, "units"))
         self.cv.bind("<Button-5>", lambda e: self.cv.yview_scroll(1, "units"))
         self.cv.bind("<Configure>", self._resized)
+        self.cv.bind("<Motion>", self._motion, add="+")
+        self.cv.bind("<Leave>", lambda _e: self._set_hover(None), add="+")
         Tooltip(self.cv, self._tip)
 
     def _resized(self, ev: Any) -> None:
@@ -1156,6 +1288,38 @@ class CheckGrid:
             if self.on_change:
                 self.on_change()
 
+    def _motion(self, ev: Any) -> None:
+        where, r, _c = self._hit(ev)
+        self._set_hover(r if where in ("cell", "label") else None)
+
+    def _set_hover(self, r: str | None) -> None:
+        """Khung màu quanh dòng đang rê chuột (dễ dò theo hàng ngang khi bảng nhiều cột)."""
+        if r == self._hover_row:
+            return
+        self._hover_row = r
+        self.cv.delete("hover")
+        m = self.model
+        if r is None or m is None or r not in m.rows:
+            return
+        y0 = self.head_h + m.rows.index(r) * self.row_h
+        w = self.label_w + self.col_w * len(m.cols)
+        self.cv.create_rectangle(1, y0 + 1, w - 1, y0 + self.row_h - 1, outline=pick(GRID_COLORS["hover"]), width=2,
+                                 tags=("hover",))
+
+    def _box(self, cx: float, cy: float, on: bool, cell_bg: str) -> None:
+        """Ô tick vẽ bằng hình: hộp vuông; đã tick = nền xanh + dấu ✓ trắng."""
+        sz = max(10.0, min(self.row_h * 0.62, self.col_w * 0.45))
+        h = sz / 2
+        lw = max(2, int(round(sz / 9)))
+        if on:
+            col = pick(GRID_COLORS["box_on"])
+            self.cv.create_rectangle(cx - h, cy - h, cx + h, cy + h, fill=col, outline=col, width=lw)
+            self.cv.create_line(cx - sz * 0.28, cy + sz * 0.02, cx - sz * 0.07, cy + sz * 0.24, cx + sz * 0.30, cy - sz * 0.22,
+                                fill="#ffffff", width=max(2, int(round(sz / 6))), capstyle="round", joinstyle="round")
+        else:
+            self.cv.create_rectangle(cx - h, cy - h, cx + h, cy + h, fill=cell_bg, outline=pick(GRID_COLORS["box_off"]),
+                                     width=lw)
+
     def _tip(self, ev: Any) -> str | None:
         where, r, c = self._hit(ev)
         if where == "cell" and r and c:
@@ -1179,42 +1343,43 @@ class CheckGrid:
         cv = self.cv
         cv.delete("all")
         m = self.model
-        dark = is_dark()
-        bg = pick(("#ffffff", "#242424"))
-        fg = pick(("#1f1f1f", "#e6e6e6"))
-        line = pick(("#d0d0d0", "#444444"))
-        head_bg = pick(("#e5e5e5", "#333333"))
-        cv.configure(background=bg)
+        g = {k: pick(v) for k, v in GRID_COLORS.items()}
+        cv.configure(background=g["bg"])
         if m is None:
             return
         self._layout()
         pad = px(self.frame, 8)
         w = self.label_w + self.col_w * len(m.cols)
         h = self.head_h + self.row_h * len(m.rows)
-        cv.create_rectangle(0, 0, w, self.head_h, fill=head_bg, outline=line)
+        cv.create_rectangle(0, 0, w, self.head_h, fill=g["head"], outline=g["line"])
         cv.create_text(pad, self.head_h / 2, text=fit_text("Tập  (bấm tên = cả dòng)", self.label_w - 2 * pad,
-                                                            self.bold.measure), anchor="w", font=self.bold, fill=fg)
+                                                            self.bold.measure), anchor="w", font=self.bold, fill=g["fg"])
         for i, c in enumerate(m.cols):
             x0 = self.label_w + i * self.col_w
-            cv.create_rectangle(x0, 0, x0 + self.col_w, self.head_h, fill=head_bg, outline=line)
-            cv.create_text(x0 + self.col_w / 2, self.head_h / 2, text=self.headers.get(c, c), font=self.font, fill=fg,
+            hb = g["head_ext"] if str(c).startswith("E|") else g["head"]
+            cv.create_rectangle(x0, 0, x0 + self.col_w, self.head_h, fill=hb, outline=g["line"])
+            cv.create_text(x0 + self.col_w / 2, self.head_h / 2, text=self.headers.get(c, c), font=self.font, fill=g["fg"],
                            justify="center", width=self.col_w - 6)
         for j, r in enumerate(m.rows):
             y0 = self.head_h + j * self.row_h
-            row_bg = pick(ROW_BG["need"]) if m.row_differs(r) else bg
-            cv.create_rectangle(0, y0, self.label_w, y0 + self.row_h, fill=row_bg, outline=line)
-            cv.create_text(pad, y0 + self.row_h / 2, text=self.label_text(r), anchor="w", font=self.font, fill=fg)
+            base = g["stripe"] if j % 2 else g["bg"]
+            cv.create_rectangle(0, y0, self.label_w, y0 + self.row_h, fill=g["changed"] if m.row_differs(r) else base,
+                                outline=g["line"])
+            cv.create_text(pad, y0 + self.row_h / 2, text=self.label_text(r), anchor="w", font=self.font, fill=g["fg"])
             for i, c in enumerate(m.cols):
                 x0 = self.label_w + i * self.col_w
+                cx, cy = x0 + self.col_w / 2, y0 + self.row_h / 2
                 st = m.get(r, c)
                 if st is None:
-                    fill, txt, col = pick(ROW_BG["absent"]), NO_CELL, level_color("dim", dark)
-                else:
-                    fill = pick(ROW_BG["need"]) if m.differs(r, c) else bg
-                    txt, col = (CHECK_ON if st else CHECK_OFF), fg
-                cv.create_rectangle(x0, y0, x0 + self.col_w, y0 + self.row_h, fill=fill, outline=line)
-                cv.create_text(x0 + self.col_w / 2, y0 + self.row_h / 2, text=txt, font=self.bold, fill=col)
+                    cv.create_rectangle(x0, y0, x0 + self.col_w, y0 + self.row_h, fill=g["absent"], outline=g["line"])
+                    cv.create_text(cx, cy, text=NO_CELL, font=self.bold, fill=g["absent_fg"])
+                    continue
+                fill = g["changed"] if m.differs(r, c) else base
+                cv.create_rectangle(x0, y0, x0 + self.col_w, y0 + self.row_h, fill=fill, outline=g["line"])
+                self._box(cx, cy, bool(st), fill)
         cv.configure(scrollregion=(0, 0, w, h))
+        r, self._hover_row = self._hover_row, None
+        self._set_hover(r)
 
 
 # ---------------------------------------------------------------- hop thoai nho

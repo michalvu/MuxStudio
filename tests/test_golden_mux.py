@@ -115,7 +115,7 @@ def ps(tmp_path_factory):
     vid = sp / "Phim.Thu.2020.mkv"
     vid.write_bytes(b"")
     for suf in (".vi.srt", ".vi.ass", ".cs.srt", ".forced.srt", ".en.sdh.srt", ".srt"):
-        (sp / f"Phim.Thu.2020{suf}").write_text("x", encoding="utf-8")
+        (sp / f"Phim.Thu.2020{suf}").write_text("x", encoding="utf-8", newline="")
     jsp = J(V(), A(1), S(2, "eng"), S(3, "eng", name="SDH"), S(4, "eng", forced=True), S(5, "cze", codec_id="S_HDMV/PGS"),
             S(6, "vie"), S(7, "fre"), S(8, "eng"), S(9, "cze", name="Commentary"))
     ids["sap"] = case("Get-SubAutoPlan", str(vid), jsp)
@@ -136,7 +136,7 @@ def ps(tmp_path_factory):
         ids[("tvdb", c_)] = case("Resolve-TvdbEpisode", *c_, TVDB_FAKE)
 
     inp, out = d / "in.json", d / "out.json"
-    inp.write_text(json.dumps(cases), encoding="utf-8")
+    inp.write_text(json.dumps(cases), encoding="utf-8", newline="")
     r = subprocess.run([PWSH, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File",
                         str(ROOT / "tests" / "golden" / "ps_harness.ps1"), "-BatDir", str(REFERENCE), "-InFile", str(inp),
                         "-OutFile", str(out)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)

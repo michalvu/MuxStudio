@@ -46,7 +46,7 @@ _LANG_LIST: list[Lang] = [
     Lang("en", "eng", "eng", "English", "english", ("english", "anh"), 1252, "windows-1252"),
     Lang("ja", "jpn", "jpn", "Japanese", "japanese", ("jp", "japanese"), 932, "shift_jis"),
     Lang("ko", "kor", "kor", "Korean", "korean", ("korean",), 949, "euc-kr"),
-    Lang("zh", "chi", "zho", "Chinese", "chinese_simplified", ("chinese", "cmn", "yue"), 936, "gbk"),
+    Lang("zh", "chi", "zho", "Chinese", "chinese_bg_code", ("chinese", "cmn", "yue"), 936, "gbk"),  # SubSource that
     Lang("fr", "fre", "fra", "French", "french", ("french",), 1252, "windows-1252"),
     Lang("de", "ger", "deu", "German", "german", ("german",), 1252, "windows-1252"),
     Lang("es", "spa", "spa", "Spanish", "spanish", ("spanish",), 1252, "windows-1252"),
