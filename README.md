@@ -4,8 +4,8 @@ Phần mềm Windows (Python + CustomTkinter) thay cho ba công cụ dòng lện
 tải phụ đề → đồng bộ phụ đề → dọn track và mux MKV, đặt tên chuẩn Jellyfin.
 
 **Trạng thái:** Giai đoạn 5 xong — đã có **giao diện** (4 thẻ ① Tải phụ đề → ② Chuẩn bị phụ đề → ③ Mux → Cài đặt,
-khung log màu, nút Dừng, màn hình Hoàn tác) trên lõi của cả ba bước. Chờ bạn duyệt Giai đoạn 5. Bản `.exe` không cần
-cài Python sẽ có ở Giai đoạn 6.
+khung log màu, nút Dừng, màn hình Hoàn tác) trên lõi của cả ba bước — **đã duyệt**. Tiếp theo: Giai đoạn 6 (bản `.exe`
+không cần cài Python).
 
 - **Thử giao diện trên Windows (cần Python 3.11+):** bấm đúp `chay_muxstudio.bat`. Lần đầu mất vài phút để tạo thư mục
   `.venv` và tải thư viện; các lần sau mở ngay.

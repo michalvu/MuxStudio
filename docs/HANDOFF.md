@@ -1,6 +1,6 @@
 # Bàn giao giữa các phiên làm việc (đọc file này TRƯỚC)
 
-Cập nhật: 2026-11-09, sau Giai đoạn 5. Repo `michalvu/MuxStudio`.
+Cập nhật: 2026-11-09, Giai đoạn 5 ĐÃ DUYỆT — phiên sau làm Giai đoạn 6. Repo `michalvu/MuxStudio`.
 Nhánh: GĐ5 làm trên nhánh phiên `ccr-770f1e3e-dqsvcp`, đẩy cả `claude/new-session-eckanp` (người dùng yêu cầu: hai nhánh giống nhau).
 Phiên sau: làm trên nhánh phiên đó được giao; đẩy cả `claude/new-session-eckanp`.
 
@@ -23,10 +23,12 @@ Người dùng **không phải lập trình viên**: trả lời + giao diện *
 | 2 | `tools probe tmdb subsource opensubs pool subfetch` + script dò API + test | ✅ đã duyệt (2026-11-09). Lần dò 1 không có key (SPEC 7.E) → **vẫn chờ** `ket_qua_do_api.txt` có key |
 | 3 | Bước ② `subprep` + test | ✅ đã duyệt (2026-11-09, gồm TĐ-31, TĐ-32) |
 | 4 | Bước ③ `mux donor tvdb` + phần bước ③ của `probe tmdb naming` + test | ✅ đã duyệt (2026-11-09, gồm TĐ-33, TĐ-34) |
-| 5 | GUI `gui/` (4 thẻ + log + luồng phụ + Dừng + Hoàn tác) + test giao diện | ✅ xong, **chờ duyệt** |
-| 6 | Đóng gói | chưa làm |
+| 5 | GUI `gui/` (4 thẻ + log + luồng phụ + Dừng + Hoàn tác) + test giao diện + tối ưu 720p/1080p/1440p + khối "Công cụ ngoài" | ✅ đã duyệt (2026-11-09) |
+| 6 | Đóng gói | **làm tiếp ở phiên sau** (mục 10) |
 
-**Việc kế tiếp:** chờ người dùng duyệt GĐ5 (thử trên Windows bằng `chay_muxstudio.bat`) → sang GĐ6 (mục 9). Bất cứ lúc nào người dùng gửi `ket_qua_do_api.txt` → so với giả định trong `core/subsource.py`, `core/opensubs.py`,
+**Việc kế tiếp:** GĐ6 — đóng gói (mục 10). Người dùng CHƯA thử giao diện trên Windows (duyệt GĐ5 không thử, chấp nhận sửa
+lỗi sau khi có .exe) → các phần chỉ giả lập trên Linux (Credential Manager, Thùng rác, DPI 125/150%, alass thật, đường
+dẫn `C:\`) có thể lộ lỗi khi người dùng chạy .exe: sửa ở mã nguồn + test, đẩy, người dùng build lại. Bất cứ lúc nào người dùng gửi `ket_qua_do_api.txt` → so với giả định trong `core/subsource.py`, `core/opensubs.py`,
 `core/tmdb.py` (và `tvdb` sau). Chỗ nào khác: viết lại hàm giữ nguyên tên/chữ ký, thêm test, ghi vào SPEC mục 7.E
 (hàm nào, vì sao hỏng, cách mới, kiểm chứng ra sao). Những điểm đang chờ dò:
 - mã ngôn ngữ OpenSubtitles (`zh` hay `zh-cn`, `pt`…) — bước 2 của `probe_opensubs`;
@@ -204,9 +206,32 @@ Chạy: `python -m gui.app [thư mục phim]` — trên Windows bấm đúp `cha
     `<Configure>` của chính khung chứa nhãn → vòng lặp vô hạn; nghe khung ngoài + trễ `after(80)`. (4) Cửa sổ bị
     `withdraw()` thì Tk không báo cỡ thật — test cỡ phải `deiconify()`.
 
-## 10. Ghi chú GĐ6 (đóng gói)
+## 10. Kế hoạch GĐ6 (đóng gói) — việc của phiên sau
 
-- PyInstaller `--onedir --windowed`, `--collect-data customtkinter` (theme + font), điểm vào gọi `gui.app.main()`,
-  `build.bat`, icon, `HUONG_DAN.md` (cài, cấu hình lần đầu, nhập từ .bat, quy trình ① → ② → ③).
-- Kiểm tra trong bản .exe: `keyring` backend Windows (cần `--hidden-import keyring.backends.Windows`), `send2trash`,
-  phông Segoe UI, `CREATE_NO_WINDOW`; `run_tests.bat` vẫn dùng mã nguồn.
+PROMPT §3, §9 mục 6, §10. Người dùng KHÔNG phải lập trình viên: hướng dẫn từng bước ngắn, tiếng Việt có dấu.
+
+1. **Điểm vào** ở gốc repo: `MuxStudio.pyw` (hoặc `muxstudio_main.py`) → `from gui.app import main; raise SystemExit(main())`.
+2. **Số phiên bản**: thêm `__version__` (vd `gui/__init__.py` hoặc `core/__init__.py`, đồng bộ `pyproject.toml` 0.1.0 → 1.0.0);
+   hiện trên thanh tiêu đề ("MuxStudio 1.0.0") + dòng đầu khung log — để người dùng báo lỗi biết đang chạy bản nào
+   (đã hứa với người dùng).
+3. **`build.bat`** (CRLF, chữ trong .bat không dấu như `run_tests.bat`): tạo `.venv` nếu chưa có → `pip install -r
+   requirements.txt pyinstaller` → chạy test nhanh (tuỳ chọn) → `pyinstaller` → kết quả `dist\MuxStudio\MuxStudio.exe`;
+   báo rõ thành công / lỗi, `pause` cuối.
+   Tham số: `--onedir --windowed --name MuxStudio --icon …ico --collect-data customtkinter`
+   `--hidden-import keyring.backends.Windows --hidden-import win32ctypes.core` (keyring trên Windows dùng pywin32-ctypes),
+   `--collect-submodules send2trash` (nếu cần). KHÔNG `--onefile` (PROMPT §3). Có thể viết `MuxStudio.spec` cho gọn.
+   Không đóng gói `tests/`, `reference/`, `tools/` (script dò API vẫn chạy bằng `chay_do_api.bat`).
+4. **Icon**: tự tạo `assets/muxstudio.ico` bằng Pillow (chỉ cần lúc build — thêm vào requirements-dev, KHÔNG vào .exe),
+   nhiều cỡ 16–256. Đặt icon cửa sổ: `root.iconbitmap()` trên Windows (CTk tự đặt icon sau ~200 ms → gọi bằng `after`).
+5. **Kiểm tra trong bản .exe** (sys.frozen): `keyring` lấy đúng backend Windows (không phải fail backend), `send2trash`,
+   phông Segoe UI, `CREATE_NO_WINDOW` (không nháy cửa sổ đen), `os.startfile`, `tools.desktop_dir`; lỗi khởi động vẫn
+   ghi `%APPDATA%\MuxStudio\loi_khoi_dong.txt`. Không thể chạy .exe Windows trong container → thử build bằng PyInstaller
+   trên Linux để bắt lỗi thiếu module/dữ liệu (chạy được bản Linux dưới xvfb), còn .exe thật do người dùng build.
+6. **`HUONG_DAN.md`** (tiếng Việt, ngắn, từng bước): cài Python (chỉ khi tự build) / chạy `MuxStudio.exe`; công cụ cần có
+   (MKVToolNix bắt buộc cho ③, alass bắt buộc cho ②, ffmpeg/ffprobe — xem khối "Công cụ ngoài"); cấu hình lần đầu
+   (Nhập từ .bat, key vào Credential Manager); quy trình ① → ② → ③; Hoàn tác; báo lỗi (Lưu log + ảnh + loi_khoi_dong.txt);
+   chạy test (`run_tests.bat`); lưu ý SmartScreen/antivirus báo nhầm (chuột phải › Properties › Unblock).
+7. Cập nhật README (trạng thái + link HUONG_DAN), SPEC mục 9 (GĐ6 ✅ chờ duyệt), HANDOFF; chạy hết test (3 môi trường,
+   mục 6); commit; đẩy nhánh phiên + `claude/new-session-eckanp`; DỪNG chờ duyệt.
+
+Tiêu chí hoàn thành của cả dự án: PROMPT §10 (mở .exe bằng bấm đúp, không cần cài Python, …).
