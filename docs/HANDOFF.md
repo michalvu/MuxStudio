@@ -1,6 +1,7 @@
 # Bàn giao giữa các phiên làm việc (đọc file này TRƯỚC)
 
-Cập nhật: 2026-11-09, Giai đoạn 6 (đóng gói) + sửa theo **duyệt lần 1** XONG — **chờ người dùng duyệt lần 2**. Repo `michalvu/MuxStudio`.
+Cập nhật: 2026-11-09, **Giai đoạn 0–6 ĐÃ DUYỆT — dự án hoàn thành, phiên bản 1.0.0.** Repo `michalvu/MuxStudio`.
+Phiên sau (nếu có): bảo trì — sửa lỗi người dùng báo, yêu cầu mới (xem "Việc kế tiếp").
 Nhánh: GĐ6 làm trên nhánh phiên `ccr-e18d248b-a69t65`, đẩy cả `claude/new-session-eckanp` (người dùng yêu cầu: hai nhánh giống nhau).
 Phiên sau: làm trên nhánh phiên được giao; đẩy cả `claude/new-session-eckanp`.
 
@@ -24,13 +25,19 @@ Người dùng **không phải lập trình viên**: trả lời + giao diện *
 | 3 | Bước ② `subprep` + test | ✅ đã duyệt (2026-11-09, gồm TĐ-31, TĐ-32) |
 | 4 | Bước ③ `mux donor tvdb` + phần bước ③ của `probe tmdb naming` + test | ✅ đã duyệt (2026-11-09, gồm TĐ-33, TĐ-34) |
 | 5 | GUI `gui/` (4 thẻ + log + luồng phụ + Dừng + Hoàn tác) + test giao diện + tối ưu 720p/1080p/1440p + khối "Công cụ ngoài" | ✅ đã duyệt (2026-11-09) |
-| 6 | Đóng gói: `MuxStudio.pyw`, `MuxStudio.spec`, `build.bat`, icon, 1.0.0, `--kiem-tra`, `HUONG_DAN.md` + test; sau duyệt lần 1: 15 test Windows, dò API thật, thanh các bước, màu lưới phụ đề, kéo Nhật ký, dọn file nguồn sau mux | ✅ xong, **chờ duyệt lần 2** (mục 10, 11) |
+| 6 | Đóng gói: `MuxStudio.pyw`, `MuxStudio.spec`, `build.bat`, icon, 1.0.0, `--kiem-tra`, `HUONG_DAN.md` + test; sau duyệt lần 1: 15 test Windows, dò API thật, thanh các bước, màu lưới phụ đề, kéo Nhật ký, dọn file nguồn sau mux | ✅ đã duyệt (2026-11-09, sau 2 lần duyệt; người dùng chạy `run_tests.bat` + `build.bat` trên Windows) (mục 10, 11) |
 
-**Việc kế tiếp:** chờ người dùng duyệt lần 2: chạy lại `run_tests.bat` (lần 1 hỏng 15 test — đã sửa, mục 11) và
-`build.bat`, thử giao diện mới (thanh các bước, lưới phụ đề, kéo Nhật ký, dọn file nguồn sau mux). Lỗi chỉ lộ trên
-Windows (Credential Manager, Thùng rác, DPI 125/150%, alass thật, ffmpeg cũ, SmartScreen/antivirus) → hỏi báo cáo tự
-kiểm tra + "Lưu log" + ảnh; tái hiện bằng `tools/winemu.py` nếu được (mục 6); sửa ở mã nguồn + test, đẩy, người dùng
-build lại (chép đè `dist\MuxStudio`). Lỗi ở bản `.exe` mà mã nguồn không có → xem mục 10 (spec, hiddenimports).
+**Việc kế tiếp:** dự án đã hoàn thành (PROMPT §10). Khi người dùng quay lại:
+- **Báo lỗi** → xin: số phiên bản (thanh tiêu đề / dòng 2 khung log), file "Lưu log…", ảnh, báo cáo tự kiểm tra
+  (`kiem_tra_MuxStudio.bat` cạnh .exe → `%APPDATA%\MuxStudio\kiem_tra.txt`), nếu không mở được:
+  `%APPDATA%\MuxStudio\loi_khoi_dong.txt`. Chứng minh lỗi bằng test trước khi sửa (PROMPT §2); lỗi chỉ lộ trên Windows
+  → thử tái hiện bằng `tools/winemu.py` (mục 6). Sửa ở mã nguồn + test, chạy 3 môi trường + winemu, đẩy cả hai nhánh.
+- **Phát hành bản mới**: tăng `core.__version__` + `pyproject.toml` (1.0.1 = sửa lỗi, 1.1.0 = tính năng; `test_packaging`
+  kiểm hai chỗ khớp nhau). Người dùng: tải mã mới → `build.bat` → chép đè thư mục `dist\MuxStudio`.
+- Công cụ ngoài trên máy người dùng: `Desktop\mkvtoolnix`, `Desktop\alass-windows64\bin\alass` (ffmpeg 4.2 năm 2019 —
+  bản CŨ, xem mục 5 "bài học" (3)). Người dùng từng chép alass/ffmpeg vào thư mục mã nguồn — đã khuyên xoá (không cần).
+- `run_tests.bat` lần 2 trên Windows: 649 passed, 1 skipped (test `tool_info` chỉ tìm trong PATH) → đã sửa (commit
+  `1cbd170`), lần sau phải không còn test nào bị bỏ qua.
 
 Kết quả dò API thật (lần 2, có key) đã áp dụng — SPEC 7.E. Còn có thể dò thêm nếu cần: OpenSubtitles tìm tập tuyệt đối
 theo **IMDb** (không season) — lần dò chỉ thử theo tên (0 kết quả); mã hiện vẫn thử theo IMDb 2 lượt.
