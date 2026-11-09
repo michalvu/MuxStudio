@@ -363,6 +363,67 @@ def mkvmerge_version(mkvmerge: str, job: Job | None = None) -> ToolVersion:
     return ToolVersion(ok, int(m.group(1)) if m else 0, txt.splitlines()[0] if txt else "")
 
 
+#: Công cụ dùng ở bước nào — hiện trong Cài đặt và khi báo thiếu công cụ
+TOOL_ROLES: dict[str, tuple[str, bool]] = {
+    "mkvmerge": ("tạo file MKV (bước ③); đọc FPS / track (bước ① ②)", True),
+    "mkvextract": ("trích phụ đề gốc từ MKV (bước ① ②), đo audio ghép (bước ③)", False),
+    "alass": ("đồng bộ phụ đề (bước ②)", True),
+    "ffprobe": ("audio track của file mẫu (bước ②), bitrate + HDR (bước ③)", False),
+    "ffmpeg": ("trích WAV khi đồng bộ theo audio (bước ②), đổi tốc độ audio ghép (bước ③)", False),
+}
+_INFO_ARGS = {"mkvmerge": ["--version"], "mkvextract": ["--version"], "ffmpeg": ["-version"], "ffprobe": ["-version"],
+              "alass": ["--help"]}
+_INFO_MARK = {"mkvmerge": "mkvmerge", "mkvextract": "mkvextract", "ffmpeg": "ffmpeg version", "ffprobe": "ffprobe version",
+              "alass": "alass"}
+BLOCKED_HINT = "thiếu DLL hoặc bị Windows chặn: chuột phải vào file › Properties › Unblock"
+
+
+@dataclass
+class ToolInfo:
+    """Kết quả kiểm tra một công cụ (ô "Công cụ ngoài" trong Cài đặt)."""
+
+    name: str
+    path: str | None
+    ok: bool
+    version: str = ""
+    problem: str = ""
+
+    @property
+    def text(self) -> str:
+        if self.ok:
+            return self.version or "chạy được"
+        return self.problem
+
+
+def tool_info(name: str, path: str | os.PathLike[str] | Sequence[str] | None, job: Job | None = None) -> ToolInfo:
+    """Chạy thử công cụ (``--version`` / ``-version`` / ``alass --help``): có chạy được không, phiên bản, có đúng là công
+    cụ đó không (vd chọn nhầm ``ffmpeg.exe`` vào ô ffprobe). Không tìm thấy → ``ok=False``."""
+    if not path:
+        return ToolInfo(name, None, False, problem="không tìm thấy")
+    cmd = [os.fspath(path)] if isinstance(path, (str, os.PathLike)) else [os.fspath(x) for x in path]
+    shown = " ".join(cmd)
+    if len(cmd) == 1 and not os.path.isfile(cmd[0]):
+        return ToolInfo(name, shown, False, problem="không có file này")
+    r = run([*cmd, *_INFO_ARGS.get(name, ["--version"])], job, timeout=30)
+    out = r.output
+    if r.code == 127 or not out:
+        return ToolInfo(name, shown, False, problem=f"tìm thấy nhưng KHÔNG chạy được ({BLOCKED_HINT})")
+    if _INFO_MARK.get(name, name) not in out.lower():
+        first = out.splitlines()[0].split(" Copyright")[0][:60] if out else ""
+        return ToolInfo(name, shown, False, problem=f"không phải {exe_name(name)}? (chương trình trả lời: {first})")
+    ver = ""
+    if name in ("mkvmerge", "mkvextract"):
+        m = re.search(r"\bv(\d+\.\d+(?:\.\d+)?)", out)
+        ver = f"v{m.group(1)}" if m else ""
+    elif name in ("ffmpeg", "ffprobe"):
+        m = re.search(r"version\s+(\S+)", out)
+        ver = m.group(1)[:24] if m else ""
+    elif name == "alass":
+        m = re.search(r"alass\S*\s+v?(\d+\.\d+(?:\.\d+)?)", out, re.I)
+        ver = m.group(1) if m else ""
+    return ToolInfo(name, shown, True, ver)
+
+
 @dataclass
 class AlassFlags:
     ok: list[str]

@@ -161,3 +161,30 @@ def test_track_flags():
     assert probe.is_commentary({"track_name": "Director's Commentary"}) and probe.is_commentary({"flag_commentary": True})
     assert probe.is_image_sub("S_HDMV/PGS") and not probe.is_image_sub("S_TEXT/UTF8")
     assert probe.sub_ext_by_codec("S_TEXT/WEBVTT") == ".vtt" and probe.sub_ext_by_codec("S_VOBSUB") is None
+
+
+# ---------------------------------------------------------------- "Cong cu ngoai" trong Cai dat (tool_info)
+def test_tool_info_found_missing_broken_and_wrong_file(tmp_path, monkeypatch):
+    import shutil
+    from pathlib import Path
+
+    monkeypatch.delenv("FAKE_ALASS", raising=False)
+    fake = str(Path(__file__).resolve().parent / "fake_alass.py")
+    i = tools.tool_info("alass", [sys.executable, fake])  # lenh = danh sach (alass gia)
+    assert i.ok and i.version == "2.0.0" and i.text == "2.0.0"
+    assert tools.tool_info("alass", None).text == "không tìm thấy"
+    assert tools.tool_info("ffprobe", tmp_path / "không có.exe").problem == "không có file này"
+    bad = tmp_path / "[x] hỏng.exe"
+    bad.write_text("không phải chương trình", encoding="utf-8")
+    b = tools.tool_info("ffprobe", bad)
+    assert not b.ok and "KHÔNG chạy được" in b.problem and "Unblock" in b.problem
+    real = {n: shutil.which(n) for n in ("mkvmerge", "mkvextract", "ffmpeg", "ffprobe")}
+    if not all(real.values()):
+        pytest.skip("thiếu mkvmerge / ffmpeg thật")
+    assert tools.tool_info("mkvmerge", real["mkvmerge"]).version.startswith("v")
+    assert tools.tool_info("mkvextract", real["mkvextract"]).ok
+    fp = tools.tool_info("ffprobe", real["ffprobe"])
+    assert fp.ok and fp.version
+    wrong = tools.tool_info("ffprobe", real["ffmpeg"])  # chon nham ffmpeg vao o ffprobe
+    assert not wrong.ok and wrong.problem.startswith("không phải ffprobe") and "Copyright" not in wrong.problem
+    assert set(tools.TOOL_ROLES) == set(tools.TOOLS) and tools.TOOL_ROLES["mkvmerge"][1] and tools.TOOL_ROLES["alass"][1]

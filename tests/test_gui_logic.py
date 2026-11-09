@@ -572,3 +572,26 @@ def test_ui_factor_choices():
     assert W.ui_factor("500", 0, 0) == 2.0 and W.ui_factor("lạ", 0, 0) == 1.0
     f = C.FIELD_BY_KEY["UiScale"]
     assert f.default == "auto" and f.choices == ("auto", "90", "100", "110", "125", "150")
+
+
+def test_tool_status_texts_and_startup_summary():
+    from core import tools as T
+
+    ok = T.ToolInfo("mkvmerge", "C:\\MKVToolNix\\mkvmerge.exe", True, "v82.0")
+    assert SV.tool_status_text(ok, True) == "✓ v82.0 — tự tìm thấy: C:\\MKVToolNix\\mkvmerge.exe"
+    assert SV.tool_status_text(ok, False) == "✓ v82.0 — C:\\MKVToolNix\\mkvmerge.exe"
+    miss = T.ToolInfo("alass", None, False, problem="không tìm thấy")
+    assert "BẮT BUỘC" in SV.tool_status_text(miss, True) and "đồng bộ phụ đề" in SV.tool_status_text(miss, True)
+    assert SV.tool_status_color(miss) == W.LEVEL_COLORS["error"]
+    weak = T.ToolInfo("ffprobe", "x", False, problem="không có file này")
+    assert SV.tool_status_text(weak, False) == "✗ không có file này — x" and SV.tool_status_color(weak) == W.LEVEL_COLORS["warn"]
+    res = {n: (T.ToolInfo(n, f"/{n}", True, "1"), True) for n in T.TOOLS}
+    assert SV.tool_summary(res) == [("ok", "Công cụ: mkvmerge ✓ 1 · mkvextract ✓ 1 · ffmpeg ✓ 1 · ffprobe ✓ 1 · alass ✓ 1")]
+    res["alass"] = (miss, True)
+    lines = SV.tool_summary(res)
+    assert lines[0][0] == "warn" and "alass ✗" in lines[0][1]
+    assert lines[1][0] == "error" and lines[1][1].startswith("[!] alass")
+    assert "không làm được: đồng bộ phụ đề (bước ②)" in lines[1][1]
+    # 5 o cong cu nam DAU nhom "Chung"
+    chung = [f.key for f in C.FIELDS if f.group == "chung"]
+    assert chung[:5] == ["MkvmergePath", "MkvextractPath", "AlassPath", "FfprobePath", "FfmpegPath"]

@@ -165,6 +165,40 @@ def check_connection(which: str, vals: Mapping[str, str], cfg: Mapping[str, Any]
     raise ValueError(which)
 
 
+def tool_status_text(info: tools.ToolInfo, auto: bool) -> str:
+    """Dòng dưới ô đường dẫn công cụ: ``✓ v82.0 — tự tìm thấy: C:\\…\\mkvmerge.exe``."""
+    if info.path is None:
+        role, must = tools.TOOL_ROLES.get(info.name, ("", False))
+        tail = " — BẮT BUỘC" if must else ""
+        return f"✗ không tìm thấy{tail} (dùng cho: {role}). Bấm \"Chọn…\" để chỉ tới {tools.exe_name(info.name)}."
+    where = ("tự tìm thấy: " if auto else "") + info.path
+    if not info.ok:
+        return f"✗ {info.problem} — {where}"
+    return f"✓ {info.version + ' — ' if info.version else ''}{where}"
+
+
+def tool_status_color(info: tools.ToolInfo) -> tuple[str, str]:
+    if info.ok:
+        return W.LEVEL_COLORS["ok"]
+    return W.LEVEL_COLORS["error"] if tools.TOOL_ROLES.get(info.name, ("", False))[1] else W.LEVEL_COLORS["warn"]
+
+
+def tool_summary(res: Mapping[str, tuple[tools.ToolInfo, bool]]) -> list[tuple[str, str]]:
+    """Dòng log sau khi kiểm tra công cụ: một dòng tóm tắt + một dòng cho mỗi công cụ thiếu / hỏng."""
+    parts = []
+    out: list[tuple[str, str]] = []
+    for n in tools.TOOLS:
+        info, _auto = res[n]
+        parts.append(f"{n} {'✓' if info.ok else '✗'}" + (f" {info.version}" if info.ok and info.version else ""))
+        if not info.ok:
+            role, must = tools.TOOL_ROLES.get(n, ("", False))
+            lvl = "error" if must else "warn"
+            why = "chưa tìm thấy" if info.path is None else info.problem
+            out.append((lvl, f"[!] {tools.exe_name(n)}: {why} → không làm được: {role}. "
+                             "Vào Cài đặt › Chung › Công cụ ngoài để chọn đường dẫn."))
+    return [("ok" if not out else "warn", "Công cụ: " + " · ".join(parts)), *out]
+
+
 def status_color(st: ConnStatus | None) -> tuple[str, str]:
     if st is None or st.ok is None:
         return W.LEVEL_COLORS["dim"]
@@ -305,6 +339,21 @@ class FieldRow:
             note = "mỗi dòng một thư mục" if k == "list" else "mỗi dòng: khoá = số ms (vd S01E03 = 1200, tap #643 = -500)"
             ctk.CTkLabel(box, text=note, text_color=W.LEVEL_COLORS["dim"], font=ctk.CTkFont(size=11)).pack(anchor="w")
             return
+        if k == "file":
+            line = ctk.CTkFrame(box, fg_color="transparent")
+            line.pack(fill="x")
+            self.entry = ctk.CTkEntry(line, width=420, placeholder_text="để trống = tự tìm")
+            self.entry.pack(side="left", fill="x", expand=True)
+            ctk.CTkButton(line, text="Chọn…", width=70, command=self._pick_file).pack(side="left", padx=4)
+            ctk.CTkButton(line, text="Tự tìm", width=70, command=self._auto_file).pack(side="left")
+            # file dang dung + phien ban (ca khi de trong cho tu tim)
+            self.status = ctk.CTkLabel(box, text="đang kiểm tra…", text_color=W.LEVEL_COLORS["dim"], anchor="w",
+                                       justify="left", wraplength=self.view.help_wrap)
+            self.status.pack(fill="x", anchor="w")
+            self.view.help_labels.append(self.status)
+            self.entry.bind("<Return>", lambda _e: self.view.show_tool_status(self), add="+")
+            self.entry.bind("<FocusOut>", lambda _e: self.view.show_tool_status(self, only_if_changed=True), add="+")
+            return
         width = 120 if k in ("int", "float") else 520
         self.entry = ctk.CTkEntry(box, width=width)
         self.entry.pack(side="left", fill="x", expand=k not in ("int", "float"))
@@ -314,11 +363,6 @@ class FieldRow:
             ctk.CTkButton(box, text="Chọn…", width=70, command=self._pick_dir).pack(side="left", padx=4)
             if self.f.key in DIR_FINDERS:
                 ctk.CTkButton(box, text="Tự tìm", width=70, command=self._auto_dir).pack(side="left")
-        elif k == "file":
-            ctk.CTkButton(box, text="Chọn…", width=70, command=self._pick_file).pack(side="left", padx=4)
-            ctk.CTkButton(box, text="Tự tìm", width=70, command=self._auto_file).pack(side="left")
-            self.status = ctk.CTkLabel(box, text="", text_color=W.LEVEL_COLORS["dim"], anchor="w")
-            self.status.pack(side="left", padx=8)
 
     # ---- doc / ghi ----
     def set_value(self, v: Any) -> None:
@@ -394,7 +438,8 @@ class FieldRow:
         name = TOOL_BY_KEY[self.f.key]
         p = tools.find_tool(name, self.view.current_cfg(), self.view.app.folder, use_config_path=False)
         if not p:
-            self.status.configure(text="không tìm thấy", text_color=W.LEVEL_COLORS["error"])
+            self.status.configure(text=f"✗ không tìm thấy {tools.exe_name(name)} ở các thư mục quen thuộc — bấm \"Chọn…\" "
+                                  "để chỉ tới file", text_color=W.LEVEL_COLORS["error"])
             return
         self.entry.delete(0, "end")
         self.entry.insert(0, p)
@@ -509,11 +554,12 @@ class SettingsView:
         r = 0
         if gid == "chung":
             box = ctk.CTkFrame(sf, fg_color="transparent")
-            box.grid(row=r, column=0, columnspan=2, sticky="ew", pady=(2, 6))
-            ctk.CTkButton(box, text="Tìm lại công cụ", width=130, command=self.check_tools).pack(side="left")
-            self.tool_label = ctk.CTkLabel(box, text="Bấm để xem mkvmerge / mkvextract / ffmpeg / ffprobe / alass "
-                                           "đang được dùng ở đâu.", anchor="w", justify="left", wraplength=760)
-            self.tool_label.pack(side="left", padx=10)
+            box.grid(row=r, column=0, columnspan=2, sticky="ew", pady=(2, 0))
+            ctk.CTkLabel(box, text="Công cụ ngoài", font=ctk.CTkFont(weight="bold")).pack(side="left")
+            ctk.CTkButton(box, text="Kiểm tra lại", width=110, command=self.check_tools).pack(side="left", padx=10)
+            self.tool_label = ctk.CTkLabel(box, text="Ô để trống = chương trình tự tìm; dòng chữ dưới mỗi ô cho biết file "
+                                           "đang được dùng.", anchor="w", justify="left", text_color=W.LEVEL_COLORS["dim"])
+            self.tool_label.pack(side="left", fill="x", expand=True)
             r += 1
         if gid == "api":
             ctk.CTkLabel(sf, text="Bí mật — lưu trong Windows Credential Manager, KHÔNG lưu trong config.json, không bao "
@@ -538,6 +584,8 @@ class SettingsView:
                 fr.set_visible(False)
             self.rows[f.key] = fr
             r += 2
+        if gid == "chung":
+            self.frame.after(10, lambda: self.check_tools(startup=True))
         return sf
 
     def _body_resized(self, ev: Any) -> None:
@@ -661,56 +709,56 @@ class SettingsView:
         self.app.log("ok", "Đã khôi phục cài đặt mặc định.")
 
     # ---- cong cu ----
-    def show_tool_status(self, fr: FieldRow) -> None:
+    def _tool_rows(self) -> dict[str, FieldRow]:
+        return {TOOL_BY_KEY[k]: fr for k, fr in self.rows.items() if k in TOOL_BY_KEY}
+
+    def _show_info(self, fr: FieldRow, info: tools.ToolInfo, auto: bool) -> None:
+        fr._checked = fr.entry.get().strip()
+        fr.status.configure(text=tool_status_text(info, auto), text_color=tool_status_color(info))
+
+    def show_tool_status(self, fr: FieldRow, only_if_changed: bool = False) -> None:
+        """Kiểm tra lại MỘT công cụ (sau Chọn… / Tự tìm / gõ đường dẫn)."""
         name = TOOL_BY_KEY.get(fr.f.key)
+        if not name:
+            return
         p = fr.entry.get().strip()
-        if not p:
-            fr.status.configure(text="(tự tìm khi chạy)", text_color=W.LEVEL_COLORS["dim"])
+        if only_if_changed and getattr(fr, "_checked", None) == p:
             return
-        if not os.path.isfile(p):
-            fr.status.configure(text="không có file này", text_color=W.LEVEL_COLORS["error"])
-            return
-        if name != "mkvmerge":
-            fr.status.configure(text="✓ có file", text_color=W.LEVEL_COLORS["ok"])
-            return
+        cfg, folder = self.current_cfg(), self.app.folder
 
-        def work(job: tools.Job) -> tools.ToolVersion:
-            return tools.mkvmerge_version(p, job)
+        def work(job: tools.Job) -> tuple[tools.ToolInfo, bool]:
+            path = p or tools.find_all_tools(cfg, folder).get(name)
+            return tools.tool_info(name, path, job), not p
 
-        def done(v: tools.ToolVersion) -> None:
-            if v.ok:
-                fr.status.configure(text=f"✓ v{v.major}", text_color=W.LEVEL_COLORS["ok"])
-            else:
-                fr.status.configure(text="tìm thấy nhưng KHÔNG chạy được (thiếu DLL / bị Windows chặn)",
-                                    text_color=W.LEVEL_COLORS["error"])
+        self.app.runner.start(f"Kiểm tra {name}", work, lambda res: self._show_info(fr, *res), when_free=True)
 
-        self.app.runner.start("Đọc phiên bản mkvmerge", work, done)
-
-    def check_tools(self) -> None:
+    def check_tools(self, startup: bool = False) -> None:
+        """Nút "Kiểm tra lại": file nào đang được dùng cho từng công cụ + phiên bản. Lúc mở chương trình: báo công cụ
+        còn thiếu (và việc gì sẽ không làm được) trong khung log."""
         cfg = self.current_cfg()
         folder = self.app.folder
+        rows = self._tool_rows()
 
-        def work(job: tools.Job) -> list[str]:
+        def work(job: tools.Job) -> dict[str, tuple[tools.ToolInfo, bool]]:
             found = tools.find_all_tools(cfg, folder)
-            lines = []
+            out = {}
             for n in tools.TOOLS:
-                p = found.get(n)
-                if not p:
-                    lines.append(f"✗ {n}: KHÔNG tìm thấy")
-                    continue
-                extra = ""
-                if n == "mkvmerge":
-                    v = tools.mkvmerge_version(p, job)
-                    extra = f"  (v{v.major})" if v.ok else "  (tìm thấy nhưng KHÔNG chạy được)"
-                lines.append(f"✓ {n}: {p}{extra}")
-            return lines
+                own = str(cfg.get(tools.CONFIG_PATH_KEY[n]) or "").strip()
+                out[n] = (tools.tool_info(n, found.get(n), job), not own)
+            return out
 
-        def done(lines: list[str]) -> None:
-            self.tool_label.configure(text="\n".join(lines))
-            for ln in lines:
-                self.app.log("ok" if ln.startswith("✓") else "warn", ln)
+        def done(res: dict[str, tuple[tools.ToolInfo, bool]]) -> None:
+            for n, (info, auto) in res.items():
+                if n in rows:
+                    self._show_info(rows[n], info, auto)
+            lines = tool_summary(res)
+            for lvl, msg in lines:
+                if not startup or lvl != "ok":
+                    self.app.log(lvl, msg)
+            if startup and all(lvl == "ok" for lvl, _m in lines):
+                self.app.log("ok", lines[0][1])
 
-        self.app.runner.start("Tìm công cụ", work, done)
+        self.app.runner.start("Kiểm tra công cụ", work, done, when_free=True)
 
     # ---- kiem tra ket noi ----
     def check(self, which: str) -> None:

@@ -53,7 +53,7 @@ core/   timing pgs srt encoding episodes naming config secrets undo   (GĐ1)
         mux donor tvdb (+ phần bước ③ của probe tmdb naming)              (GĐ4)
         + set_job (3 phiên), naming.search_candidates, MuxSession.search_name (GĐ5)
 gui/    app widgets log_panel settings_view fetch_view subprep_view mux_view (GĐ5)
-tests/  pytest — 611 test (2 test alass thật tự bỏ qua nếu không có alass; 8 test test_gui_app.py tự bỏ qua nếu
+tests/  pytest — 614 test (2 test alass thật tự bỏ qua nếu không có alass; 9 test test_gui_app.py tự bỏ qua nếu
         không có tkinter/màn hình); test_gui_logic.py (logic giao diện, không cần Tk); fakehttp.py (API giả),
         synth.py (phụ đề/PGS giả), fake_alass.py (alass GIẢ: ghi lại từng lần gọi, dịch phụ đề theo cấu hình),
         test_golden_powershell.py + test_golden_subprep.py + test_golden_mux.py + golden/ps_harness.ps1 (chạy HÀM GỐC
@@ -119,9 +119,9 @@ pip install -q uv && uv python install 3.11   # chạy test trên 3.11 (bản uv
 uv venv -p 3.11 /tmp/v311 && uv pip install -p /tmp/v311/bin/python keyring send2trash requests pytest customtkinter
 # Python 3.12 của Ubuntu + Tk 8.6 (GIỐNG Windows nhất — dùng để chụp ảnh giao diện):
 /usr/bin/python3.12 -m venv /tmp/v312 && /tmp/v312/bin/pip install -q customtkinter keyring send2trash requests pytest
-.venv/bin/python -m pytest -q              # không có Tk: 601 passed, 10 skipped (8 test giao diện + 2 alass thật)
-xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 609 passed, 2 skipped
-xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 609 passed, 2 skipped
+.venv/bin/python -m pytest -q              # không có Tk: 603 passed, 11 skipped (9 test giao diện + 2 alass thật)
+xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 612 passed, 2 skipped
+xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 612 passed, 2 skipped
 ```
 
 Quét bí mật trước khi đẩy (cần bản .bat gốc có key — chỉ có nếu người dùng tải lên lại; nếu không có thì ít nhất
@@ -183,7 +183,10 @@ Chạy: `python -m gui.app [thư mục phim]` — trên Windows bấm đúp `cha
 - `mux_view.py`: database bắt buộc chọn (radio không chọn sẵn), `_replan(title, mutate, only)` (sửa kế hoạch trong luồng
   phụ rồi `plan_file` lại, giữ ô tick), `NameDialog` (chọn / Tìm lại với tên… / Giữ tên gốc / Sửa tay), file đã mux xong
   tự bỏ tick.
-- Lõi thêm (không đổi API cũ): `set_job(job)` cho 3 phiên; `naming.search_candidates`, `MuxSession.search_name`.
+- Lõi thêm (không đổi API cũ): `set_job(job)` cho 3 phiên; `naming.search_candidates`, `MuxSession.search_name`;
+  `tools.tool_info` + `tools.TOOL_ROLES` (khối "Công cụ ngoài" trong Cài đặt: 5 ô đường dẫn ở ĐẦU nhóm Chung, dòng
+  trạng thái = file đang dùng + phiên bản; kiểm tra lúc mở chương trình, log công cụ thiếu). MKVToolNix BẮT BUỘC:
+  bước ③ không chạy được nếu thiếu mkvmerge; bước ① ② chạy được một phần.
 - `requirements.txt`: `customtkinter>=5.2.2,<7` (đã thử 5.2.2 và 6.0.0, Tk 8.6 và 9.0).
 - **Màn hình 720p / 1080p / 1440p + tên dài** (sau duyệt lần 1, người dùng yêu cầu):
   - `W.plan_window(rộng, cao)` theo đơn vị LOGIC (= pixel ÷ tỉ lệ phóng to Windows): < 1400×860 → phóng to hết màn

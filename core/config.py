@@ -50,14 +50,22 @@ _D = "C:\\Users\\fenha\\Desktop\\"
 
 FIELDS: tuple[Field, ...] = (
     # ---------------- Chung ----------------
-    Field("MkvToolNixDir", _D + "mkvtoolnix", "chung", "Thư mục MKVToolNix", "Nơi có mkvmerge.exe, mkvextract.exe.", "dir"),
-    Field("AlassDir", _D + "alass-windows64\\bin\\alass", "chung", "Thư mục alass", "Nơi có alass.exe (thường có cả ffmpeg.exe, ffprobe.exe).", "dir"),
+    # Duong dan tung cong cu (de trong = tu tim) - dat DAU nhom de de thay
+    Field("MkvmergePath", "", "chung", "mkvmerge.exe (MKVToolNix)", "BẮT BUỘC cho bước ③ (tạo file MKV). Bước ① ② dùng để "
+          "đọc FPS, thời lượng, danh sách track. Để trống = tự tìm.", "file"),
+    Field("MkvextractPath", "", "chung", "mkvextract.exe (MKVToolNix)", "Trích phụ đề gốc từ MKV (bước ① ②), đo độ lệch "
+          "audio ghép (bước ③). Thiếu → chỉ dùng được phụ đề gốc bạn tự đặt vào srt_goc. Để trống = tự tìm.", "file"),
+    Field("AlassPath", "", "chung", "alass.exe", "BẮT BUỘC để đồng bộ phụ đề (bước ②). Để trống = tự tìm.", "file"),
+    Field("FfprobePath", "", "chung", "ffprobe.exe", "Đọc audio track của file mẫu (bước ②), bitrate + HDR / Dolby Vision cho "
+          "thẻ codec (bước ③). Thiếu → bitrate chỉ là ước lượng. Để trống = tự tìm (cạnh alass.exe trước).", "file"),
+    Field("FfmpegPath", "", "chung", "ffmpeg.exe", "Trích audio ra WAV khi đồng bộ theo audio (bước ②), đổi tốc độ audio ghép "
+          "khác FPS (bước ③). Để trống = tự tìm (cạnh alass.exe trước).", "file"),
+    # Thu muc de "tu tim" (nhap tu .bat)
+    Field("MkvToolNixDir", _D + "mkvtoolnix", "chung", "Thư mục MKVToolNix (nơi tự tìm)", "Nơi có mkvmerge.exe, mkvextract.exe. "
+          "Chỉ dùng khi ô mkvmerge / mkvextract ở trên để trống.", "dir"),
+    Field("AlassDir", _D + "alass-windows64\\bin\\alass", "chung", "Thư mục alass (nơi tự tìm)", "Nơi có alass.exe (thường có cả "
+          "ffmpeg.exe, ffprobe.exe). Chỉ dùng khi ô alass / ffmpeg / ffprobe ở trên để trống.", "dir"),
     Field("ExtraToolDirs", [_D + "alass-windows64\\bin\\alass"], "chung", "Thư mục tìm thêm công cụ", "Nơi tìm thêm ffprobe/ffmpeg.", "list"),
-    Field("MkvmergePath", "", "chung", "mkvmerge.exe", "Để trống = tự tìm.", "file"),
-    Field("MkvextractPath", "", "chung", "mkvextract.exe", "Để trống = tự tìm.", "file"),
-    Field("FfmpegPath", "", "chung", "ffmpeg.exe", "Để trống = tự tìm.", "file"),
-    Field("FfprobePath", "", "chung", "ffprobe.exe", "Để trống = tự tìm.", "file"),
-    Field("AlassPath", "", "chung", "alass.exe", "Để trống = tự tìm.", "file"),
     Field("UiScale", "auto", "chung", "Cỡ chữ và giao diện", "'auto' = tự chọn theo màn hình (to hơn 10% trên màn hình "
           "1440p / 4K đặt tỉ lệ 100%); hoặc chọn % (90 = gọn hơn cho màn hình 720p, 125 / 150 = to hơn). Cửa sổ tự vừa "
           "màn hình 720p / 1080p / 1440p. Có hiệu lực khi mở lại MuxStudio.", "choice",
