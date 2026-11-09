@@ -7,7 +7,7 @@ dependencies = [
     "requests",
     "keyring",
     "send2trash",
-    "customtkinter",
+    "customtkinter>=5.2.2,<7",
 ]
 
 [project.optional-dependencies]

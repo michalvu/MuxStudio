@@ -204,8 +204,8 @@ class FetchView:
                               background=W.pick(("#dbdbdb", "#2b2b2b")))
         pw.pack(fill="both", expand=True)
         top = W.ttk.Frame(pw)
-        cols = [W.Col("kind", "Loại", 110), W.Col("fps", "FPS", 70, "e"), W.Col("ref", "Phụ đề gốc (mốc)", 280),
-                W.Col("status", "Trạng thái", 320, stretch=True), W.Col("chosen", "Bản đã chọn", 320)]
+        cols = [W.Col("kind", "Loại", 125), W.Col("fps", "FPS", 65, "e"), W.Col("ref", "Phụ đề gốc (mốc)", 260),
+                W.Col("status", "Trạng thái", 310, stretch=True), W.Col("chosen", "Bản đã chọn", 280)]
         self.tree = W.Table(top, cols, height=12, tree="Phim / ngôn ngữ", tree_width=360)
         self.tree.frame.pack(fill="both", expand=True)
         self.tree.on_select = self._on_select
@@ -551,6 +551,9 @@ class FetchView:
     def _tree_tip(self, iid: str, col: str) -> str | None:
         it = self.iid_item.get(iid)
         if it is None:
+            vals = self.tree.tv.item(iid, "values") if iid.startswith("v") else ()
+            if col == "ref" and len(vals) > 2:
+                return f"Phụ đề gốc (mốc thời gian): {vals[2]}"
             return None
         if col == "status" and it.timing_note:
             return it.timing_note

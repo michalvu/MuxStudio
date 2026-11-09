@@ -570,8 +570,13 @@ class SettingsView:
         vals, errors = self.collect()
         if errors:
             return True
-        if any(self.app.cfg[k] != v for k, v in vals.items()):
-            return True
+        for k, v in vals.items():
+            cur = self.app.cfg[k]
+            if self.rows[k].kind in ("langs", "parts"):  # o tick: thu tu do chuong trinh quyet
+                if sorted(cur) != sorted(v):
+                    return True
+            elif cur != v:
+                return True
         return any(sr.get_value() != sr.saved for sr in self.secret_rows.values())
 
     def save(self) -> bool:

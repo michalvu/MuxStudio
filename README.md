@@ -3,10 +3,12 @@
 Phần mềm Windows (Python + CustomTkinter) thay cho ba công cụ dòng lệnh `SubFetch`, `SubPrep` và `MuxTool`:
 tải phụ đề → đồng bộ phụ đề → dọn track và mux MKV, đặt tên chuẩn Jellyfin.
 
-**Trạng thái:** Giai đoạn 4 xong — lõi cả ba bước: ① tải phụ đề, ② chuẩn bị phụ đề (ghép tên, đổi tên, trích phụ đề gốc,
-đồng bộ bằng alass, cắt recap, kiểm tra sức khoẻ, dọn dẹp), ③ mux (dọn audio/phụ đề, đặt tên TMDB/TVDB chuẩn Jellyfin,
-thẻ codec, ghép audio từ file phim khác, dựng lệnh mkvmerge). Chờ bạn duyệt Giai đoạn 4. Chưa có giao diện (Giai đoạn 5).
+**Trạng thái:** Giai đoạn 5 xong — đã có **giao diện** (4 thẻ ① Tải phụ đề → ② Chuẩn bị phụ đề → ③ Mux → Cài đặt,
+khung log màu, nút Dừng, màn hình Hoàn tác) trên lõi của cả ba bước. Chờ bạn duyệt Giai đoạn 5. Bản `.exe` không cần
+cài Python sẽ có ở Giai đoạn 6.
 
+- **Thử giao diện trên Windows (cần Python 3.11+):** bấm đúp `chay_muxstudio.bat`. Lần đầu mất vài phút để tạo thư mục
+  `.venv` và tải thư viện; các lần sau mở ngay.
 - **Dò API với key thật:** bấm đúp `chay_do_api.bat`, nhập thư mục chứa 3 file .bat cũ (để lấy key), rồi gửi file
   `ket_qua_do_api.txt` (key, token, mật khẩu đã được che).
 - Chạy test trên Windows (tuỳ chọn, cần Python 3.11+): bấm đúp `run_tests.bat`.

@@ -11,7 +11,6 @@ import re
 import sys
 import traceback
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Mapping
 
 from core import config as C
@@ -356,12 +355,21 @@ class App:
             C.save_config(self.cfg)
         except Exception:  # noqa: BLE001
             pass
+        self.destroy()
+
+    def destroy(self) -> None:
+        """Đóng phiên các thẻ (xoá thư mục tạm), huỷ lệnh ``after`` còn chờ, rồi đóng cửa sổ."""
         for v in self.views:
             if hasattr(v, "close"):
                 try:
                     v.close()
                 except Exception:  # noqa: BLE001
                     pass
+        try:
+            for aid in self.root.tk.splitlist(self.root.tk.call("after", "info")):
+                self.root.tk.call("after", "cancel", aid)  # khong dung after_cancel: no xoa luon lenh Tcl cua widget
+        except Exception:  # noqa: BLE001
+            pass
         self.root.destroy()
 
     def run(self) -> None:
@@ -455,7 +463,21 @@ def main(argv: list[str] | None = None) -> int:
         print("Thiếu tkinter / customtkinter. Cài: pip install customtkinter", file=sys.stderr)
         return 1
     folder = argv[0] if argv and os.path.isdir(argv[0]) else None
-    app = App(folder=folder)
+    try:
+        app = App(folder=folder)
+    except Exception:  # noqa: BLE001 - pythonw khong co console: ghi loi ra file + bao bang hop thoai
+        tb = traceback.format_exc()
+        p = C.app_config_dir() / "loi_khoi_dong.txt"
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(tb, encoding="utf-8")
+        except OSError:
+            pass
+        try:
+            W.messagebox.showerror("MuxStudio", f"Không khởi động được:\n\n{tb.strip().splitlines()[-1]}\n\nChi tiết: {p}")
+        except Exception:  # noqa: BLE001
+            print(tb, file=sys.stderr)
+        return 1
     app.run()
     return 0
 

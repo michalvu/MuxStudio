@@ -272,9 +272,9 @@ class MuxView:
                               background=W.pick(("#dbdbdb", "#2b2b2b")))
         pw.pack(fill="both", expand=True)
         top = W.ttk.Frame(pw)
-        cols = [W.Col("src", "Tên gốc", 300, stretch=True), W.Col("new", "→ Tên mới (trong Output)", 380, stretch=True),
-                W.Col("audio", "Audio giữ", 90), W.Col("subs", "Phụ đề giữ", 130), W.Col("donor", "Audio ghép", 170),
-                W.Col("tag", "Thẻ codec", 170), W.Col("status", "Trạng thái", 300)]
+        cols = [W.Col("src", "Tên gốc", 250, stretch=True), W.Col("new", "→ Tên mới (trong Output)", 330, stretch=True),
+                W.Col("audio", "Audio giữ", 75), W.Col("subs", "Phụ đề giữ", 125), W.Col("donor", "Audio ghép", 140),
+                W.Col("tag", "Thẻ codec", 140), W.Col("status", "Trạng thái", 240, stretch=True)]
         self.table = W.Table(top, cols, check="Mux", height=10)
         self.table.frame.pack(fill="both", expand=True)
         self.table.on_select = self._on_select
@@ -301,6 +301,7 @@ class MuxView:
 
         self.summary = ctk.CTkLabel(self.frame, text="", anchor="w")
         self.summary.pack(fill="x", pady=(4, 0))
+        self.on_config_changed()
 
     # ------------------------------------------------------------------ dung cac o
     def _build_audio(self) -> None:

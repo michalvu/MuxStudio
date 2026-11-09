@@ -1,0 +1,500 @@
+"""Phần logic của giao diện — KHÔNG cần tkinter / màn hình (chạy được cả trên máy không có tkinter).
+
+* ``widgets``: ``ellipsize_middle`` (= ``Limit-Text`` của SubFetch, đáp án lấy từ hàm gốc chạy bằng pwsh),
+  ``GridModel`` (bảng chọn phụ đề theo tập), ``Runner`` (luồng phụ, log/tiến độ qua queue, Dừng sau file / Dừng ngay,
+  xếp hàng việc tự động, lỗi không làm chết vòng đọc).
+* ``settings_view``: chữ ↔ giá trị cho MỌI khoá cấu hình, ``DonorOffsetMs``, ngôn ngữ, "Kiểm tra kết nối" (API giả),
+  bảng "Nhập từ .bat" (bí mật luôn che).
+* ``fetch_view`` / ``subprep_view`` / ``mux_view`` / ``app``: dòng bảng, trạng thái, màu, bảng chọn phụ đề, CSV, Hoàn tác.
+* Lõi: ``set_job`` (một phiên sống qua nhiều lần bấm nút).
+"""
+from __future__ import annotations
+
+import sys
+import threading
+import time
+from pathlib import Path
+
+import pytest
+
+from core import config as C
+from core import naming, subfetch, subprep, tools, undo
+from core.subfetch import Candidate, FetchItem, FetchReport, Offset, VideoInfo
+from core.subprep import Health, RenameRow, SyncPair, SyncResult
+from core.tmdb import ConnStatus
+from fakehttp import FakeHTTP, FakeResponse, Sleeper
+from gui import app as A
+from gui import fetch_view as FV
+from gui import mux_view as MV
+from gui import settings_view as SV
+from gui import subprep_view as PV
+from gui import widgets as W
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+# ==========================================================================
+#  widgets
+# ==========================================================================
+
+
+@pytest.mark.parametrize("n,out", [
+    (5, "Show."), (11, "Show.S01E01"), (12, "Show....rtv]"), (13, "Show.S...rtv]"), (20, "Show.S01E...b[rartv]"),
+    (33, "Show.S01E01.1080...264-NTb[rartv]"),  # (33-3)*0.55 = 16.5 -> 16 (lam tron ve so chan nhu [int] PowerShell)
+    (40, "Show.S01E01.1080p.WE....H.264-NTb[rartv]"), (48, "Show.S01E01.1080p.WEB-DL.DDP5.1.H.264-NTb[rartv]"),
+])
+def test_ellipsize_middle_matches_limit_text(n, out):
+    assert W.ellipsize_middle("Show.S01E01.1080p.WEB-DL.DDP5.1.H.264-NTb[rartv]", n) == out
+    assert W.ellipsize_middle("", 10) == "" and W.ellipsize_middle(None, 10) == ""
+
+
+def test_grid_model_cells_columns_rows_reset():
+    auto = {("e1", "E|vi"): True, ("e1", "I|English"): False, ("e2", "I|English"): True}
+    m = W.GridModel(["e1", "e2"], ["E|vi", "I|English"], auto)
+    assert m.present("e1", "E|vi") and not m.present("e2", "E|vi")  # o xam: tap 2 khong co sub ngoai vi
+    assert not m.toggle_cell("e2", "E|vi")  # o xam khong bam duoc
+    assert m.toggle_cell("e1", "I|English") and m.differs("e1", "I|English") and m.changed_rows() == ["e1"]
+    # cot: con o chua tick -> tick het; da tick het -> bo het
+    m.reset()
+    assert m.toggle_col("I|English") and m.get("e1", "I|English") and m.get("e2", "I|English")
+    assert m.toggle_col("I|English") and not m.get("e1", "I|English") and not m.get("e2", "I|English")
+    # dong
+    m.reset()
+    assert m.toggle_row("e1") and m.row_values("e1") == {"E|vi": True, "I|English": True}
+    assert m.toggle_row("e1") and m.row_values("e1") == {"E|vi": False, "I|English": False}
+    m.set_all(True)
+    assert all(m.cells.values()) and m.changed_rows() == ["e1"]
+    m.reset()
+    assert m.cells == auto and not m.changed_rows()
+    # lua chon dang co (bang chon da ap dung truoc do)
+    m2 = W.GridModel(["e1"], ["E|vi"], {("e1", "E|vi"): True}, {("e1", "E|vi"): False, ("e9", "x"): True})
+    assert m2.get("e1", "E|vi") is False and not m2.present("e9", "x")
+
+
+class _Rec:
+    def __init__(self):
+        self.logs: list[tuple[str, str]] = []
+        self.progs: list[tuple[int, int, str]] = []
+        self.busy: list[tuple[bool, str]] = []
+
+    def runner(self):
+        return W.Runner(None, lambda lv, m: self.logs.append((lv, m)), lambda d, t, lb: self.progs.append((d, t, lb)),
+                        lambda b, t: self.busy.append((b, t)), redact=lambda s: s.replace("demo-bi-mat", "•••"))
+
+    def text(self):
+        return "\n".join(m for _l, m in self.logs)
+
+
+def test_runner_done_progress_redact_and_one_task_at_a_time():
+    rec = _Rec()
+    r = rec.runner()
+    gate = threading.Event()
+    got: list = []
+
+    def work(job):
+        job.info("key = demo-bi-mat")
+        job.progress(1, 2, "a")
+        job.progress(2, 2, "b")
+        gate.wait(5)
+        return 42
+
+    assert r.start("Việc A", work, got.append)
+    assert r.busy and not r.start("Việc B", work)  # chi mot viec moi luc
+    assert "Đang chạy \"Việc A\"" in rec.text()
+    gate.set()
+    r.wait()
+    assert got == [42] and not r.busy
+    assert ("info", "key = •••") in rec.logs  # log luon che bi mat
+    assert rec.progs[-1] == (2, 2, "b")
+    assert rec.busy == [(True, "Việc A"), (False, "Việc A")]
+
+
+def test_runner_error_and_callback_error_do_not_kill_loop():
+    rec = _Rec()
+    r = rec.runner()
+    errs: list = []
+    r.start("Hỏng", lambda job: 1 / 0, None, errs.append)
+    r.wait()
+    assert isinstance(errs[0], ZeroDivisionError) and "[LỖI] Hỏng: division by zero" in rec.text()
+    r.start("Hiển thị hỏng", lambda job: 1, lambda _x: [][1])
+    r.wait()
+    assert "[LỖI giao diện]" in rec.text()
+    ok: list = []
+    assert r.start("Sau đó", lambda job: "vẫn chạy", ok.append)
+    r.wait()
+    assert ok == ["vẫn chạy"]
+
+
+def test_runner_stop_after_current_and_queue_when_free():
+    rec = _Rec()
+    r = rec.runner()
+    order: list = []
+    started = threading.Event()
+
+    def loop(job):
+        started.set()
+        n = 0
+        while not job.should_stop():
+            n += 1
+            time.sleep(0.005)
+        order.append("A dừng")
+        return n
+
+    r.start("A", loop, lambda n: order.append("A xong"))
+    started.wait(5)
+    assert r.start("Đếm file", lambda job: order.append("B chạy"), when_free=True)  # xep hang
+    assert r.start("Đếm file", lambda job: order.append("B lần 2"), when_free=True)  # trung ten -> khong them
+    r.stop_after_current()
+    r.wait()
+    assert order == ["A dừng", "A xong", "B chạy"]
+    assert "Sẽ dừng sau file đang chạy" in rec.text()
+
+
+def test_runner_cancel_now_kills_child_process():
+    rec = _Rec()
+    r = rec.runner()
+    errs: list = []
+    t0 = time.monotonic()
+
+    def work(job):
+        tools.run([sys.executable, "-c", "import time; time.sleep(30)"], job)
+        return "không tới đây"
+
+    r.start("Chạy lâu", work, None, errs.append)
+    for _ in range(500):
+        job = r.job
+        if job is not None and job._procs:
+            break
+        time.sleep(0.01)
+    r.start("Đếm file", lambda job: None, when_free=True)
+    r.cancel_now()
+    r.wait()
+    assert time.monotonic() - t0 < 15
+    assert errs and isinstance(errs[0], tools.Cancelled)
+    assert "Đã dừng ngay: Chạy lâu" in rec.text()
+    assert "Đếm file" not in [b[1] for b in rec.busy]  # Dung ngay -> bo ca viec dang xep hang
+
+
+# ==========================================================================
+#  Cài đặt
+# ==========================================================================
+
+
+def test_every_field_text_roundtrip():
+    for f in C.FIELDS:
+        k = SV.field_kind(f)
+        if k in ("bool", "choice"):
+            continue
+        txt = SV.value_to_text(f, f.default)
+        assert SV.text_to_value(f, txt) == f.default, f.key
+    f = C.FIELD_BY_KEY["ExtraToolDirs"]
+    assert SV.value_to_text(f, ["C:\\A B\\x", "D:\\y"]) == "C:\\A B\\x\nD:\\y"  # duong dan co dau cach: moi dong mot muc
+    assert SV.text_to_value(f, "C:\\A B\\x\n\n D:\\y ") == ["C:\\A B\\x", "D:\\y"]
+    assert SV.text_to_value(C.FIELD_BY_KEY["AlassExtraArgs"], "--split-penalty  7") == ["--split-penalty", "7"]
+    assert SV.text_to_value(C.FIELD_BY_KEY["ExistingMinScore"], "0,4") == 0.4  # dau phay cung nhan
+    assert SV.value_to_text(C.FIELD_BY_KEY["DonorMaxDurationDiff"], 1.0) == "1"
+
+
+def test_field_errors_are_vietnamese_with_label():
+    with pytest.raises(ValueError, match="Nghỉ giữa các lượt gọi"):
+        SV.text_to_value(C.FIELD_BY_KEY["ApiPauseMs"], "nhanh")
+    with pytest.raises(ValueError, match="không được để trống"):
+        SV.text_to_value(C.FIELD_BY_KEY["MinVerifyVotes"], "  ")
+
+
+def test_donor_offset_dict_text():
+    f = C.FIELD_BY_KEY["DonorOffsetMs"]
+    v = SV.text_to_value(f, "S01E03 = 1200\n'tap #643' = -500\nPhim.2020.mkv: 12,5\n\n")
+    assert v == {"S01E03": 1200, "tap #643": -500, "Phim.2020.mkv": 12.5}
+    assert SV.text_to_value(f, SV.value_to_text(f, v)) == v
+    with pytest.raises(ValueError, match="dòng 2"):
+        SV.parse_dict_text("S01E01 = 1\nkhông có số")
+
+
+def test_languages_switches_and_extra():
+    sw, extra = SV.langs_to_parts(["vi", "en", "cs", "pt", "ru"])
+    assert sw["vi"] and sw["cs"] and not sw["ja"] and extra == "pt ru"
+    assert SV.langs_from_parts({"vi": True, "ja": True, "en": True}, "pt, cz vi") == ["vi", "en", "ja", "pt", "cs"]
+
+
+def test_check_connection_with_fake_apis():
+    cfg = C.Config({})
+    assert SV.check_connection("tmdb", {}, cfg).ok is None
+    h = FakeHTTP().add("GET", r"/configuration$", FakeResponse(200, {"images": {}}))
+    st = SV.check_connection("tmdb", {"TmdbApiKey": "demo-tmdb-key-0123456789abcdef01"}, cfg, http=h, sleep=Sleeper())
+    assert st.ok and "sẵn sàng" in st.text
+    h = FakeHTTP().add("GET", r"/configuration$", FakeResponse(401, {"status_message": "Invalid API key"}))
+    st = SV.check_connection("tmdb", {"TmdbApiKey": "demo-tmdb-key-0123456789abcdef01"}, cfg, http=h, sleep=Sleeper())
+    assert st.ok is False and "từ chối" in st.text
+    h = FakeHTTP().add("GET", r"subsource\.net/api/v1/movies/search",
+                       FakeResponse(200, {"data": []}, headers={"X-RateLimit-Remaining": "58", "X-RateLimit-Limit": "60"}))
+    st = SV.check_connection("subsource", {"SubSourceApiKey": "demo-ss"}, cfg, http=h, sleep=Sleeper())
+    assert st.ok and st.text == "SubSource: key hợp lệ, còn 58/60 lượt/phút"
+    h = FakeHTTP().add("POST", r"thetvdb\.com/v4/login", FakeResponse(401, {}))
+    st = SV.check_connection("tvdb", {"TvdbApiKey": "demo-tvdb"}, cfg, http=h, sleep=Sleeper())
+    assert st.ok is False and "đăng nhập lỗi" in st.text
+    assert SV.status_color(ConnStatus(True, "")) == W.LEVEL_COLORS["ok"]
+    with pytest.raises(ValueError):
+        SV.check_connection("khac", {}, cfg)
+
+
+def test_import_rows_mask_secrets_and_filter(tmp_path):
+    p = tmp_path / "MuxTool [cu].bat"
+    p.write_text("<# : batch\n@echo off\n#>\n$DonorFolder = 'audio_x'\n$TmdbApiKey = 'demo-tmdb-key-0123456789abcdef01'\n"
+                 "$MaxShiftSeconds = 99\n", encoding="utf-8")
+    q = tmp_path / "MuxTool2.bat"
+    q.write_text("<# : batch\n#>\n$DonorFolder = 'audio_y'\n", encoding="utf-8")
+    imp = C.import_from_bat([p, q])
+    rows = SV.import_rows(imp, C.Config({}), lambda k: "demo-cu-0123456789" if k == "TmdbApiKey" else "")
+    sec = next(r for r in rows if r.key == "TmdbApiKey")
+    assert sec.secret and sec.new == "demo…ef01" and sec.current == "demo…6789"
+    assert "demo-tmdb-key" not in " ".join(r.new + r.current for r in rows)
+    donor = [r for r in rows if r.key == "DonorFolder"]
+    assert len(donor) == 2 and all(r.group == "DonorFolder" for r in donor)  # xung dot -> chon mot
+    f = SV.filtered_import(imp, {"DonorFolder"}, set())
+    assert "MaxShiftSeconds" not in f.values and not f.secrets and f.conflicts == imp.conflicts
+
+
+# ==========================================================================
+#  ① Tải phụ đề
+# ==========================================================================
+
+
+def _vi(tmp_path, **kw):
+    v = VideoInfo(tmp_path / "Show.S01E01.mkv", "Show.S01E01", None, "Show", None, 23.976, ["show"])
+    return FetchItem(v, "vi", tmp_path / "srt_can_sync" / "vi", **kw)
+
+
+def test_fetch_item_status_texts(tmp_path):
+    c = Candidate("SubSource", 1, "23.976", 0.8, "Show.S01.1080p.WEB-DL", "2 file, 50 tải (gói season)", {}, Offset(2.5, 4, 4))
+    assert FV.item_status(_vi(tmp_path)) == ("chưa tìm", "")
+    assert FV.item_status(_vi(tmp_path, candidates=[c, c], gathered=True)) == ("CẦN CHỌN — 2 ứng viên", "need")
+    assert FV.item_status(_vi(tmp_path, gathered=True, status="không nguồn nào có")) == ("không nguồn nào có", "bad")
+    assert FV.item_status(_vi(tmp_path, candidates=[c], chosen=c, choice_reason="bạn chọn"))[1] == "ok"
+    assert FV.item_status(_vi(tmp_path, skip=True, candidates=[c])) == ("bỏ qua", "dim")
+    done = _vi(tmp_path, chosen=c, result=tmp_path / "a.vi.srt", result_src="SubSource", timing_note="Kiểm chứng yếu")
+    assert FV.item_status(done) == ("đã tải (SubSource): a.vi.srt", "need")
+    assert FV.chosen_text(done) == "[SubSource] Show.S01.1080p.WEB-DL"
+    row = FV.candidate_row(c, 0)
+    assert row == {"n": 1, "src": "SubSource", "fps": "23.976 KHỚP", "score": "80%", "off": "+2.5s~",
+                   "rel": "Show.S01.1080p.WEB-DL", "info": "2 file, 50 tải (gói season)"}
+    assert FV.candidate_tag(Candidate("Kho", 2, "đo: nghi ngờ", 0.5, "x", "", None)) == "need"
+    assert FV.candidate_tag(Candidate("Kho", 1, "đo: khớp", 0.5, "x", "", None, Offset(0.1, 30, -1))) == "good"
+    assert FV.lang_label("vi") == "vi — Vietnamese"
+    rep = FetchReport(ok=3, used_existing=1, missing=1, os_remaining=48, os_allowed=100, stopped=True)
+    assert FV.summary_text(rep).startswith("Tải được: 3  |  Dùng file có sẵn: 1")
+    assert "OpenSubtitles còn 48/100" in FV.summary_text(rep) and "đã dừng" in FV.summary_text(rep)
+
+
+def test_gather_all_then_choice_reused_for_rest_of_season(movie_dir):
+    """Hai bản tiếng Việt → tập 1 "CẦN CHỌN"; bạn chọn gói season (ô "Dùng lại…" bật) → tải trước gói, đo lại tập 2
+    rồi tự chọn luôn cho tập 2 (đo THẲNG file của tập 2 trong gói)."""
+    import test_subfetch as TS
+
+    lib = TS.Lib(movie_dir)
+    http = FakeHTTP()
+    TS.ss_routes(http, lib, extra_subs=[{"subtitleId": 5, "language": "vietnamese", "releaseInfo": ["Show.S01.720p.HDTV"],
+                                         "framerate": "", "files": 2, "downloads": 3}])
+    s, job = TS.session(lib, http, C.Config({"Languages": ["vi"]}), secrets={"SubSourceApiKey": "demo-ss"})
+    s.scan()
+    FV.gather_all(s, s.items, job)
+    e1, e2 = TS.item(s, TS.EP1, "vi"), TS.item(s, TS.EP2, "vi")
+    assert e1.needs_choice and e2.needs_choice
+    pack = next(c for c in e1.candidates if c.payload.get("subtitleId") == 1)
+    s.choose(e1, pack, True)
+    assert FV.after_choice(s, e1, s.items, job) == 1
+    assert e2.chosen.ident == pack.ident and e2.choice_reason == "dùng lại lựa chọn trước"
+    assert e2.chosen.off.total == -1 and abs(e2.chosen.off.offset + 1.25) < 0.1
+    assert len(http.calls_to(r"subtitles/1/download")) == 1
+    s.close()
+
+
+# ==========================================================================
+#  ② Chuẩn bị phụ đề
+# ==========================================================================
+
+
+def test_prep_lang_options_and_rows(tmp_path):
+    opts = PV.lang_options()
+    assert opts[0] == PV.AUTO_LANG and opts[-1] == PV.OTHER_LANG and "vi — Vietnamese" in opts
+    assert PV.lang_from_option(PV.AUTO_LANG) == "auto" and PV.lang_from_option("cs — Czech") == "cs"
+    assert "pt — Portuguese" in PV.lang_options(["pt"])
+    src = tmp_path / "srt_can_sync" / "cs" / "x.srt"
+    r = RenameRow(src, "vi", "cs", new_path=tmp_path / "Show.S01E01.vi.srt", ep_label="S01E01",
+                  warn="file nằm trong thư mục 'cs' nhưng bạn chọn 'vi'")
+    vals, tag = PV.rename_values(r)
+    assert tag == "bad" and vals["new"] == "Show.S01E01.vi.srt" and vals["why"].startswith("⚠ file nằm trong thư mục 'cs'")
+    assert PV.rename_values(RenameRow(src, "vi", "vi", reason="đã đúng tên"))[1] == "dim"
+    assert PV.rename_values(RenameRow(src, "vi", "vi", reason="nhập nhằng"))[1] == "need"
+    assert PV.rename_values(RenameRow(src, "vi", "vi", status="đã đổi tên"))[1] == "good"
+
+
+def test_prep_pair_values_health_and_csv(tmp_path):
+    p = SyncPair(tmp_path / "a.vi.srt", "vi", "sub", out_path=tmp_path / "Phim.vi.srt")
+    vals, tag = PV.pair_values(p)
+    assert tag == "" and vals["health"] == "" and not PV.pair_needs_review(p)
+    h = Health(1, ["còn lệch 1.3s so với phụ đề gốc"], ["offset"], 812, -2.0, -2.5, 1.3, 31)
+    p.result = SyncResult(True, 0, h, cut=12, fixed=3)
+    vals, tag = PV.pair_values(p)
+    assert tag == "need" and vals["health"] == "CẦN XEM"
+    assert (vals["first"], vals["last"], vals["spread"], vals["resid"], vals["votes"], vals["cut"]) == \
+        ("-2.00", "-2.50", "-0.50", "+1.30", "31", "12")
+    assert vals["flags"].startswith("bỏ 3 dòng dồn về 00:00:00; còn lệch 1.3s")
+    assert PV.pair_needs_review(p)
+    q = SyncPair(tmp_path / "b.vi.srt", "vi", "audio", reason="đã có kết quả")
+    q2 = SyncPair(tmp_path / "c.vi.srt", "vi", "audio", out_path=tmp_path / "c.srt")
+    q2.result = SyncResult(False, 1, rejected=True, notes=["alass dịch 300s > 130s"])
+    assert PV.pair_values(q)[1] == "dim" and PV.pair_values(q2) [1] == "bad" and PV.pair_values(q2)[0]["health"] == "TỪ CHỐI"
+    out = tmp_path / "[x] bao cao.csv"
+    assert PV.export_csv([p, q, q2], out) == 3
+    data = out.read_bytes()
+    assert data.startswith(b"\xef\xbb\xbf") and b"\r\n" in data
+    txt = data.decode("utf-8-sig")
+    assert txt.splitlines()[0].startswith('"Phụ đề","Mốc","Loại mốc","Kết quả"') and "CẦN XEM" in txt and "TỪ CHỐI" in txt
+
+
+# ==========================================================================
+#  ③ Mux
+# ==========================================================================
+
+
+@pytest.fixture
+def mlib(movie_dir, monkeypatch):
+    import test_mux as TM
+
+    return TM, TM.Lib(movie_dir, monkeypatch)
+
+
+def test_mux_overview_audio_rows_and_details(mlib):
+    TM, lib = mlib
+    j = TM.J(TM.V(), TM.A(1, "eng", ch=6, bps=640000), TM.A(2, "eng", ch=2, bps=192000), TM.A(3, "eng", name="Commentary"),
+             TM.A(4, "cze", ch=2), TM.S(5, "eng"), TM.S(6, "eng", sdh=True, name="SDH"), TM.S(7, "cze"))
+    p = lib.plan(lib.add(TM.MOVIE, j))
+    assert p.status == "need_choice"
+    vals, tag = MV.overview_values(p, lib.s.out_dir)
+    assert tag == "need" and vals["status"].startswith("Cần chọn: có 2 audio tiếng Anh")
+    assert vals["audio"] == "3/4" and vals["new"] == f"{TM.MOVIE} - 1080p HEVC EAC35.1.mkv"
+    rows = {iid: (v, chk, t) for iid, v, chk, t in MV.audio_rows(p)}
+    assert rows["a3"][1] is None and rows["a3"][0]["note"] == "Commentary"  # binh luan: khong cho tick
+    assert rows["a1"][1] is False and rows["a1"][0]["note"] == "giữ — Default" and rows["a1"][2] == "ok"
+    assert MV.multi_en(p)
+    det = "\n".join(MV.plan_details(p, lib.s.out_dir))
+    assert "#3 English E-AC-3 5.1" in det and "XOÁ (Commentary)" in det and "Phụ đề trong MKV:" in det
+    # ap dung lua chon -> san sang
+    lib.s.set_audio_choice(p, [2], True)
+    p2 = lib.plan(p.src)
+    assert p2.status == "ok" and MV.overview_values(p2, lib.s.out_dir)[1] == ""
+
+
+def test_mux_grid_data_and_choice(mlib):
+    TM, lib = mlib
+    a = lib.add("Show.S01E01.1080p", TM.J(TM.V(), TM.A(1), TM.S(2, "eng"), TM.S(3, "eng", sdh=True, name="SDH")))
+    b = lib.add("Show.S01E02.1080p", TM.J(TM.V(), TM.A(1), TM.S(2, "eng")))
+    (lib.root / "Show.S01E01.1080p.vi.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nx\n", encoding="utf-8")
+    pa, pb = lib.plan(a), lib.plan(b)
+    d = MV.grid_data([pa, pb])
+    assert d["rows"] == ["m0", "m1"] and d["cols"][0] == "E|vi"
+    sdh = next(c for c in d["cols"] if "SDH" in c)
+    assert d["auto"][("m0", "E|vi")] and ("m1", "E|vi") not in d["auto"] and d["auto"][("m0", sdh)] is False
+    assert d["headers"]["E|vi"].startswith("NGOÀI\nVietnamese") and d["labels"]["m1"] == pb.rel
+    assert MV.grid_choice(pa, {"E|vi": False, "I|English": True, sdh: True}) == ([], [2, 3])
+    lib.s.set_sub_choice(pa, [], [2, 3])
+    d2 = MV.grid_data([lib.plan(a), pb], lib.s.sub_choices)
+    assert d2["current"] == {("m0", "E|vi"): False, ("m0", "I|English"): True, ("m0", sdh): True}
+
+
+def test_mux_parse_inputs_and_summary():
+    assert MV.parse_ms("") is None and MV.parse_ms(" +1200 ") == 1200.0 and MV.parse_ms("-500ms") == -500.0
+    assert MV.parse_ms("1,5") == 1.5
+    with pytest.raises(ValueError):
+        MV.parse_ms("1 giây")
+    assert MV.parse_year("") is None and MV.parse_year("2019") == 2019
+    with pytest.raises(ValueError):
+        MV.parse_year("19")
+    from core.mux import MuxReport
+
+    assert MV.summary_text(MuxReport(ok=3, warning=1, skipped=2, pending=1, failed=0)) == \
+        "Thành công: 3 (1 có cảnh báo)  |  Bỏ qua: 2  |  Cần chọn: 1  |  Lỗi: 0"
+
+
+# ==========================================================================
+#  Hoàn tác (màn hình chung)
+# ==========================================================================
+
+
+def test_undo_entries_all_steps_newest_first(movie_dir):
+    cfg = C.Config({})
+    f = movie_dir / "a.srt"
+    f.write_text("x", encoding="utf-8")
+    import datetime as dt
+
+    for step, key, day in (("subfetch", "SubFetchLogDir", 1), ("mux", "MuxLogDir", 3), ("subprep", "SubPrepLogDir", 2)):
+        lg = undo.RunLog(movie_dir, cfg[key], step)
+        lg.add(undo.CREATE, "", f)
+        lg.add(undo.RENAME, movie_dir / "b.srt", f)
+        lg.save(dt.datetime(2026, 11, day, 9, 30, 5))
+    ents = A.undo_entries(movie_dir, cfg)
+    assert [e.step for e in ents] == ["mux", "subprep", "subfetch"]
+    assert ents[0].label == "③ Mux" and ents[0].when == "03/11/2026 09:30:05"
+    assert A.counts_text(ents[0].run.counts) == "1 tạo, 1 đổi tên" and A.counts_text({}) == "(trống)"
+    plan = undo.plan_undo(ents[0].run.path)
+    lines = A.plan_lines(plan, movie_dir)
+    assert lines[0] == "Vào Thùng rác: a.srt" and lines[1] == "Đổi lại tên cũ: a.srt  →  b.srt"
+
+
+# ==========================================================================
+#  Lõi: set_job — một phiên sống qua nhiều lần bấm nút
+# ==========================================================================
+
+
+def test_set_job_rebinds_every_part(movie_dir, monkeypatch):
+    j1, j2 = tools.Job(), tools.Job()
+    fs = subfetch.FetchSession(movie_dir, C.Config({}), {"SubSourceApiKey": "demo-ss", "TmdbApiKey": "demo-t",
+                                                         "OsApiKey": "demo-os"}, j1, FakeHTTP(), Sleeper(),
+                               tool_paths={"mkvmerge": None, "mkvextract": None})
+    fs.set_job(j2)
+    assert all(x.job is j2 for x in (fs, fs.memory, fs.refs, fs.ss, fs.tmdb, fs.os))
+    fs.close()
+    ps = subprep.PrepSession(movie_dir, C.Config({}), j1, tool_paths={})
+    ps.set_job(j2)
+    assert ps.job is j2
+    ps.close()
+    from core import mux
+
+    monkeypatch.setattr(tools, "mkvmerge_version", lambda p, job=None: tools.ToolVersion(True, 82, "v82"))
+    ms = mux.MuxSession(movie_dir, C.Config({}), {"TmdbApiKey": "demo-t", "TvdbApiKey": "demo-v"}, j1, FakeHTTP(),
+                        Sleeper(), tool_paths={"mkvmerge": "x"})
+    ms.set_job(j2)
+    assert all(x.job is j2 for x in (ms, ms.tmdb, ms.tvdb, ms.track_times))
+    ms.close()
+
+
+def test_gui_modules_import_without_display():
+    """Mọi module giao diện import được mà không cần màn hình (tkinter chỉ dùng khi dựng cửa sổ)."""
+    import importlib
+
+    for m in ("gui.widgets", "gui.log_panel", "gui.settings_view", "gui.fetch_view", "gui.subprep_view", "gui.mux_view",
+              "gui.app"):
+        importlib.import_module(m)
+    from gui import log_panel
+
+    assert log_panel.format_log([("09:00:00", "error", "hỏng"), ("09:00:01", "info", "ok")]) == \
+        "09:00:00  [LỖI]  hỏng\n09:00:01  ok\n"
+    assert naming.lang_name("vi") == "Vietnamese"
+
+
+def test_main_startup_error_written_to_file(config_dir, monkeypatch, capsys):
+    """``pythonw`` không có console: lỗi khởi động được ghi ra ``loi_khoi_dong.txt`` (và báo bằng hộp thoại nếu có)."""
+    def boom(**_k):
+        raise RuntimeError("hỏng màn hình")
+
+    monkeypatch.setattr(A, "App", boom)
+    shown: list = []
+    if W.messagebox is not None:
+        monkeypatch.setattr(W.messagebox, "showerror", lambda t, m: shown.append(m))
+    if W.ctk is None:
+        monkeypatch.setattr(W, "ctk", object())
+    assert A.main([]) == 1
+    txt = (config_dir / "loi_khoi_dong.txt").read_text(encoding="utf-8")
+    assert "RuntimeError: hỏng màn hình" in txt
+    assert (shown and "hỏng màn hình" in shown[0]) or "hỏng màn hình" in capsys.readouterr().err

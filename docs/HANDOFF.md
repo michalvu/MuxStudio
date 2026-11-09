@@ -1,8 +1,8 @@
 # Bàn giao giữa các phiên làm việc (đọc file này TRƯỚC)
 
-Cập nhật: 2026-11-09, sau Giai đoạn 4. Repo `michalvu/MuxStudio`.
-Nhánh: `claude/new-session-eckanp` và `claude/gifted-keller-fx1jey` giống nhau (người dùng yêu cầu cập nhật cả hai sau GĐ3).
-Phiên sau: làm trên nhánh phiên đó được giao; người dùng muốn thì đẩy cả `claude/new-session-eckanp`.
+Cập nhật: 2026-11-09, sau Giai đoạn 5. Repo `michalvu/MuxStudio`.
+Nhánh: GĐ5 làm trên nhánh phiên `ccr-770f1e3e-dqsvcp`, đẩy cả `claude/new-session-eckanp` (người dùng yêu cầu: hai nhánh giống nhau).
+Phiên sau: làm trên nhánh phiên đó được giao; đẩy cả `claude/new-session-eckanp`.
 
 ## 1. Đọc gì, theo thứ tự
 
@@ -22,11 +22,11 @@ Người dùng **không phải lập trình viên**: trả lời + giao diện *
 | 1 | `timing pgs srt encoding episodes naming config secrets undo` + test | ✅ đã duyệt |
 | 2 | `tools probe tmdb subsource opensubs pool subfetch` + script dò API + test | ✅ đã duyệt (2026-11-09). Lần dò 1 không có key (SPEC 7.E) → **vẫn chờ** `ket_qua_do_api.txt` có key |
 | 3 | Bước ② `subprep` + test | ✅ đã duyệt (2026-11-09, gồm TĐ-31, TĐ-32) |
-| 4 | Bước ③ `mux donor tvdb` + phần bước ③ của `probe tmdb naming` + test | ✅ xong, **chờ duyệt** (báo TĐ-33, TĐ-34 mới) |
-| 5 | GUI | chưa làm |
+| 4 | Bước ③ `mux donor tvdb` + phần bước ③ của `probe tmdb naming` + test | ✅ đã duyệt (2026-11-09, gồm TĐ-33, TĐ-34) |
+| 5 | GUI `gui/` (4 thẻ + log + luồng phụ + Dừng + Hoàn tác) + test giao diện | ✅ xong, **chờ duyệt** |
 | 6 | Đóng gói | chưa làm |
 
-**Việc kế tiếp:** chờ người dùng duyệt GĐ4 → sang GĐ5 (mục 9). Bất cứ lúc nào người dùng gửi `ket_qua_do_api.txt` → so với giả định trong `core/subsource.py`, `core/opensubs.py`,
+**Việc kế tiếp:** chờ người dùng duyệt GĐ5 (thử trên Windows bằng `chay_muxstudio.bat`) → sang GĐ6 (mục 9). Bất cứ lúc nào người dùng gửi `ket_qua_do_api.txt` → so với giả định trong `core/subsource.py`, `core/opensubs.py`,
 `core/tmdb.py` (và `tvdb` sau). Chỗ nào khác: viết lại hàm giữ nguyên tên/chữ ký, thêm test, ghi vào SPEC mục 7.E
 (hàm nào, vì sao hỏng, cách mới, kiểm chứng ra sao). Những điểm đang chờ dò:
 - mã ngôn ngữ OpenSubtitles (`zh` hay `zh-cn`, `pt`…) — bước 2 của `probe_opensubs`;
@@ -42,7 +42,7 @@ Người dùng **không phải lập trình viên**: trả lời + giao diện *
 - TĐ-28, TĐ-29, TĐ-30 duyệt cùng GĐ2 (2026-11-09).
 - TĐ-31, TĐ-32 duyệt cùng GĐ3.
 - TĐ-33 (tên codec đọc `codec` cấp track; `HDR10`) và TĐ-34 (bỏ `atempo` — làm audio ghép sớm ~21 ms, đổi tốc độ bằng
-  phân số chính xác; KHÁC chữ chuỗi lọc trong §6.9 của PROMPT) báo cùng GĐ4, **chờ duyệt**.
+  phân số chính xác; KHÁC chữ chuỗi lọc trong §6.9 của PROMPT) — **đã duyệt** cùng GĐ4.
 
 ## 4. Code đã có
 
@@ -51,13 +51,16 @@ core/   timing pgs srt encoding episodes naming config secrets undo   (GĐ1)
         tools probe tmdb subsource opensubs pool subfetch               (GĐ2)
         subprep                                                          (GĐ3)
         mux donor tvdb (+ phần bước ③ của probe tmdb naming)              (GĐ4)
-tests/  pytest — 550 test (+2 test alass thật tự bỏ qua nếu không có alass); fakehttp.py (API giả),
+        + set_job (3 phiên), naming.search_candidates, MuxSession.search_name (GĐ5)
+gui/    app widgets log_panel settings_view fetch_view subprep_view mux_view (GĐ5)
+tests/  pytest — 590 test (2 test alass thật tự bỏ qua nếu không có alass; 6 test test_gui_app.py tự bỏ qua nếu
+        không có tkinter/màn hình); test_gui_logic.py (logic giao diện, không cần Tk); fakehttp.py (API giả),
         synth.py (phụ đề/PGS giả), fake_alass.py (alass GIẢ: ghi lại từng lần gọi, dịch phụ đề theo cấu hình),
         test_golden_powershell.py + test_golden_subprep.py + test_golden_mux.py + golden/ps_harness.ps1 (chạy HÀM GỐC
         trong reference/*.bat bằng pwsh và so; Invoke-TmdbApi/Invoke-TvdbApi thay bằng API giả cùng dữ liệu)
 tools/  verify_bat/KiemChung_LoiBat.ps1, sanitize_bat.py, probe_*.py, probe_all.py, nhap_tu_bat.py
 reference/  3 file .bat gốc ĐÃ XOÁ 7 bí mật (dùng cho test đối chiếu)
-run_tests.bat, chay_do_api.bat (CRLF, cho Windows)
+run_tests.bat, chay_do_api.bat, chay_muxstudio.bat (CRLF, cho Windows; chay_muxstudio = chạy giao diện từ mã nguồn)
 ```
 
 - Bước ① theo mẫu **lập kế hoạch → thực thi**: `FetchSession.scan → gather → auto_select/choose/skip → execute`.
@@ -107,19 +110,26 @@ run_tests.bat, chay_do_api.bat (CRLF, cho Windows)
 
 ```bash
 cd MuxStudio
-python3 -m venv .venv && .venv/bin/pip install -q -r requirements-dev.txt
+python3 -m venv .venv && .venv/bin/pip install -q -r requirements-dev.txt   # python3 = 3.13, KHÔNG có tkinter
 # PowerShell 7 cho test đối chiếu hàm gốc
 curl -sSL -o /tmp/pm.deb https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb \
   && dpkg -i /tmp/pm.deb && apt-get update -qq && apt-get install -y -qq powershell
-apt-get install -y -qq mkvtoolnix          # ffmpeg thường có sẵn
-pip install -q uv && uv python install 3.11   # chạy test trên 3.11:
-uv venv -p 3.11 /tmp/v311 && uv pip install -p /tmp/v311/bin/python keyring send2trash requests pytest
-.venv/bin/python -m pytest -q              # phải: 550 passed, 2 skipped (2 test alass thật)
-/tmp/v311/bin/python -m pytest -q -p no:cacheprovider
+apt-get install -y -qq mkvtoolnix python3-tk xvfb imagemagick   # ffmpeg + Xvfb thường có sẵn
+pip install -q uv && uv python install 3.11   # chạy test trên 3.11 (bản uv có tkinter, Tk 9):
+uv venv -p 3.11 /tmp/v311 && uv pip install -p /tmp/v311/bin/python keyring send2trash requests pytest customtkinter
+# Python 3.12 của Ubuntu + Tk 8.6 (GIỐNG Windows nhất — dùng để chụp ảnh giao diện):
+/usr/bin/python3.12 -m venv /tmp/v312 && /tmp/v312/bin/pip install -q customtkinter keyring send2trash requests pytest
+.venv/bin/python -m pytest -q              # không có Tk: 582 passed, 8 skipped (6 test giao diện + 2 alass thật)
+xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 588 passed, 2 skipped
+xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 588 passed, 2 skipped
 ```
 
 Quét bí mật trước khi đẩy (cần bản .bat gốc có key — chỉ có nếu người dùng tải lên lại; nếu không có thì ít nhất
 `git grep -nE "sk_(test|live)_|AKIA|ghp_"` và kiểm tra không có chuỗi key nào ngoài `demo-…`).
+
+Chụp ảnh giao diện (để tự kiểm tra bố cục): chạy App dưới `xvfb-run -a -s "-screen 0 1400x1000x24"` bằng **/tmp/v312**,
+rồi `import -window root ảnh.png`. **Đừng** chụp bằng /tmp/v311: Tk 9 của python-build-standalone không dùng fontconfig
+→ mất dấu tiếng Việt và ô tick hiện chữ "Z" (chỉ là lỗi hiển thị ở máy này; logic và test vẫn chạy đúng).
 
 ## 7. Giai đoạn 3 đã làm (bước ② — SubPrep)
 
@@ -147,13 +157,38 @@ Test: `tests/test_subprep.py` (53), `tests/test_e2e_subprep.py` (4 + 2 alass th�
 Test: `test_mux.py` (28), `test_naming_db.py` (13), `test_donor.py` (25), `test_e2e_mux.py` (3, gồm 2 ca tiếng bíp),
 `test_golden_mux.py` (12).
 
-## 9. Kế hoạch GĐ5 (giao diện) + ghi chú GĐ6
+## 9. Giai đoạn 5 đã làm (giao diện)
 
-- GĐ5: `gui/app.py fetch_view.py subprep_view.py mux_view.py settings_view.py widgets.py log_panel.py` (PROMPT §5, SPEC
-  mục 6 — mỗi `Read-Host` → màn hình/hộp thoại). CustomTkinter, Treeview ☑/☐ (không tạo CTkCheckBox từng ô), luồng phụ +
-  `queue` + `after(100)`, nút Dừng (`Job.stop_after_current` / `Job.cancel_now`), khung log màu (mức info/ok/warn/error/
-  dim/head), "Lưu log", "Mở thư mục". Thư mục phim chọn một lần ở đầu cửa sổ. Cài đặt: `config.FIELDS` (nhóm, chú thích),
-  ô bí mật `•••` + "Hiện" + "Kiểm tra kết nối" (`TmdbClient.check`, `TvdbClient.check`, SubSource/OpenSubtitles của GĐ2),
-  "Khôi phục mặc định", "Nhập từ .bat" (`config.import_from_bat` + `apply_bat_import`). Màn hình Hoàn tác chung
-  (`undo.list_runs` / `plan_undo` / `execute_undo`). `core/` không đổi API; GUI test được phần logic không cần màn hình.
-- GĐ6: PyInstaller `--onedir --windowed`, gom theme CustomTkinter, `build.bat`, `HUONG_DAN.md`.
+Chạy: `python -m gui.app [thư mục phim]` — trên Windows bấm đúp `chay_muxstudio.bat` (tạo `.venv`, cài thư viện, mở bằng
+`pythonw`; lỗi khởi động ghi vào `%APPDATA%\MuxStudio\loi_khoi_dong.txt`).
+
+- **Kiến trúc:** mỗi thẻ là một lớp dùng *composition* (`self.frame`), không kế thừa lớp Tk ở cấp module ⇒ mọi module
+  `gui/*` import được khi máy không có tkinter (test logic chạy trên .venv 3.13). Tk chỉ dùng trong phương thức.
+- `widgets.py`: `Runner` (luồng phụ + `queue` + `after(100)`; **một việc mỗi lúc**, nút mọi thẻ khoá khi chạy;
+  `start(..., when_free=True)` = xếp hàng cho việc tự động; `stop_after_current` / `cancel_now` (luồng riêng, bỏ việc đang
+  xếp hàng); lỗi trong `on_done` chỉ ghi log), `Table` (Treeview + cột ☑/☐, bấm tiêu đề cột tick = cả bảng, `tip`),
+  `GridModel` + `CheckGrid` (Canvas — để tô ô xám/vàng), `Tooltip`, `Dialog`, `show_text`, `confirm_list`, `ask_string`,
+  `setup_fonts` (Segoe UI trên Windows — đủ dấu tiếng Việt), `setup_style` (màu Treeview sáng/tối), `ellipsize_middle`.
+- `app.py`: thư mục phim (lưu khoá lạ `UiLastFolder`, `UiGeometry` trong config.json — Config giữ khoá lạ), 4 thẻ, thanh
+  tiến độ (tổng + "file hiện tại" chạy liên tục), Dừng sau file này / Dừng ngay, khung log (xếp `side="bottom"` để luôn
+  hiện), `UndoDialog` (ba bước, mới nhất trước), hỏi lưu khi rời thẻ Cài đặt có thay đổi, `destroy()` huỷ `after` bằng
+  `tk.call("after","cancel",id)` (**không** dùng `after_cancel`: nó xoá luôn lệnh Tcl của widget → lỗi khi destroy).
+- `settings_view.py`: nhóm dựng lười (lần đầu mở), `FieldRow` theo `field_kind` (bool/int/float/str/dir/file/list/
+  dict/choice/langs/parts), `ExtraToolDirs`/`RefExcludeFolders` mỗi dòng một mục, `DonorOffsetMs` dạng `khoá = số`,
+  `check_connection(which, vals, cfg)` (dùng chung cho thẻ ① và ③), `ImportDialog` (☑ từng khoá, khoá xung đột chọn một).
+- `fetch_view.py`: `gather_all` (gom + tự chọn, KHÔNG hỏi), `after_choice` (chọn gói season → tải trước → đo lại các tập
+  cùng season → dùng lại lựa chọn), cây phim → ngôn ngữ, bảng ứng viên.
+- `subprep_view.py`: một `PrepSession` cho cả lượt (một nhật ký), tab con "Đổi tên"/"Đồng bộ", bảng audio file mẫu khi
+  mốc = audio, hộp thoại trích phụ đề gốc / dọn dẹp, `export_csv`.
+- `mux_view.py`: database bắt buộc chọn (radio không chọn sẵn), `_replan(title, mutate, only)` (sửa kế hoạch trong luồng
+  phụ rồi `plan_file` lại, giữ ô tick), `NameDialog` (chọn / Tìm lại với tên… / Giữ tên gốc / Sửa tay), file đã mux xong
+  tự bỏ tick.
+- Lõi thêm (không đổi API cũ): `set_job(job)` cho 3 phiên; `naming.search_candidates`, `MuxSession.search_name`.
+- `requirements.txt`: `customtkinter>=5.2.2,<7` (đã thử 5.2.2 và 6.0.0, Tk 8.6 và 9.0).
+
+## 10. Ghi chú GĐ6 (đóng gói)
+
+- PyInstaller `--onedir --windowed`, `--collect-data customtkinter` (theme + font), điểm vào gọi `gui.app.main()`,
+  `build.bat`, icon, `HUONG_DAN.md` (cài, cấu hình lần đầu, nhập từ .bat, quy trình ① → ② → ③).
+- Kiểm tra trong bản .exe: `keyring` backend Windows (cần `--hidden-import keyring.backends.Windows`), `send2trash`,
+  phông Segoe UI, `CREATE_NO_WINDOW`; `run_tests.bat` vẫn dùng mã nguồn.

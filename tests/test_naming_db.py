@@ -197,3 +197,45 @@ def test_name_fallback_other_only_when_enabled():
 def test_none_keeps_original_name():
     o = naming.resolve_output_name("Bat.Ky.2020", "none", {}, CFG)
     assert (o.status, o.base, o.rel_dir) == ("keep", "Bat.Ky.2020", "")
+
+
+# ---------------------------------------------------------------- "Tim lai voi ten..." (SPEC muc 6 #20, GD5)
+def test_search_candidates_movie_then_choose():
+    c, _ = tm(tmdb_http())
+    cache: dict = {}
+    o = naming.resolve_output_name("Kho.Doan.2021.1080p", "tmdb", {"tmdb": c}, CFG, cache)
+    assert o.status == "keep" and not o.candidates
+    s = naming.search_candidates(c, "Kho.Doan.2021.1080p", o, "Dune", 2021)
+    assert s.status == "need_choice" and s.base == "Kho.Doan.2021.1080p" and s.query_key == o.query_key
+    assert [x.id for x in s.candidates] == [693134, 438631] and s.note == "TMDB: kết quả tìm 'Dune' (2021) — chọn một kết quả."
+    o2 = naming.choose_candidate(c, "Kho.Doan.2021.1080p", 438631, s, CFG, cache)
+    assert o2.status == "ok" and o2.base == "Dune (2021) [tmdbid-438631]"
+    # file khac cung khoa dung luon lua chon
+    assert naming.resolve_output_name("Kho.Doan.2021.720p", "tmdb", {"tmdb": c}, CFG, cache).base == "Dune (2021) [tmdbid-438631]"
+    none = naming.search_candidates(c, "x", o, "Không Có Gì", None)
+    assert none.status == "need_choice" and not none.candidates and "không tìm thấy 'Không Có Gì'" in none.note
+
+
+def test_mux_search_name_tv_applies_to_every_episode(movie_dir, monkeypatch):
+    """Series viết tắt 'GoT' không tìm thấy → "Tìm lại với tên…" 'Game of Thrones' → chọn → mọi tập của series đó
+    đều đặt tên theo lựa chọn này."""
+    from core import mux
+    from test_mux import A, J, Lib, V
+
+    lib = Lib(movie_dir, monkeypatch, secrets={"TmdbApiKey": KEY}, http=tmdb_http())
+    e5 = lib.add("GoT.S01E05.1080p", J(V(), A(1)))
+    e6 = lib.add("GoT.S01E06.1080p", J(V(), A(1)))
+    p5 = lib.plan(e5, "tmdb")
+    assert p5.name.status == "keep" and "không tìm thấy series 'GoT'" in p5.name.note
+    assert lib.s.search_name(p5, "Game of Thrones") is not None
+    p5 = lib.s.plan_file(e5)
+    assert p5.status == "need_choice" and [x.id for x in p5.name.candidates] == [1399]
+    lib.s.choose_name(p5, 1399)
+    p5, p6 = lib.s.plan_file(e5), lib.s.plan_file(e6)
+    assert p5.status == "ok" and p5.out_base == "Game of Thrones (2011) - S01E05 - The Wolf and the Lion"
+    assert p6.status == "ok" and p6.out_base == "Game of Thrones (2011) - S01E06"
+    assert p5.out_path.parent == p6.out_path.parent
+    # "Khong doi ten" -> khong tim duoc
+    lib.s.db = "none"
+    assert lib.s.search_name(p5, "Game of Thrones") is None
+    assert isinstance(lib.s, mux.MuxSession)
