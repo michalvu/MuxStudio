@@ -417,6 +417,14 @@ class MuxSession:
         self.track_times = D.TrackTimes(self.mkvextract, self.temp / "subs", self.job, str(cfg["PgsTimingText"]))
         self.log = undo.RunLog(self.td, cfg["MuxLogDir"], "mux", cfg["KeepUndoRuns"])
 
+    def set_job(self, job: tools.Job) -> None:
+        """Giao diện: phiên sống qua nhiều lần bấm nút, mỗi lần một ``Job`` mới (log + nút Dừng của lần đó)."""
+        self.job = job
+        self.track_times.job = job
+        for cl in (self.tmdb, self.tvdb):
+            if cl is not None:
+                cl.job = job
+
     # ------------------------------------------------------------------ chung
     @property
     def out_dir(self) -> Path:
@@ -751,6 +759,16 @@ class MuxSession:
         self.name_overrides.pop(self._key(plan.src), None)
         if out.status != "ok":
             self.name_overrides[self._key(plan.src)] = out
+
+    def search_name(self, plan: MuxPlan, title: str, year: int | None = None) -> naming.OutputName | None:
+        """"Tìm lại với tên…": tìm lại trên database đã chọn cho lượt này; dòng thành "Cần chọn" với kết quả mới
+        (gọi ``plan_file`` lại để thấy). Chưa chọn database / database không dùng được → ``None``."""
+        db = self.dbs.get(self.db)
+        if not naming.db_usable(db):
+            return None
+        out = naming.search_candidates(db, plan.src.stem, plan.name, title, year)
+        self.name_overrides[self._key(plan.src)] = out
+        return out
 
     def keep_original_name(self, plan: MuxPlan) -> None:
         self.name_overrides[self._key(plan.src)] = naming.keep_name(plan.src.stem, "Giữ tên file gốc (bạn chọn).",

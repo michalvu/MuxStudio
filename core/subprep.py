@@ -721,6 +721,10 @@ class PrepSession:
         self._audio_cache: dict[str, tuple[int | None, str]] = {}
         self._goc: dict[str, tuple[Path, str]] | None = None
 
+    def set_job(self, job: tools.Job) -> None:
+        """Giao diện: phiên sống qua nhiều lần bấm nút, mỗi lần một ``Job`` mới (log + nút Dừng của lần đó)."""
+        self.job = job
+
     # ------------------------------------------------------------------ thu muc
     @property
     def sub_dir(self) -> Path:

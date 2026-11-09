@@ -404,6 +404,15 @@ class FetchSession:
         self.videos: list[VideoInfo] = []
         self._connected = False
 
+    def set_job(self, job: tools.Job) -> None:
+        """Giao diện: phiên sống qua nhiều lần bấm nút, mỗi lần một ``Job`` mới (log + nút Dừng của lần đó)."""
+        self.job = job
+        self.memory.job = job
+        self.refs.job = job
+        for cl in (self.ss, self.tmdb, self.os):
+            if cl is not None:
+                cl.job = job
+
     # ------------------------------------------------------------------ chuan bi
     @property
     def sub_dir(self) -> Path:

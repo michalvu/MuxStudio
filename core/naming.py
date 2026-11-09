@@ -624,6 +624,26 @@ def choose_candidate(db: object, orig_base: str, cand_id: int, current: OutputNa
     return tv_name(db, orig_base, cfg, cache) if cache is not None else tv_name_from(db, pick, _ep(orig_base), cfg)
 
 
+def search_candidates(db: object, orig_base: str, current: OutputName, title: str, year: int | None = None) -> OutputName:
+    """Nút "Tìm lại với tên…" của dòng "Cần chọn" (SPEC mục 6 #20): tìm lại trên database đã chọn bằng tên bạn gõ.
+
+    Kết quả là dòng vẫn "Cần chọn" với tối đa 5 kết quả mới, CÙNG ``query_key`` với dòng cũ — chọn một kết quả bằng
+    ``choose_candidate`` thì mọi file cùng khoá (vd các tập khác của series đó) dùng luôn lựa chọn này."""
+    name = getattr(db, "db_name", "")
+    title = (title or "").strip()
+    if current.kind == "tv":
+        res = list(db.search_series(title, year) or []) if title else []  # type: ignore[attr-defined]
+        cands = _cands(res, "name", "original_name", "first_air_date")
+    else:
+        res = list(db.search_movie(title, year) or []) if title else []  # type: ignore[attr-defined]
+        cands = _cands(res, "title", "original_title", "release_date")
+    what = f"'{title}'" + (f" ({year})" if year else "")
+    note = (f"{name.upper()}: kết quả tìm {what} — chọn một kết quả." if res
+            else f"{name.upper()}: không tìm thấy {what} — thử tên khác hoặc giữ tên gốc.")
+    return OutputName(orig_base, "", name, "need_choice", note, current.kind, cands, query_key=current.query_key,
+                      raw=res[:5])
+
+
 def _ep(orig_base: str) -> object:
     from . import episodes  # noqa: PLC0415
 
