@@ -354,10 +354,10 @@ Báo cáo không dùng cho hoàn tác vẫn giữ: SF `fetch_*.csv`, SP `health_
 | 9 | `ConvertFrom-Stamp` (256) | `srt.parse_stamp` | gộp |
 | 10 | `Read-SrtBlocks` (261) | `srt.read_blocks` | giữ phần đuôi sau mốc (vị trí `X1:…`), nhận cả `.` mili-giây |
 | 11 | `Write-SrtBlocks` (277) | `srt.write_blocks` | UTF-8 không BOM, đánh số lại; dùng `format_stamp` đã sửa |
-| 12 | `Remove-LeadingExtra` (297) | `subprep.remove_leading_extra` | ≥ 40 dòng; quan hệ trên 70% cuối (≥ `MinVerifyVotes`); tìm dòng đầu có 5 dòng liên tiếp khớp; giới hạn tìm 30% đầu; huỷ nếu giữ < 60%. Làm trên **bản sao** (TĐ-12) |
-| 13 | `Repair-CollapsedCues` (339) | `subprep.repair_collapsed_cues` | > `MaxZeroStartCues` dòng bắt đầu < 0,05 s → bỏ, nếu còn ≥ 10 dòng |
+| 12 | `Remove-LeadingExtra` (297) | `subprep.remove_leading_extra` | ≥ 40 dòng; quan hệ trên 70% cuối (≥ `MinVerifyVotes`); tìm dòng đầu có 5 dòng liên tiếp khớp; giới hạn tìm 30% đầu; huỷ nếu giữ < 60%. Hàm thuần trên khối SRT; `execute_sync` gọi trên **bản sao** (TĐ-12). Test đối chiếu hàm gốc ✅ |
+| 13 | `Repair-CollapsedCues` (339) | `subprep.repair_collapsed_cues` | > `MaxZeroStartCues` dòng bắt đầu < 0,05 s → bỏ, nếu còn ≥ 10 dòng. Test đối chiếu ✅ |
 | 14 | `Get-VideoDuration` (352) | `probe.duration` | gộp |
-| 15 | `Test-SubHealth` (366) | `subprep.sub_health` | 7 dấu hiệu, mức 0/1/2; đọc mốc chung cho cả ASS/VTT (TĐ-14) |
+| 15 | `Test-SubHealth` (366) | `subprep.sub_health` → `Health` | 7 dấu hiệu, mức 0/1/2, kèm mã dấu hiệu (`codes`) cho GUI; đọc mốc chung cho cả ASS/VTT qua `srt.cue_spans` (TĐ-14). Test đối chiếu ✅ |
 | 16 | `Get-EpisodeInfo` (442) | `episodes.parse_episode` | gộp — giữ cờ `confident` |
 | 17 | `Get-TitleTokens` (496) | `naming.title_tokens` | gộp — bản này được chọn |
 | 18 | `Get-TitleYear` (513) | `naming.title_year` | gộp |
@@ -368,7 +368,7 @@ Báo cáo không dùng cho hoàn tác vẫn giữ: SF `fetch_*.csv`, SP `health_
 | 23 | `Get-SubEncodingKind` (558) | `encoding.detect_kind` | gộp |
 | 24 | `Get-LegacyCodePage` (572) | `encoding.legacy_codepage` | gộp |
 | 25 | `ConvertTo-Utf8Sub` (580) | `encoding.to_utf8` | ghi ra file mới (TĐ-12) |
-| 26 | `Invoke-NormalizeEncoding` (606) | `subprep._normalize_copies` | chuyển mã **bản sao tạm** trước alass, báo "cp1258 → UTF-8" |
+| 26 | `Invoke-NormalizeEncoding` (606) | trong `PrepSession.execute_sync` (`encoding.to_utf8` nguồn → bản sao tạm) | chuyển mã **bản sao tạm** trước alass, báo "cp1258 → UTF-8"; file nguồn không đổi (TĐ-12) |
 | 27 | `ConvertTo-LangCode` (622) | `naming.lang_from_word` | gộp |
 | 28 | `Get-FileLangTag` (642) | `naming.lang_tag_of_file` | gộp — bản này được chọn |
 | 29 | `Get-EvenSample` (678) | `timing.even_sample` | gộp |
@@ -377,8 +377,8 @@ Báo cáo không dùng cho hoàn tác vẫn giữ: SF `fetch_*.csv`, SP `health_
 | 32 | `Join-Safe` (744) | `tools.join_safe` | gộp |
 | 33 | `Find-Alass` (749) | `tools.find_tool('alass')` | gộp |
 | 34 | `Find-Near` (765) | `tools.find_near` | gộp |
-| 35 | `Get-AudioStreams` (781) | `probe.ffprobe_streams(kind='a')` | gộp |
-| 36 | `Show-AudioStreams` (791) | `gui/subprep_view` | bảng audio của file mẫu |
+| 35 | `Get-AudioStreams` (781) | `probe.ffprobe_streams(kind='a')` + `probe.audio_streams` | gộp; có bộ nhớ đệm |
+| 36 | `Show-AudioStreams` (791) | `PrepSession.sample_audio_streams` + `gui/subprep_view` | bảng audio của file mẫu (`AudioStream.describe`) |
 | 37 | `Find-MkvTool` (802) | `tools.find_tool` | gộp |
 | 38 | `Get-SubExtByCodec` (818) | `probe.sub_ext_by_codec` | SRT/ASS/SSA/VTT; PGS nếu `PgsTimingFallback` |
 | 39 | `Format-SrtStamp` (836) | `srt.format_stamp` | gộp, sửa lỗi giờ |
@@ -386,18 +386,18 @@ Báo cáo không dùng cho hoàn tác vẫn giữ: SF `fetch_*.csv`, SP `health_
 | 41 | `Get-CueTimes` (890) | `srt.cue_times` | gộp |
 | 42 | `Get-MaxShift` (909) | `srt.max_shift` | lấy lớn hơn giữa độ dịch ở dòng đầu và ở dòng cuối |
 | 43 | `Test-LangMatch` (920) | `naming.lang_match` | gộp, **sửa lỗi** (TĐ-04) |
-| 44 | `Convert-LooseSupFiles` (941) | `subprep.convert_loose_sup` | `.sup` bạn tự bỏ vào → `.srt` mốc (ghi nhật ký để hoàn tác) |
-| 45 | `Test-ExcludedPath` (955) | `subprep.is_excluded` | + tự loại `DonorFolder` (TĐ-13) |
-| 46 | `Get-RefIndex` (965) | `subprep.RefIndex.build` | hiện "Mốc lấy từ: …(n)" |
+| 44 | `Convert-LooseSupFiles` (941) | `RefIndex.build(sup_fn=…)` + `PrepSession._write_pending_ref` | `.sup` bạn tự bỏ vào (chưa có `.srt` cùng tên) → lập kế hoạch đọc mốc ra thư mục tạm; **lúc chạy** mới ghi `.srt` cạnh `.sup` (ghi nhật ký để hoàn tác) |
+| 45 | `Test-ExcludedPath` (955) | `PrepSession.is_excluded` / `excluded_dirs` | + tự loại `DonorFolder`, `PoolFolder`, `SubFolderName`, thư mục nhật ký (TĐ-13) |
+| 46 | `Get-RefIndex` (965) | `PrepSession.build_index` + `subprep.RefIndex.build` | hiện "Mốc lấy từ: …(n)". `$byTitle` của .bat không được dùng ở đâu → bỏ |
 | 47 | `Select-RefVariant` (1064) | `subprep.select_ref_variant` | video > phụ đề không hậu tố > còn lại |
-| 48 | `Resolve-Ref` (1073) | `subprep.resolve_ref` | đúng 4 tầng của .bat; trả kèm **lý do** khi không ghép được (cho cột "Lý do") |
-| 49 | `Invoke-ExtractRefSubs` (1181) | `subprep.plan_extract_refs` / `extract_refs` | non-SDH, theo `RefSubLangs`, PGS chỉ khi không còn gì |
-| 50 | `Invoke-Rename` (1299) | `subprep.plan_rename` / `execute_rename` | lý do: "không đoán được ngôn ngữ", "nhập nhằng", "không tìm được mốc", "trùng đích", "đích đã tồn tại", "đã đúng tên" |
-| 51 | `Get-SupportedAlassFlags` (1391) | `tools.alass_supported_flags` | gộp |
-| 52 | `Invoke-Sync` (1413) | `subprep.plan_sync` / `execute_sync` | TĐ-12, TĐ-14, TĐ-18, TĐ-19, TĐ-20 |
+| 48 | `Resolve-Ref` (1073) | `subprep.resolve_ref` → `RefMatch` | đúng 4 tầng của .bat; trả kèm **lý do** + chi tiết khi không ghép được (cho cột "Lý do"); sửa 3 lỗi ghép nhầm tập (TĐ-31). Test đối chiếu ✅ |
+| 49 | `Invoke-ExtractRefSubs` (1181) | `PrepSession.plan_extract_refs` / `extract_refs` | non-SDH, theo `RefSubLangs` (`probe.pick_ref_sub_track`), PGS chỉ khi không còn gì; trích qua thư mục tạm rồi chép vào `srt_goc` (nhật ký) |
+| 50 | `Invoke-Rename` (1299) | `PrepSession.plan_rename` / `execute_rename` → `RenameRow` | lý do: "không đoán được ngôn ngữ", "nhập nhằng", "không tìm được mốc", "trùng đích", "đích đã tồn tại", "đã đúng tên" |
+| 51 | `Get-SupportedAlassFlags` (1391) | `tools.alass_supported_flags` | gộp; cờ không hỗ trợ thì bỏ cả giá trị đi kèm (TĐ-32d) |
+| 52 | `Invoke-Sync` (1413) | `PrepSession.plan_sync` / `execute_sync` → `SyncPair`, `SyncResult`; `preview_commands` ("Xem lệnh") | TĐ-12, TĐ-14, TĐ-18, TĐ-19, TĐ-20, TĐ-32 |
 | 53 | `Invoke-Undo` (1746) | `undo.plan_undo` + `undo.execute_undo` + màn hình Hoàn tác | Thùng rác |
 | 54 | `Remove-FileSafe` (1794) | `undo.trash` | `send2trash`; tắt `DeleteToRecycleBin` mới xoá hẳn |
-| 55 | `Invoke-Cleanup` (1810) | `subprep.cleanup_targets` + hộp thoại dọn dẹp | chỉ đề xuất file nguồn của cặp đã có kết quả > 32 byte cạnh phim |
+| 55 | `Invoke-Cleanup` (1810) | `subprep.cleanup_targets` → `CleanupPlan` + `PrepSession.execute_cleanup` + hộp thoại dọn dẹp | chỉ đề xuất file nguồn của cặp đã có kết quả > 32 byte cạnh phim |
 | — | Menu chính (1873–2004) | `gui/subprep_view` | mục 6 |
 
 ### 4.3. `MuxTool_v17.bat` (78 hàm)
@@ -769,15 +769,15 @@ Chạy bằng PowerShell 7.6 (máy Linux của tôi) qua `tools/verify_bat/KiemC
 | TĐ-09 | SF 662–665, 2006, 1687 | (a) Phụ đề gốc dạng ASS được **đổi đuôi thành `.srt`** trong `srt_goc` (nội dung vẫn là ASS) ⇒ alass ở bước ② đọc sai; SubPrep trích lại thành `.ass` ⇒ hai file trùng tên khác đuôi. (b) Phụ đề tải về/kho/có sẵn dạng `.ass/.ssa` luôn được lưu thành `<tên>.<mã>.srt` | Giữ đuôi thật (`<tên>.ass`, `<tên>.<mã>.ass`) — bước ② và ③ đã đọc được ASS. **Đã duyệt (Q7): ASS giữ là ASS ở mọi bước** (GĐ2 ✅) |
 | TĐ-10 | SF 797–810 | `Get-ImdbId` không hỗ trợ token TMDB `eyJ…` (dùng chung `TmdbApiKey` với MuxTool) và luôn lấy kết quả đầu (One Piece anime / live-action có thể ra nhầm IMDb) | Dùng chung `tmdb.py`: Bearer + chọn series thực sự có season/tập (GĐ2 ✅) |
 | TĐ-11 | SF 1964–1969 | SubFetch quét video chỉ bỏ `srt_can_sync` ⇒ chạy lại sau MuxTool sẽ tải phụ đề cho cả file trong `Output\` và file nguồn trong `audio_nguon\` | Bỏ qua `Output`, `DonorFolder`, `PoolFolder`, `ExtractFolder`, thư mục log — đã duyệt Q6 (GĐ2 ✅) |
-| TĐ-12 | SP 1483, 1573 | `Invoke-NormalizeEncoding` và `Remove-LeadingExtra` **ghi đè file nguồn** trong `srt_can_sync`; nhật ký `Encoding` không được hoàn tác | Làm trên bản sao tạm; file nguồn không đổi (GĐ3) |
-| TĐ-13 | SP 37–38 | `RefExcludeFolders` thiếu `audio_nguon` ⇒ khi dùng ghép audio, mỗi tập có 2 video cùng số tập ⇒ "NHẬP NHẰNG" hàng loạt | Luôn loại `DonorFolder` (và `PoolFolder`, `SubFolderName`) (GĐ3) |
-| TĐ-14 | SP 371–375, 1568 | Kiểm tra sức khoẻ và cắt recap chỉ đọc SRT ⇒ kết quả `.ass/.vtt` luôn bị báo "CÓ VẤN ĐỀ: không đọc được nội dung" | Sức khoẻ đọc mốc chung SRT/ASS/VTT; cắt recap chỉ với SRT, file khác ghi "không cắt recap (ASS)" (GĐ3) |
-| TĐ-15 | SP 48, 549 | Hậu tố `.cz` được giữ nguyên ⇒ kết quả `Phim.cz.srt` | Chuẩn hoá thành `.cs` (MuxTool vốn hiểu cả hai) (GĐ3) |
+| TĐ-12 | SP 1483, 1573 | `Invoke-NormalizeEncoding` và `Remove-LeadingExtra` **ghi đè file nguồn** trong `srt_can_sync`; nhật ký `Encoding` không được hoàn tác | Làm trên bản sao tạm; file nguồn không đổi (GĐ3 ✅) |
+| TĐ-13 | SP 37–38 | `RefExcludeFolders` thiếu `audio_nguon` ⇒ khi dùng ghép audio, mỗi tập có 2 video cùng số tập ⇒ "NHẬP NHẰNG" hàng loạt | Luôn loại `DonorFolder` (và `PoolFolder`, `SubFolderName`, thư mục nhật ký) (GĐ3 ✅) |
+| TĐ-14 | SP 371–375, 1568 | Kiểm tra sức khoẻ và cắt recap chỉ đọc SRT ⇒ kết quả `.ass/.vtt` luôn bị báo "CÓ VẤN ĐỀ: không đọc được nội dung" | Sức khoẻ đọc mốc chung SRT/ASS/VTT; cắt recap và sửa khối 00:00:00 chỉ với SRT, file khác ghi "không cắt recap (ASS)" / "không sửa khối 00:00:00 (ASS)" (Q7: không đổi định dạng). Với ASS bỏ dấu hiệu "chồng lấn" (ASS hiện nhiều dòng cùng lúc là bình thường) (GĐ3 ✅) |
+| TĐ-15 | SP 48, 549 | Hậu tố `.cz` được giữ nguyên ⇒ kết quả `Phim.cz.srt` | Chuẩn hoá thành `.cs` (MuxTool vốn hiểu cả hai) (GĐ3 ✅) |
 | TĐ-16 | SF 1581, SP 1776 | Hoàn tác **xoá hẳn** file | Vào Thùng rác (§4) (GĐ1 – `undo.py`) |
 | TĐ-17 | MT | MuxTool không có hoàn tác | `_muxtool_logs\mux_*.csv` ghi `Create` cho file đầu ra + thư mục mới tạo; hoàn tác → Thùng rác (§4) (GĐ4) |
-| TĐ-18 | SP 1469, 1588 | `FpsAutoAllowGuess` không bao giờ có tác dụng với cấu hình mặc định: mốc phụ đề thì không có cờ để bỏ; mốc audio thì không đo được lệch FPS | Mốc audio mà `srt_goc` có phụ đề gốc của phim đó → đo quan hệ để phát hiện lệch FPS rồi bỏ `--disable-fps-guessing` cho file đó; không có thì như cũ (GĐ3) |
-| TĐ-19 | SP 1594–1600 | Lần thử lại "không kèm tham số" đưa **MKV gốc** cho alass thay vì WAV ⇒ gặp lại lỗi `missing field codec_long_name` với MKV có font | Thứ tự thử: WAV + cờ → WAV không cờ → MKV + cờ → MKV không cờ (GĐ3) |
-| TĐ-20 | SP 1617 | `MaxShiftSeconds = 0` thì bỏ qua cả sửa khối 00:00:00 lẫn kiểm tra sức khoẻ | Luôn sửa + kiểm tra; `0` chỉ tắt ngưỡng từ chối (GĐ3) |
+| TĐ-18 | SP 1469, 1588 | `FpsAutoAllowGuess` không bao giờ có tác dụng với cấu hình mặc định: mốc phụ đề thì không có cờ để bỏ; mốc audio thì không đo được lệch FPS | Mốc audio mà `srt_goc` có phụ đề gốc của phim đó → đo quan hệ để phát hiện lệch FPS rồi bỏ `--disable-fps-guessing` cho file đó; không có thì như cũ (GĐ3 ✅) |
+| TĐ-19 | SP 1594–1600 | Lần thử lại "không kèm tham số" đưa **MKV gốc** cho alass thay vì WAV ⇒ gặp lại lỗi `missing field codec_long_name` với MKV có font | Thứ tự thử: WAV + cờ → WAV không cờ → MKV + cờ → MKV không cờ. Kèm §6.5 "luôn trích WAV": số thứ tự / ngôn ngữ audio không có trong file → dùng track Default (không có thì track đầu) và vẫn trích WAV (bản cũ đưa thẳng MKV cho alass) (GĐ3 ✅) |
+| TĐ-20 | SP 1617 | `MaxShiftSeconds = 0` thì bỏ qua cả sửa khối 00:00:00 lẫn kiểm tra sức khoẻ | Luôn sửa + kiểm tra; `0` chỉ tắt ngưỡng từ chối (GĐ3 ✅) |
 | TĐ-21 | MT 1081, 1100, 2146 | `$DryRun` vẫn tạo thư mục trong `Output`; lệnh in ra thiếu bước ffmpeg đổi tốc độ nên không đúng lệnh thật | "Xem lệnh" không ghi gì; in đủ lệnh ffmpeg + mkvmerge (đường dẫn tạm ghi rõ) (GĐ4) |
 | TĐ-22 | SF 132, 145 | `$KeepPaidDownloads`, `$SkipIfExists` chỉ khai báo, không dùng. Thực tế .bat **luôn giữ** mọi file đã tải (chỉ cảnh báo) và luôn bỏ qua khi đích đã có (nếu `UseExistingSubs`) | `SkipIfExists` điều khiển đúng việc "đích đã có → bỏ qua" (tách khỏi `UseExistingSubs`; mặc định cả hai bật = như cũ). `KeepPaidDownloads` đã duyệt Q5: tắt → file OpenSubtitles kiểm chứng yếu vào Thùng rác, thử bản kế tiếp (GĐ2 ✅) |
 | TĐ-23 | MT 2479 | `$SkipOnMultipleEnAudio` với cấu hình mặc định không bao giờ chạy: điều kiện "người dùng đã chọn" thực ra là "đã được hỏi" (đúng cả khi bạn bấm Huỷ/giữ tất cả hay khi quy tắc nhớ tự áp dụng) | → Q3 (GĐ4) |
@@ -788,6 +788,8 @@ Chạy bằng PowerShell 7.6 (máy Linux của tôi) qua `tools/verify_bat/KiemC
 | TĐ-28 | SF 1793–1799 | `AutoPickWhenSingle` tự lấy cả ứng viên duy nhất mà kho đo được chỉ 8–19 mốc ("nghi ngờ, cần kiểm tra") ⇒ có thể âm thầm lấy phụ đề của PHIM KHÁC (test GĐ2 tái hiện được: file kho của phim khác đạt 8–9 mốc với tập phim bộ) | Ứng viên duy nhất mà "nghi ngờ" → không tự lấy, hiện trên bảng để bạn quyết (GĐ2 ✅) |
 | TĐ-29 | SF 1981–1995 | Tên anime đánh số tuyệt đối (`[Judas] One Piece - 0643`): SubFetch coi là **phim lẻ** (không nhận số tập) ⇒ tìm SubSource bằng tên `One Piece - 0643`, không lọc season | Tên series lấy từ bộ nhận diện tập; có TMDB key → đổi số tuyệt đối sang season (cộng dồn `episode_count`) để chọn đúng `movieId` season trên SubSource và chọn file trong gói (nhận cả `- 0643` lẫn `S16E643`); không xác định được season → bỏ qua SubSource cho tập đó (kho + OpenSubtitles vẫn chạy). OpenSubtitles: gửi season/tập đã đổi, không có thì chỉ `episode_number` — **cần kiểm bằng script dò** (GĐ2 ✅, chờ kết quả dò) |
 | TĐ-30 | SF 618–653 | Phụ đề gốc trích từ MKV được ghi vào `srt_goc` ngay khi quét | Lập kế hoạch không ghi gì vào thư mục phim: phụ đề gốc trích ra thư mục tạm, chỉ chép vào `srt_goc` khi bấm chạy (ghi nhật ký hoàn tác) (GĐ2 ✅) |
+| TĐ-31 | SP 1073–1179 (1165) | `Resolve-Ref` ghép nhầm tập — **đã chứng minh bằng chạy hàm gốc** (`tests/test_golden_subprep.py`): (a) tầng 2 (so tên phim) không xét số tập ⇒ anime đánh số tuyệt đối (`[Judas] One Piece - 0643/0644/0645`) luôn "NHẬP NHẰNG theo tên phim", không bao giờ ghép được; (b) thiếu file phim tập 5, chỉ còn tập 6 ⇒ phụ đề `Show.S01E05.vi` được ghép vào `Show.S01E06` (điểm tên 0,5) — bị đổi tên thành tập 6 và đồng bộ theo tập 6; tầng 4 "1 phụ đề – 1 mốc" cũng ghép dù số tập khác nhau; (c) ở tầng 3, `Select-RefVariant` luôn trả **một** file trước khi kiểm tra nhập nhằng ⇒ kiểm tra không bao giờ chạy, `Sousou no Frieren - 05` được ghép bừa vào `S01E05` hoặc `S02E05` | Trước tầng 2 và tầng 4: loại các mốc ghi số tập (chắc chắn) **khác** số tập của phụ đề — đúng quy tắc §6.6 "hai tên đều ghi số tập mà khác nhau → không bao giờ ghép". Tầng 3: gom theo phim rồi mới chọn bản đại diện ⇒ nhiều phim khác nhau cùng khớp → "nhập nhằng tập E05" (bỏ qua + báo). Mọi ca khác cho **cùng kết quả** với hàm gốc (có test đối chiếu) (GĐ3 ✅) |
+| TĐ-32 | SP 1452, 1608, 1262, 1402 | Vài chỗ ghi đè / mất thông tin nhỏ ở bước ②: (a) phụ đề chưa đổi tên (không có hậu tố ngôn ngữ, vd nằm trong `srt_can_sync\cs\`) cho kết quả `Phim.srt` không hậu tố ⇒ bước ③ coi là `DefaultExternalLang` (vi); (b) hai phụ đề cùng ra một đích ⇒ cái sau ghi đè cái trước; (c) tắt `SkipExistingOut` (hoặc `SkipExistingRef`) ⇒ file đích cũ cạnh phim / trong `srt_goc` bị ghi đè mất, không hoàn tác được; (d) cờ alass không hỗ trợ bị bỏ nhưng **giá trị** đi kèm (vd `--split-penalty 7`) vẫn bị gửi, alass hiểu `7` là tên file | (a) không có hậu tố → lấy ngôn ngữ đã chọn / thư mục con; (b) cái sau bỏ qua, lý do "trùng đích với …"; (c) file cũ vào **Thùng rác** trước (ghi `Delete` vào nhật ký); (d) bỏ cả giá trị đi kèm. Ngoài ra: kết quả alass ghi ra thư mục tạm, xử lý xong mới chép cạnh phim (bấm Dừng không để lại file dở dang); đổi tên + đồng bộ + dọn dẹp của một lượt ghi chung **một** nhật ký (như .bat), lưu sau mỗi bước (GĐ3 ✅) |
 
 ### 7.C. Bỏ vì GUI thay thế (không mất tính năng)
 
@@ -848,9 +850,9 @@ Trước khi báo xong mỗi giai đoạn: chạy hết test và dán kết qu�
 | GĐ | Nội dung | Bạn cần làm |
 |---|---|---|
 | **0** | ✅ Đặc tả này + script kiểm chứng — **đã duyệt** | ~~Đọc, trả lời mục 10~~ |
-| **1** | ✅ `timing`, `pgs`, `srt`, `encoding`, `episodes`, `naming`, `config`, `secrets`, `undo` + 298 test (gồm 17 test đối chiếu hàm gốc qua PowerShell) — **chờ duyệt** | Xem kết quả test; (tuỳ chọn) chạy `run_tests.bat` trên Windows |
-| **2** | ✅ `tools`, `probe` (phần bước ①), `tmdb` (IMDb + chọn series + số tập tuyệt đối), `subsource`, `opensubs`, `pool`, `subfetch` + 4 script dò + `chay_do_api.bat` + test (API giả + MKV thật) — **chờ duyệt** | **Bấm đúp `chay_do_api.bat`**, gửi tôi `ket_qua_do_api.txt` (đã che key) |
-| 3 | Bước ②: ghép tên, trích phụ đề gốc, alass, cắt recap, sức khoẻ, nhật ký/hoàn tác + test đầu–cuối nhỏ | |
+| **1** | ✅ `timing`, `pgs`, `srt`, `encoding`, `episodes`, `naming`, `config`, `secrets`, `undo` + 298 test (gồm 17 test đối chiếu hàm gốc qua PowerShell) — **đã duyệt** | Xem kết quả test; (tuỳ chọn) chạy `run_tests.bat` trên Windows |
+| **2** | ✅ `tools`, `probe` (phần bước ①), `tmdb` (IMDb + chọn series + số tập tuyệt đối), `subsource`, `opensubs`, `pool`, `subfetch` + 4 script dò + `chay_do_api.bat` + test (API giả + MKV thật) — **đã duyệt** (kết quả dò API thật vẫn chờ, xem 7.E) | **Bấm đúp `chay_do_api.bat`**, gửi tôi `ket_qua_do_api.txt` (đã che key) |
+| **3** | ✅ `subprep` (chỉ mục mốc, ghép tên, đổi tên, trích phụ đề gốc, alass, cắt recap, sửa 00:00:00, sức khoẻ, dọn dẹp, nhật ký/hoàn tác) + test (alass giả, MKV thật, đối chiếu hàm gốc) — **chờ duyệt** | Xem TĐ-31, TĐ-32; (tuỳ chọn) `run_tests.bat` — trên máy bạn chạy được cả test alass thật |
 | 4 | Bước ③: `probe`, quy tắc audio/phụ đề, `tmdb`/`tvdb`, thẻ codec, `donor`, dựng lệnh mkvmerge + test tiếng bíp | |
 | 5 | Giao diện 4 thẻ + khung log + luồng phụ + nút Dừng | Thử trên Windows |
 | 6 | PyInstaller `--onedir --windowed`, `build.bat`, icon, `HUONG_DAN.md` | Build và chạy `MuxStudio.exe` |

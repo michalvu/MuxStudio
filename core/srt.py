@@ -91,6 +91,38 @@ def cue_times(path: str | os.PathLike[str]) -> list[float] | None:
     return cue_times_from_text(txt)
 
 
+# Moc DAU + CUOI (cho kiem tra suc khoe phu de khong phai SRT - TD-14)
+_ASS_SPAN = re.compile(r"(?im)^Dialogue:\s*[^,]*,(\d{1,2}):(\d{2}):(\d{2})\.(\d{2}),(\d{1,2}):(\d{2}):(\d{2})\.(\d{2}),")
+_VTT_SPAN = re.compile(r"(?m)(?:(\d{1,2}):)?(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(?:(\d{1,2}):)?(\d{2}):(\d{2})\.(\d{3})")
+
+
+def cue_spans_from_text(txt: str | None) -> tuple[str, list[tuple[float, float]]] | None:
+    """(định dạng, [(bắt đầu, kết thúc)] theo THỨ TỰ TRONG FILE) cho SRT / ASS-SSA / VTT; không đọc được → ``None``.
+
+    Định dạng: ``srt`` | ``ass`` | ``vtt``. Chỉ đọc mốc, không đổi gì trong file (Q7).
+    """
+    if not txt:
+        return None
+    head = txt.lstrip("﻿").lstrip()
+    if head.startswith("WEBVTT"):
+        sp = [(_hms(m.group(1) or "0", m.group(2), m.group(3), m.group(4)),
+               _hms(m.group(5) or "0", m.group(6), m.group(7), m.group(8))) for m in _VTT_SPAN.finditer(txt)]
+        return ("vtt", sp) if sp else None
+    blocks = read_blocks_text(txt)
+    if blocks:
+        return "srt", [(b.start, b.end) for b in blocks]
+    sp = [(_hms(*m.groups()[:4]), _hms(*m.groups()[4:])) for m in _ASS_SPAN.finditer(txt)]
+    return ("ass", sp) if sp else None
+
+
+def cue_spans(path: str | os.PathLike[str]) -> tuple[str, list[tuple[float, float]]] | None:
+    try:
+        txt = encoding.read_text(path)
+    except OSError:
+        return None
+    return cue_spans_from_text(txt)
+
+
 def preview_times(txt: str | None) -> list[float]:
     """Mốc trong trường ``preview`` của SubSource (``Get-PreviewTimes``) — chỉ mẫu SRT, rỗng → ``[]``."""
     if not txt:

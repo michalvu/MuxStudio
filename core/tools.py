@@ -363,6 +363,41 @@ def mkvmerge_version(mkvmerge: str, job: Job | None = None) -> ToolVersion:
     return ToolVersion(ok, int(m.group(1)) if m else 0, txt.splitlines()[0] if txt else "")
 
 
+@dataclass
+class AlassFlags:
+    ok: list[str]
+    unsupported: list[str]
+    help_read: bool
+
+
+def alass_supported_flags(alass_cmd: str | Sequence[str], wanted: Sequence[str], job: Job | None = None,
+                          help_text: str | None = None) -> AlassFlags:
+    """``Get-SupportedAlassFlags``: cờ ``--xxx`` nào bản alass này hiểu (đọc ``alass --help``).
+
+    Không đọc được ``--help`` → dùng đủ tham số (như .bat). Khác .bat: cờ không được hỗ trợ thì
+    bỏ luôn GIÁ TRỊ đi kèm nó (vd ``--split-penalty 7``), tránh để ``7`` lạc thành tên file.
+    """
+    wanted = [str(w) for w in wanted]
+    if not wanted:
+        return AlassFlags([], [], True)
+    if help_text is None:
+        cmd = [alass_cmd] if isinstance(alass_cmd, str) else list(alass_cmd)
+        help_text = run([*cmd, "--help"], job, timeout=30).output
+    if not help_text:
+        return AlassFlags(list(wanted), [], False)
+    ok: list[str] = []
+    no: list[str] = []
+    dropping = False
+    low = help_text.lower()
+    for f in wanted:
+        if f.startswith("--"):
+            dropping = f.lower() not in low  # -match cua PowerShell: khong phan biet hoa thuong
+            (no if dropping else ok).append(f)
+        elif not dropping:
+            ok.append(f)  # gia tri di kem tham so truoc do
+    return AlassFlags(ok, no, True)
+
+
 def mkvmerge_flag_names(major: int) -> tuple[str, str]:
     """Từ v74 mkvmerge đổi tên cờ (§6.2)."""
     if major >= 74:

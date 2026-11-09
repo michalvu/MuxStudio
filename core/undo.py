@@ -89,6 +89,7 @@ class RunLog:
         self.step = step
         self.keep = keep
         self.rows: list[LogRow] = []
+        self.path: Path | None = None  # sau lan save() dau tien: cac lan save() sau GHI LAI cung file
 
     def add(self, action: str, from_: str | os.PathLike[str] = "", to: str | os.PathLike[str] = "",
             detail: str = "", status: str = "") -> None:
@@ -96,16 +97,22 @@ class RunLog:
                                 os.fspath(from_), os.fspath(to), detail, status))
 
     def save(self, now: _dt.datetime | None = None) -> Path | None:
+        """Ghi CSV. Gọi nhiều lần trong một lượt (vd bước ②: đổi tên → đồng bộ → dọn dẹp) thì ghi lại
+        CÙNG một file — một lượt chạy = một mục trên màn hình Hoàn tác, và không mất nhật ký nếu chương
+        trình bị tắt giữa chừng."""
         if not self.rows:
             return None
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        stamp = (now or _dt.datetime.now()).strftime("%Y%m%d_%H%M%S")
         prefix = STEP_PREFIX[self.step]
-        path = self.log_dir / f"{prefix}{stamp}.csv"
-        n = 2
-        while path.exists():
-            path = self.log_dir / f"{prefix}{stamp}_{n}.csv"
-            n += 1
+        path = self.path
+        if path is None:
+            stamp = (now or _dt.datetime.now()).strftime("%Y%m%d_%H%M%S")
+            path = self.log_dir / f"{prefix}{stamp}.csv"
+            n = 2
+            while path.exists():
+                path = self.log_dir / f"{prefix}{stamp}_{n}.csv"
+                n += 1
+            self.path = path
         with open(path, "w", encoding="utf-8-sig", newline="") as fh:
             w = csv.writer(fh, quoting=csv.QUOTE_ALL, lineterminator="\r\n")
             w.writerow(COLUMNS)

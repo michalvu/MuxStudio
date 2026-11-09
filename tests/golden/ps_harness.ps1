@@ -34,6 +34,12 @@ foreach ($grp in $byBat) {
     $res = & {
         . ([scriptblock]::Create($defs))
         $FpsSampleRef = 400; $FpsSampleTgt = 100; $PgsTimingText = '*'; $MaxZeroStartCues = 2
+        # Bien cau hinh SubPrep (gia tri mac dinh cua .bat) cho Remove-LeadingExtra / Test-SubHealth / Resolve-Ref
+        $TrimLeadingExtra = $true; $MinVerifyVotes = 20; $TitleMinScore = 0.5; $TitleMinMargin = 0.15
+        $KnownLangTags = @('vi','cs','cz','en','ja','ko','zh','fr','de','es','th')
+        $ScanSubFolders = $true; $VideoExts = @('.mkv','.mp4','.avi','.m4v','.ts','.mov'); $SubExts = @('.srt','.ass','.ssa','.vtt')
+        $ExtractFolder = 'srt_goc'; $SubFolderName = 'srt_can_sync'; $RefExcludeFolders = @(); $PgsTimingFallback = $true
+        function W { }   # tat log console cua .bat
         $local = @{}
         foreach ($c in $grp.Group) {
             $a = $c.args
@@ -59,6 +65,22 @@ foreach ($grp in $byBat) {
                 'Get-ChannelName'     { Get-ChannelName $a[0] }
                 'Test-EpisodeConflict' { Test-EpisodeConflict ([string]$a[0]) ([string]$a[1]) }
                 'Read-SrtBlocks'      { $b = Read-SrtBlocks ([string]$a[0]); if ($b) { ,@($b | ForEach-Object { @{ S = $_.Start; E = $_.End; T = $_.Text } }) } else { $null } }
+                'Remove-LeadingExtra' { $cut = 0; $ok = Remove-LeadingExtra ([string]$a[0]) (D $a[1]) ([ref]$cut); @{ Ok = [bool]$ok; Cut = $cut } }
+                'Repair-CollapsedCues' { $fix = 0; $ok = Repair-CollapsedCues ([string]$a[0]) ([ref]$fix); @{ Ok = [bool]$ok; Fix = $fix } }
+                'Test-SubHealth'      {
+                    $rt = if ($null -ne $a[1]) { D $a[1] } else { $null }
+                    $st = if ($null -ne $a[4]) { D $a[4] } else { $null }
+                    $h = Test-SubHealth ([string]$a[0]) $rt ([double]$a[2]) ([int]$a[3]) $st
+                    @{ Level = $h.Level; Cues = $h.Cues; ShiftFirst = $h.ShiftFirst; ShiftLast = $h.ShiftLast
+                       ResOffset = $h.ResOffset; ResVotes = $h.ResVotes; ResFps = $h.ResFps; Flags = @($h.Flags) }
+                }
+                'Resolve-Ref'         {
+                    # a: [thu muc phim, 'video'|'sub', so phu de, [ten phu de...]]
+                    $targetDir = [string]$a[0]; $refDir = $targetDir; $subDir = Join-Path $targetDir $SubFolderName
+                    $script:SubFileCount = [int]$a[2]
+                    $idx = Get-RefIndex ([string]$a[1])
+                    ,@(@($a[3]) | ForEach-Object { $r = Resolve-Ref $idx ([string]$_); if ($r) { [string]$r.Canon } else { '' } })
+                }
                 default { throw "khong biet ham $($c.fn)" }
             }
             $local[[string]$c.id] = $r

@@ -157,6 +157,58 @@ def pick_ref_sub_track(j: dict | None, lang_priority: Sequence[str], allow_pgs: 
     return best
 
 
+# ---------------------------------------------------------------- ffprobe
+
+def ffprobe_streams(path: str | os.PathLike[str], ffprobe: str | None, kind: str = "a",
+                    job: tools.Job | None = None, cache: dict | None = None) -> list[dict]:
+    """``Get-AudioStreams`` (SP): ``ffprobe -show_streams -select_streams <kind>``. Thứ tự = số thứ tự
+    tương đối (``0:a:N`` của ffmpeg). Không đọc được → ``[]``. Có bộ nhớ đệm theo lượt chạy."""
+    if not ffprobe:
+        return []
+    key = (os.path.normcase(os.path.abspath(os.fspath(path))), kind)
+    if cache is not None and key in cache:
+        return cache[key]
+    r = tools.run([ffprobe, "-v", "quiet", "-print_format", "json", "-show_streams", "-select_streams", kind,
+                   os.fspath(path)], job, timeout=120)
+    out: list[dict] = []
+    if r.code == 0 and r.stdout.strip():
+        try:
+            out = list(json.loads(r.stdout).get("streams") or [])
+        except ValueError:
+            out = []
+    if cache is not None:
+        cache[key] = out
+    return out
+
+
+@dataclass(frozen=True)
+class AudioStream:
+    """Một audio track (để hiện bảng ``Show-AudioStreams`` và chọn mốc đồng bộ)."""
+
+    index: int  # so thu tu tuong doi, dem tu 0 (0:a:N)
+    lang: str  # tag ngon ngu nguyen van ('und' neu khong co)
+    codec: str
+    channels: int
+    title: str
+    default: bool
+
+    def describe(self) -> str:
+        ch = f" {self.channels}ch" if self.channels else ""
+        ti = f" - {self.title}" if self.title else ""
+        return f"[{self.index}] {self.lang} {self.codec}{ch}{ti}" + (" (Default)" if self.default else "")
+
+
+def audio_streams(streams: Sequence[dict]) -> list[AudioStream]:
+    out = []
+    for i, s in enumerate(streams):
+        tags = s.get("tags") or {}
+        disp = s.get("disposition") or {}
+        out.append(AudioStream(i, str(tags.get("language") or "und"), str(s.get("codec_name") or ""),
+                               int(s.get("channels") or 0), str(tags.get("title") or ""),
+                               int(to_double(disp.get("default"))) == 1))
+    return out
+
+
 def summarize_tracks(j: dict | None) -> dict[str, Any]:
     """Tóm tắt để hiển thị trên bảng quét."""
     return {
