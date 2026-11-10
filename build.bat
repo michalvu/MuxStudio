@@ -16,6 +16,12 @@ set "VPY=.venv-build\Scripts\python.exe"
 set "EXE=dist\MuxStudio\MuxStudio.exe"
 set "BAOCAO=%~dp0kiem_tra_exe.txt"
 
+rem  File cua ban cu da bi xoa khoi ma nguon (kho srt_pool, bo tu ban 1.2.0). Chep de ma moi len thu
+rem  muc cu thi chung van con nam lai va lam hong test -> don di.
+for %%F in ("core\pool.py" "tests\test_pool.py") do if exist "%%~F" (
+    echo Xoa file cu khong con dung: %%~F
+    del /q "%%~F"
+)
 echo [1/4] Chuan bi moi truong build rieng (.venv-build) ...
 if not exist "%VPY%" (
     %PY% -m venv .venv-build

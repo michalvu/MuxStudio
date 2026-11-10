@@ -329,3 +329,14 @@ def test_gitignore_build_outputs():
     g = (ROOT / ".gitignore").read_text().split()
     for need in ("build/", "dist/", ".venv-build/", "kiem_tra_exe.txt"):
         assert need in g
+
+
+def test_bat_files_remove_stale_files_of_older_versions():
+    """Người dùng chép đè mã mới lên thư mục cũ: file đã xoá khỏi repo (kho srt_pool, 1.2.0) vẫn nằm lại và làm hỏng
+    test (đã xảy ra: 4 test hỏng trên Windows) → run_tests.bat / build.bat tự dọn. Các file đó không được có trong repo."""
+    for name in ("run_tests.bat", "build.bat"):
+        raw = (ROOT / name).read_bytes()
+        assert b'for %%F in ("core\\pool.py" "tests\\test_pool.py") do if exist "%%~F" (' in raw, name
+        assert b"\n" not in raw.replace(b"\r\n", b"") and raw.isascii(), name  # CRLF + ASCII
+    assert raw.index(b"core\\pool.py") < raw.index(b"[1/4]")
+    assert not (ROOT / "core" / "pool.py").exists() and not (ROOT / "tests" / "test_pool.py").exists()

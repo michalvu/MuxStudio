@@ -371,3 +371,8 @@ bên làm ra chúng). Nhánh phiên `claude/stoic-fermat-vbr5cy` CHƯA xoá đư
   Thêm thư viện mới vào `requirements.txt` → thêm một `Credit`.
 - **Thanh tiến độ**: `W.PROGRESS_GREEN`, `W.progress_text` → nhãn `App.prog_pct`.
 - Đã thử đóng gói PyInstaller trên Linux: `--kiem-tra` ĐẠT, `assets/glass.json` có trong bản đóng gói.
+- **Sau khi người dùng chạy `run_tests.bat` lần 1 (4 failed, 684 passed):** không phải lỗi mã — họ chép đè mã mới lên
+  thư mục cũ nên `core/pool.py` + `tests/test_pool.py` (đã xoá khỏi repo) vẫn nằm lại: 3 test của `test_pool.py` hỏng
+  `KeyError: 'PoolTryLimit'`, và `test_i18n` thấy 12 câu chữ của `pool.py` chưa dịch. Sửa: `run_tests.bat` và
+  `build.bat` tự xoá hai file đó trước khi chạy. **Bài học: xoá file khỏi repo thì phải thêm nó vào danh sách dọn
+  trong hai file .bat** (người dùng cập nhật bằng cách tải ZIP rồi chép đè, không dùng git).

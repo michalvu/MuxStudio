@@ -6,6 +6,12 @@ rem  Chay toan bo test cua MuxStudio tren Windows.
 rem  Can Python 3.11+ (python.org, tick "Add python.exe to PATH").
 rem  Lan dau se tao thu muc .venv va tai thu vien (vai phut).
 rem ==========================================================
+rem  File cua ban cu da bi xoa khoi ma nguon (kho srt_pool, bo tu ban 1.2.0). Chep de ma moi len thu
+rem  muc cu thi chung van con nam lai va lam hong test -> don di.
+for %%F in ("core\pool.py" "tests\test_pool.py") do if exist "%%~F" (
+    echo Xoa file cu khong con dung: %%~F
+    del /q "%%~F"
+)
 set "PY=python"
 where py >nul 2>nul && set "PY=py -3"
 if not exist ".venv\Scripts\python.exe" (
