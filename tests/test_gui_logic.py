@@ -730,3 +730,16 @@ def test_item_status_video_already_has_sub():
     assert FV.item_status(it2) == ("phim đã có (cạnh phim): Phim.vi.srt — không tìm", "dim")
     it3 = FetchItem(v, "cs", Path("srt_can_sync/cs"), already=Path("srt_can_sync/cs/Phim.cs.srt"))
     assert FV.item_status(it3) == ("đã có: Phim.cs.srt", "dim")
+
+
+# ==========================================================================
+#  1.2.0: thanh tien do xanh la + phan tram
+# ==========================================================================
+
+
+def test_progress_percent_and_text():
+    assert W.progress_percent(0, 8) == 0 and W.progress_percent(3, 8) == 37 and W.progress_percent(8, 8) == 100
+    assert W.progress_percent(199, 200) == 99  # chua xong het thi chua ghi 100%
+    assert W.progress_percent(5, 0) == 0 and W.progress_percent(9, 8) == 100 and W.progress_percent(-1, 8) == 0
+    assert W.progress_text(3, 8) == "37% · 3/8" and W.progress_text(0, 0) == "0%" and W.progress_text(8, 8) == "100% · 8/8"
+    assert all(c.startswith("#") for c in W.PROGRESS_GREEN)

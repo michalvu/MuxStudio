@@ -148,13 +148,16 @@ def build_info(root: Any = None) -> str:
 
 class App:
     def __init__(self, cfg: C.Config | None = None, store: Any = None, folder: str | None = None,
-                 appearance: str = "System"):
+                 appearance: str | None = None):
         ctk = W.ctk
         if ctk is None:  # pragma: no cover
             raise RuntimeError("Thiếu tkinter / customtkinter")
-        ctk.set_appearance_mode(appearance)
-        ctk.set_default_color_theme("blue")
         self.cfg = cfg if cfg is not None else C.load_config()
+        # 1.2.0: bo mau "kinh" + che do Sang / Toi theo Cai dat (``appearance`` chi de test ep mot che do)
+        W._RESTYLE.clear()
+        self._forced_appearance = bool(appearance)
+        ctk.set_appearance_mode(appearance or W.appearance_mode(self.cfg["UiAppearance"]))
+        self.glass_theme = W.load_glass_theme()
         self.secret_store = store if store is not None else S.store
         self._secret_error_shown = False
         self.redactor = S.Redactor(self.secrets().values())
@@ -216,11 +219,15 @@ class App:
         self.stop_btn.pack(side="right", padx=4)
         bars = ctk.CTkFrame(st, fg_color="transparent")
         bars.pack(side="right", padx=8)
-        self.prog = ctk.CTkProgressBar(bars, width=260)
+        # thanh tien do: XANH LA + so phan tram ben canh (1.2.0)
+        self.prog = ctk.CTkProgressBar(bars, width=260, height=12, progress_color=W.PROGRESS_GREEN)
         self.prog.set(0)
         self.prog.pack(pady=(2, 1))
-        self.cur = ctk.CTkProgressBar(bars, width=260, height=5, mode="indeterminate")
+        self.cur = ctk.CTkProgressBar(bars, width=260, height=5, mode="indeterminate", progress_color=W.PROGRESS_GREEN)
         self.cur.pack(pady=(1, 2))
+        self.prog_pct = ctk.CTkLabel(st, text="", width=104, anchor="e", font=ctk.CTkFont(weight="bold"),
+                                     text_color=W.PROGRESS_GREEN)
+        self.prog_pct.pack(side="right", padx=(4, 0))
         # xep SAU nut Dung: chu dai khong bao gio day nut ra khoi cua so
         self.status.pack(side="left", fill="x", expand=True, padx=10, pady=4 if self.density == "compact" else 6)
 
@@ -260,6 +267,13 @@ class App:
         self.views = [self.fetch, self.prep, self.mux, self.settings]
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        # Sang / Toi doi (bam Luu cai dat, hoac Windows doi khi dang o che do "system") -> to lai bang, luoi, khung log
+        self._appearance_cb = lambda _mode=None: self._restyle_later()
+        try:
+            ctk.AppearanceModeTracker.add(self._appearance_cb)
+        except Exception:  # noqa: BLE001
+            pass
+        self.backdrop = W.apply_backdrop(self.root, str(self.cfg["UiBackdrop"]), W.is_dark())
         for w in self.cfg.warnings:
             self.log("warn", w)
         start = folder or self.cfg.get("UiLastFolder")
@@ -415,8 +429,27 @@ class App:
         W.warn(self.root, "Chưa chọn thư mục phim", "Chọn thư mục phim ở đầu cửa sổ trước.")
         return None
 
+    def set_appearance(self, value: Any) -> None:
+        """Đổi Sáng / Tối / theo Windows ngay (không cần mở lại)."""
+        W.ctk.set_appearance_mode(W.appearance_mode(value))
+        self.restyle()
+
+    def _restyle_later(self) -> None:
+        try:
+            self.root.after(30, self.restyle)
+        except Exception:  # noqa: BLE001 - cua so dang dong
+            pass
+
+    def restyle(self) -> None:
+        try:
+            W.restyle(self.root)
+        except Exception as e:  # noqa: BLE001
+            self.log("dim", f"(không tô lại được màu: {e})")
+
     def on_config_changed(self, secrets_changed: bool = False) -> None:
         self.redactor.update(self.secrets().values())
+        if not self._forced_appearance:
+            self.set_appearance(self.cfg["UiAppearance"])
         for v in self.views:
             if v is not self.settings and hasattr(v, "on_config_changed"):
                 v.on_config_changed(secrets_changed)
@@ -428,6 +461,7 @@ class App:
         self.undo_btn.configure(state="disabled" if busy else "normal")
         if busy:
             self.prog.set(0)
+            self.prog_pct.configure(text=W.progress_text(0, 0))
             self.status.configure(text=f"Đang chạy: {title}…")
             self.cur.start()
         else:
@@ -439,6 +473,7 @@ class App:
     def _progress(self, done: int, total: int, label: str) -> None:
         if total > 0:
             self.prog.set(max(0.0, min(1.0, done / total)))
+        self.prog_pct.configure(text=W.progress_text(done, total))
         t = self.runner.title or ""
         self.status.configure(text=f"{t}: {done}/{total}" + (f" — {W.ellipsize_middle(label, 90)}" if label else ""))
 
@@ -491,6 +526,10 @@ class App:
         try:
             for aid in self.root.tk.splitlist(self.root.tk.call("after", "info")):
                 self.root.tk.call("after", "cancel", aid)  # khong dung after_cancel: no xoa luon lenh Tcl cua widget
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            W.ctk.AppearanceModeTracker.remove(self._appearance_cb)
         except Exception:  # noqa: BLE001
             pass
         self.root.destroy()

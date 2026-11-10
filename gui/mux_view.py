@@ -282,6 +282,7 @@ class MuxView:
         pw = W.tk.PanedWindow(self.frame, orient="vertical", sashwidth=6, borderwidth=0,
                               background=W.pick(("#dbdbdb", "#2b2b2b")))
         pw.pack(fill="both", expand=True)
+        W.on_restyle(lambda: pw.configure(background=W.pick(("#dbdbdb", "#2b2b2b"))))
         top = W.ttk.Frame(pw)
         cols = [W.Col("src", "Tên gốc", 250, stretch=True, fit="name"),
                 W.Col("new", "→ Tên mới (trong Output)", 330, stretch=True, fit="name"),

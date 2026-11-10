@@ -251,6 +251,24 @@ def open_path(path: str | os.PathLike[str]) -> bool:
         return False
 
 
+#: Màu thanh tiến độ (sáng, tối) — xanh lá
+PROGRESS_GREEN = ("#2e9e44", "#3fbf5a")
+
+
+def progress_percent(done: int, total: int) -> int:
+    """Phần trăm 0–100 (làm tròn xuống: chỉ ghi 100% khi thật sự xong hết)."""
+    if total <= 0:
+        return 0
+    return max(0, min(100, int(done * 100 // total)))
+
+
+def progress_text(done: int, total: int) -> str:
+    """Chữ cạnh thanh tiến độ: ``37% · 3/8``; chưa biết tổng → ``0%``."""
+    if total <= 0:
+        return "0%"
+    return f"{progress_percent(done, total)}% · {done}/{total}"
+
+
 def step_states(done: Sequence[bool], enabled: Sequence[bool]) -> list[str]:
     """Trạng thái từng nút của thanh các bước: ``done`` (đã xong ✓) | ``next`` (nên bấm tiếp — nổi bật) | ``todo`` |
     ``off`` (chưa bấm được). Bước kế tiếp = bước CHƯA xong đầu tiên, chỉ khi bấm được (không nhảy qua bước đang khoá —
@@ -691,6 +709,95 @@ def pick(pair: tuple[str, str]) -> str:
     return pair[1] if is_dark() else pair[0]
 
 
+APPEARANCES = {"system": "System", "light": "Light", "dark": "Dark"}
+
+
+def appearance_mode(value: Any) -> str:
+    """Giá trị cấu hình ``UiAppearance`` (system / light / dark, không phân biệt hoa thường) → tên chế độ của
+    CustomTkinter; giá trị lạ → ``System``."""
+    return APPEARANCES.get(str(value or "").strip().lower(), "System")
+
+
+def load_glass_theme() -> bool:
+    """Nạp bộ màu "kính" (``assets/glass.json``); thiếu / hỏng file → theme ``blue`` có sẵn của CustomTkinter."""
+    try:
+        ctk.set_default_color_theme(resource_path("assets", "glass.json"))
+        return True
+    except Exception:  # noqa: BLE001
+        ctk.set_default_color_theme("blue")
+        return False
+
+
+#: Việc phải làm lại khi đổi Sáng / Tối: tô lại các phần KHÔNG phải widget CustomTkinter (Treeview, Canvas, khung log).
+_RESTYLE: list[Callable[[], None]] = []
+
+
+def on_restyle(fn: Callable[[], None]) -> None:
+    _RESTYLE.append(fn)
+
+
+def restyle(root: Any) -> int:
+    """Gọi sau khi chế độ Sáng / Tối đổi. Hàm nào lỗi (widget đã bị huỷ) thì bỏ khỏi danh sách. Trả số hàm còn sống."""
+    setup_style(root)
+    alive = []
+    for fn in _RESTYLE:
+        try:
+            fn()
+            alive.append(fn)
+        except Exception:  # noqa: BLE001 - widget da huy
+            pass
+    _RESTYLE[:] = alive
+    return len(alive)
+
+
+BACKDROPS = {"mica": 2, "acrylic": 3}  # DWM_SYSTEMBACKDROP_TYPE
+
+
+def windows_build() -> int:
+    try:
+        return int(sys.getwindowsversion().build)  # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001 - khong phai Windows
+        return 0
+
+
+def backdrop_supported(kind: str, build: int | None = None) -> bool:
+    """Nền mờ hệ thống (Mica / Acrylic) cần Windows 11 22H2 (build 22621) trở lên."""
+    b = windows_build() if build is None else build
+    return str(kind).lower() in BACKDROPS and b >= 22621
+
+
+def apply_backdrop(root: Any, kind: str, dark: bool) -> bool:
+    """Bật nền mờ của Windows 11 cho cửa sổ ``root``: nền gốc tô ĐEN + khung cửa sổ kéo vào vùng nội dung ⇒ chỗ nào lộ
+    nền gốc (khe giữa các khung) thì thấy lớp Mica / Acrylic của hệ điều hành. Không phải Windows 11 / lỗi → ``False``,
+    không đổi gì. CHƯA thử được trên Linux — có công tắc ``UiBackdrop`` để tắt."""
+    if not backdrop_supported(kind):
+        return False
+    try:
+        import ctypes  # noqa: PLC0415
+
+        root.update_idletasks()
+        hwnd = ctypes.windll.user32.GetParent(root.winfo_id()) or root.winfo_id()  # type: ignore[attr-defined]
+        dwm = ctypes.windll.dwmapi  # type: ignore[attr-defined]
+
+        def attr(code: int, value: int) -> int:
+            v = ctypes.c_int(value)
+            return int(dwm.DwmSetWindowAttribute(hwnd, code, ctypes.byref(v), ctypes.sizeof(v)))
+
+        attr(20, 1 if dark else 0)  # DWMWA_USE_IMMERSIVE_DARK_MODE
+        if attr(38, BACKDROPS[str(kind).lower()]) != 0:  # DWMWA_SYSTEMBACKDROP_TYPE
+            return False
+
+        class MARGINS(ctypes.Structure):
+            _fields_ = [("l", ctypes.c_int), ("r", ctypes.c_int), ("t", ctypes.c_int), ("b", ctypes.c_int)]
+
+        m = MARGINS(-1, -1, -1, -1)
+        dwm.DwmExtendFrameIntoClientArea(hwnd, ctypes.byref(m))
+        root.configure(fg_color="#000000")
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
 _USER_FACTOR = 1.0  # "Co chu va giao dien" (nhan them vao ti le phong to cua Windows)
 
 
@@ -972,6 +1079,7 @@ class Table:
         self.frame.rowconfigure(0, weight=1)
         self.frame.columnconfigure(0, weight=1)
         tag_rows(self.tv)
+        on_restyle(lambda: tag_rows(self.tv))
         self._font = tkfont.nametofont("TkDefaultFont")
         self._pad = px(self.frame, 12)
         self._indent = px(self.frame, 20)
@@ -1241,6 +1349,7 @@ class CheckGrid:
     def __init__(self, master: Any, label_width: int = 300, col_width: int = 118, row_h: int = 0):
         self.frame = ttk.Frame(master)
         self.cv = tk.Canvas(self.frame, highlightthickness=0, borderwidth=0)
+        on_restyle(lambda: self.redraw())
         vs = ttk.Scrollbar(self.frame, orient="vertical", command=self.cv.yview)
         hs = ttk.Scrollbar(self.frame, orient="horizontal", command=self.cv.xview)
         self.cv.configure(yscrollcommand=vs.set, xscrollcommand=hs.set)

@@ -73,6 +73,7 @@ class LogPanel:
                                   font=ctk.CTkFont(family=W.mono_family(), size=12))
         self.box.pack(fill="both", expand=True, padx=6, pady=(2, 6))
         self._apply_colors()
+        W.on_restyle(self._apply_colors)
         self.box.configure(state="disabled")
         self.expanded = True
         self.n_warn = 0

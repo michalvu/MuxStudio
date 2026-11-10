@@ -19,6 +19,7 @@ ICON = os.path.join(ROOT, "assets", "muxstudio.ico")
 datas = [
     (os.path.join(ROOT, "assets", "muxstudio.ico"), "assets"),
     (os.path.join(ROOT, "assets", "muxstudio.png"), "assets"),
+    (os.path.join(ROOT, "assets", "glass.json"), "assets"),  # bo mau "kinh" (1.2.0)
 ]
 datas += collect_data_files("customtkinter")  # theme .json + phong hinh: thieu thi cua so khong mo duoc
 datas += copy_metadata("keyring")  # keyring tim "backend" (Credential Manager) qua entry points cua goi

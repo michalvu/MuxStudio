@@ -70,6 +70,13 @@ FIELDS: tuple[Field, ...] = (
           "1440p / 4K đặt tỉ lệ 100%); hoặc chọn % (90 = gọn hơn cho màn hình 720p, 125 / 150 = to hơn). Cửa sổ tự vừa "
           "màn hình 720p / 1080p / 1440p. Có hiệu lực khi mở lại MuxStudio.", "choice",
           ("auto", "90", "100", "110", "125", "150")),
+    Field("UiLanguage", "vi", "chung", "Ngôn ngữ giao diện (Language)", "vi = Tiếng Việt, en = English. Có hiệu lực khi mở "
+          "lại MuxStudio. (Takes effect the next time MuxStudio starts.)", "choice", ("vi", "en")),
+    Field("UiAppearance", "system", "chung", "Chế độ Sáng / Tối", "system = theo Windows, light = Sáng, dark = Tối. Đổi "
+          "ngay khi bấm Lưu cài đặt.", "choice", ("system", "light", "dark")),
+    Field("UiBackdrop", "none", "chung", "Nền mờ của Windows 11", "none = tắt; mica / acrylic = nền cửa sổ mờ nhìn xuyên "
+          "kiểu kính của Windows 11 (cần Windows 11; máy khác tự bỏ qua). Nếu chữ bị viền lạ hoặc cửa sổ hiện sai thì "
+          "chọn lại none. Có hiệu lực khi mở lại MuxStudio.", "choice", ("none", "mica", "acrylic")),
     Field("ScanSubFolders", True, "chung", "Quét cả thư mục con", "Nhiều season một lượt."),
     Field("VideoExts", [".mkv", ".mp4", ".avi", ".m4v", ".ts", ".mov"], "chung", "Đuôi file phim", "", "list", advanced=True),
     Field("SubFolderName", "srt_can_sync", "chung", "Thư mục phụ đề cần sync", "Nơi hạ phụ đề tải về (bước ② xử lý tiếp)."),

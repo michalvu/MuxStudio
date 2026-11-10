@@ -103,7 +103,7 @@ def test_import_from_reference_bats():
     assert {"UseColors", "DryRun", "UndoLastRun", "ConsoleCols"} <= ignored
     # moi khoa cau hinh (tru khoa moi) deu doc duoc tu .bat
     new_keys = {"MkvmergePath", "MkvextractPath", "FfmpegPath", "FfprobePath", "AlassPath", "SubFetchLogDir", "UiScale",
-                "AskTrashSourcesAfterMux", "SkipIfVideoHasSub"}
+                "AskTrashSourcesAfterMux", "SkipIfVideoHasSub", "UiLanguage", "UiAppearance", "UiBackdrop"}
     assert set(C.FIELD_BY_KEY) - set(v) == new_keys
 
 

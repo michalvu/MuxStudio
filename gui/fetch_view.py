@@ -212,6 +212,7 @@ class FetchView:
         pw = W.tk.PanedWindow(self.frame, orient="vertical", sashwidth=6, borderwidth=0,
                               background=W.pick(("#dbdbdb", "#2b2b2b")))
         pw.pack(fill="both", expand=True)
+        W.on_restyle(lambda: pw.configure(background=W.pick(("#dbdbdb", "#2b2b2b"))))
         top = W.ttk.Frame(pw)
         cols = [W.Col("kind", "Loại", 140), W.Col("fps", "FPS", 65, "e"), W.Col("ref", "Phụ đề gốc (mốc)", 250, stretch=True, fit="name"),
                 W.Col("status", "Trạng thái", 280, stretch=True), W.Col("chosen", "Bản đã chọn", 260, stretch=True, fit="name")]
