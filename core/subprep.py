@@ -800,7 +800,7 @@ class PrepSession:
         kho ``srt_pool``, ``srt_can_sync`` (và các thư mục nhật ký) — thiếu ``audio_nguon`` từng làm mỗi tập
         có 2 video cùng số tập ⇒ "nhập nhằng" hàng loạt."""
         c = self.cfg
-        names = [*c["RefExcludeFolders"], c["SubFolderName"], c["DonorFolder"], c["PoolFolder"],
+        names = [*c["RefExcludeFolders"], c["SubFolderName"], c["DonorFolder"], tools.LEGACY_POOL_FOLDER,
                  c["SubPrepLogDir"], c["SubFetchLogDir"], c["MuxLogDir"]]
         keep_scan = {str(c["ExtractFolder"]).lower(), str(c["RefFolderName"]).lower()} - {""}
         out: list[Path] = []

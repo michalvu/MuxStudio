@@ -19,6 +19,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
+#: Thư mục kho phụ đề của các bản ≤ 1.1.0 (và của SubFetch.bat). Kho đã bỏ ở bản 1.2.0 (TĐ-38) nhưng thư mục này vẫn bị
+#: loại khi quét, để phụ đề / video còn nằm trong đó không bị nhận nhầm.
+LEGACY_POOL_FOLDER = "srt_pool"
+
 IS_WINDOWS = os.name == "nt"
 
 # ==========================================================================

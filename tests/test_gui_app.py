@@ -2,7 +2,7 @@
 
 * ③ Mux: MKV thật (ffmpeg + mkvmerge), 2 audio tiếng Anh → "Cần chọn" → tick xoá + "Áp dụng cho mọi file còn lại";
   bảng chọn phụ đề theo tập; "Xem lệnh"; Bắt đầu mux → Output; màn hình Hoàn tác.
-* ① Tải phụ đề: chỉ dùng kho ``srt_pool`` (không gọi mạng) → quét → tìm → chọn trong bảng ứng viên → tải.
+* ① Tải phụ đề: OpenSubtitles giả (không gọi mạng thật) → quét → tìm → chọn trong bảng ứng viên → tải.
 * ② Chuẩn bị phụ đề: xem trước đổi tên → đổi tên → lập cặp → đồng bộ (alass GIẢ) → sức khoẻ, xuất CSV.
 * Cài đặt: mọi ô đọc/ghi đúng kiểu (đủ 5 nhóm), lưu bí mật vào keyring (không vào config.json), báo lỗi ô sai kiểu,
   nhập từ .bat.
@@ -324,27 +324,48 @@ def test_mux_name_need_choice_dialog_actions(movie_dir, ui, monkeypatch):
 
 # ---------------------------------------------------------------- ① Tai phu de
 @need_media
-def test_fetch_tab_pool_choose_and_download(movie_dir, ui):
+def test_fetch_tab_choose_and_download(movie_dir, ui, monkeypatch):
+    from core import subfetch
+    from fakehttp import FakeHTTP, FakeResponse, Sleeper
+    from gui import fetch_view as FV
+
     stem = "Phim.Thu.2020.1080p.WEB"
     tiny_mkv(movie_dir / f"{stem}.mkv")
     ref = make_ref_times(400, seed=11)
     goc = movie_dir / "srt_goc"
     goc.mkdir()
     (goc / f"{stem}.srt").write_text(srt_text(ref), encoding="utf-8", newline="")
+    # TD-38: thu muc kho cu con tren dia nhung KHONG con la nguon
     pool = movie_dir / "srt_pool" / "vi"
     pool.mkdir(parents=True)
     (pool / "Phim.Thu.2020.BluRay.vi.srt").write_text(srt_text(transform_times(ref, 1.0, 1.5, seed=5)), encoding="utf-8", newline="")
-    (pool / "Phim.Thu.2020.WEB-DL.vi.srt").write_text(srt_text(transform_times(ref, 1.0, -0.8, seed=6)), encoding="utf-8", newline="")
-    (pool / "Phim.Khac.2019.vi.srt").write_text(srt_text(make_ref_times(400, seed=99)), encoding="utf-8", newline="")
+    # OpenSubtitles gia: 2 ban tieng Viet
+    http = FakeHTTP()
+    http.add("POST", r"opensubtitles\.com/api/v1/login", FakeResponse(200, {
+        "token": "tok", "base_url": "api.opensubtitles.com", "user": {"allowed_downloads": 100, "vip": False}}))
+    http.add("GET", r"opensubtitles\.com/api/v1/infos/user",
+             FakeResponse(200, {"data": {"remaining_downloads": 100, "allowed_downloads": 100}}))
+    found = [{"id": "a", "attributes": {"release": "Phim.Thu.2020.BluRay", "fps": 23.976, "download_count": 9,
+                                        "files": [{"file_id": 501}]}},
+             {"id": "b", "attributes": {"release": "Phim.Thu.2020.WEB-DL", "fps": 23.976, "download_count": 5,
+                                        "files": [{"file_id": 502}]}}]
+    http.add("GET", r"opensubtitles\.com/api/v1/subtitles",
+             lambda call: FakeResponse(200, {"data": found if call.params.get("languages") == "vi" else []}))
+    http.add("POST", r"opensubtitles\.com/api/v1/download", lambda call: FakeResponse(
+        200, {"link": f"https://dl.opensubtitles.com/{call.json['file_id']}", "remaining": 99, "reset_time": "5 giờ"}))
+    http.add("GET", r"dl\.opensubtitles\.com/50[12]",
+             FakeResponse(200, content=srt_text(transform_times(ref, 1.0, -0.8, seed=6)).encode("utf-8")))
+    monkeypatch.setattr(FV, "FetchSession", lambda folder, cfg, _secrets, job, languages=None, sources=None:
+                        subfetch.FetchSession(folder, cfg, {"OsApiKey": "demo-os", "OsUsername": "u", "OsPassword": "p"},
+                                              job, http, Sleeper(), languages=languages, sources=sources))
     a = ui(movie_dir)
     v = a.fetch
     a.goto("① Tải phụ đề")
     pump(a)
-    assert "3 file" in v.src_status["pool"].cget("text")
+    assert set(v.src_vars) == set(v.src_status) == {"subsource", "opensubtitles"}  # het o "Kho noi bo"
     for c, var in v.lang_vars.items():
         var.set(c == "vi")
     v.src_vars["subsource"].set(False)
-    v.src_vars["opensubtitles"].set(False)
     v.scan()
     pump(a)
     assert len(v.items) == 1 and v.items[0].lang == "vi"
@@ -352,11 +373,11 @@ def test_fetch_tab_pool_choose_and_download(movie_dir, ui):
     v.gather()
     pump(a)
     it = v.items[0]
-    assert it.needs_choice and len(it.candidates) == 2  # 2 ban kho deu khop -> ban chon
+    assert it.needs_choice and len(it.candidates) == 2  # 2 ban OpenSubtitles -> ban chon
     assert v.cur_item is it  # tu nhay toi dong "can chon" dau tien
     assert "CẦN CHỌN" in v.tree.tv.item("i0", "values")[3]
     rows = [v.cands.tv.item(i, "values") for i in v.cands.ids()]
-    assert {r[1] for r in rows} == {"Kho"} and all(r[4].endswith("s") for r in rows)  # cot Lech: do that
+    assert {r[1] for r in rows} == {"OpenSub"}
     v.choose("c1")
     pump(a)
     assert it.chosen is it.candidates[1] and not it.needs_choice
@@ -365,7 +386,7 @@ def test_fetch_tab_pool_choose_and_download(movie_dir, ui):
     dest = movie_dir / "srt_can_sync" / "vi" / f"{stem}.vi.srt"
     assert dest.is_file() and it.result == dest
     assert "Tải được: 1" in v.summary.cget("text")
-    assert "đã tải (Kho)" in v.tree.tv.item("i0", "values")[3]
+    assert "đã tải (OpenSub)" in v.tree.tv.item("i0", "values")[3]
     # 1.1.0: nut "↺ Lam lai tu dau"
     assert v.steps.states["run"] == "done"
     v.reset_all()

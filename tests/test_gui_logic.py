@@ -278,8 +278,10 @@ def test_fetch_item_status_texts(tmp_path):
     row = FV.candidate_row(c, 0)
     assert row == {"n": 1, "src": "SubSource", "fps": "23.976 KHỚP", "score": "80%", "off": "+2.5s~",
                    "rel": "Show.S01.1080p.WEB-DL", "info": "2 file, 50 tải (gói season)"}
-    assert FV.candidate_tag(Candidate("Kho", 2, "đo: nghi ngờ", 0.5, "x", "", None)) == "need"
-    assert FV.candidate_tag(Candidate("Kho", 1, "đo: khớp", 0.5, "x", "", None, Offset(0.1, 30, -1))) == "good"
+    assert FV.candidate_tag(Candidate("SubSource", 2, "?", 0.5, "x", "", None)) == ""
+    assert FV.candidate_tag(Candidate("SubSource", 1, "đo: khớp", 0.5, "x", "", None, Offset(0.1, 30, -1))) == "good"
+    assert FV.candidate_tag(Candidate("OpenSub", 3, "25", 0.5, "x", "", None)) == "bad"
+    assert [k for k, _ in FV.SOURCES] == ["subsource", "opensubtitles"]  # TD-38: het nguon "kho noi bo"
     assert FV.lang_label("vi") == "vi — Vietnamese"
     rep = FetchReport(ok=3, used_existing=1, missing=1, os_remaining=48, os_allowed=100, stopped=True)
     assert FV.summary_text(rep).startswith("Tải được: 3  |  Dùng file có sẵn: 1")

@@ -74,7 +74,6 @@ FIELDS: tuple[Field, ...] = (
     Field("VideoExts", [".mkv", ".mp4", ".avi", ".m4v", ".ts", ".mov"], "chung", "Đuôi file phim", "", "list", advanced=True),
     Field("SubFolderName", "srt_can_sync", "chung", "Thư mục phụ đề cần sync", "Nơi hạ phụ đề tải về (bước ② xử lý tiếp)."),
     Field("ExtractFolder", "srt_goc", "chung", "Thư mục phụ đề gốc", "Phụ đề trích từ MKV làm mốc thời gian (không để trống)."),
-    Field("PoolFolder", "srt_pool", "chung", "Thư mục kho phụ đề tự tải", "Nên chia thư mục con vi\\ cs\\ en\\."),
     Field("DonorFolder", "audio_nguon", "chung", "Thư mục file nguồn audio", "File phim khác để lấy audio ghép vào."),
     Field("MinVerifyVotes", 20, "chung", "Số mốc khớp tối thiểu", "Khớp ĐÚNG thường 25–35 phiếu; khớp SAI chỉ 5–15. Đặt 8 từng làm ghép nhầm tập. Tối thiểu nên là 20."),
     Field("FpsSampleRef", 400, "chung", "Số mốc lấy mẫu bên phụ đề gốc", "", advanced=True),
@@ -111,11 +110,6 @@ FIELDS: tuple[Field, ...] = (
     Field("StrictFpsMatch", True, "fetch", "Loại bản khai báo FPS khác video", "Phụ đề PAL 25fps ghép vào phim 23.976 sẽ trôi dần tới ~5 phút ở cuối."),
     Field("AllowUnknownFps", True, "fetch", "Cho phép bản không khai báo FPS", "Sẽ đo bằng mốc thời gian sau khi tải."),
     Field("KeepPaidDownloads", True, "fetch", "Giữ file OpenSubtitles kiểm chứng yếu", "Đã tốn quota thì giữ kèm cảnh báo. Tắt = chuyển vào Thùng rác và thử bản kế tiếp."),
-    Field("UsePool", True, "fetch", "Dùng kho phụ đề srt_pool", ""),
-    Field("PoolTryLimit", 8, "fetch", "Số file đo thử mỗi ngôn ngữ (kho)", ""),
-    Field("PoolMinVotes", 8, "fetch", "Ngưỡng loại hẳn (kho)", "Dưới mức này coi là phim khác → bỏ. Từ mức này tới 'Số mốc khớp tối thiểu' vẫn hiện kèm 'cần kiểm tra'."),
-    Field("PoolFirst", True, "fetch", "Kho có bản khớp thì không hỏi mạng", "Tiết kiệm thời gian và quota."),
-    Field("PoolDefaultLang", "", "fetch", "Ngôn ngữ mặc định cho file kho không rõ ngôn ngữ", "Để trống = bỏ qua file không rõ ngôn ngữ."),
     Field("ExcludeSdh", True, "fetch", "Không lấy bản SDH / Hearing Impaired", ""),
     Field("ExcludeForced", True, "fetch", "Không lấy bản Forced / foreignParts", ""),
     Field("MaxPages", 10, "fetch", "Số trang tối đa (SubSource)", "Một mục có thể có 150+ bản, đừng đặt quá thấp."),
@@ -650,6 +644,8 @@ IGNORED_VARS: dict[str, str] = {
     "DryRun": "thay bằng nút \"Xem lệnh\"",
     "PreviewFirst": "GUI luôn hiện bảng xem trước",
     "KnownLangTags": "thay bằng bảng ngôn ngữ chung",
+    **{k: "kho nội bộ srt_pool đã bỏ từ bản 1.2.0" for k in (
+        "PoolFolder", "UsePool", "PoolTryLimit", "PoolMinVotes", "PoolFirst", "PoolDefaultLang")},
 }
 #: Khoa dang danh sach: nhieu file khac nhau -> gop (hop) thay vi bao xung dot
 _UNION_KEYS = {"VideoExts"}

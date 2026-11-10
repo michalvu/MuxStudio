@@ -488,7 +488,7 @@ class MuxSession:
 
     def excluded_dirs(self) -> list[Path]:
         c = self.cfg
-        names = ["Output", c["DonorFolder"], c["PoolFolder"], c["SubFolderName"], c["ExtractFolder"],
+        names = ["Output", c["DonorFolder"], tools.LEGACY_POOL_FOLDER, c["SubFolderName"], c["ExtractFolder"],
                  c["SubFetchLogDir"], c["SubPrepLogDir"], c["MuxLogDir"]]
         return [self.td / n for n in names if n]
 

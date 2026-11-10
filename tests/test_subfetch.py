@@ -139,7 +139,7 @@ def test_full_run(lib):
     sc.mkdir(parents=True)
     (sc / "random name from web.srt").write_text(srt_text(lib.sub(EP2, 0.8, seed=15)), encoding="utf-8", newline="")
     (sc / "Show.S01E05.1080p.WEB-DL.en.srt").write_text(srt_text(lib.sub(EP2, 0.0, seed=16)), encoding="utf-8", newline="")
-    # kho noi bo co ban khop cho Dune en -> khong hoi mang cho ngon ngu do
+    # TD-38 (1.2.0): kho noi bo srt_pool DA BO -> file trong do khong con la nguon (Dune en: khong nguon nao co)
     pl = lib.root / "srt_pool" / "en"
     pl.mkdir(parents=True)
     (pl / "Dune.Part.Two.2024.en.srt").write_text(srt_text(lib.sub(DUNE, -3.0, seed=17)), encoding="utf-8", newline="")
@@ -161,11 +161,12 @@ def test_full_run(lib):
     assert asked == [(DUNE, "vi", ["Dune.Part.Two.2024.1080p", "Dune.Part.Two.2024.2160p.WEB"])]
     dv = item(s, DUNE, "vi")
     assert [c.machine for c in dv.candidates] == [False, True] and "dịch máy" in dv.candidates[1].info
-    # Dune en: kho noi bo khop -> khong tim tren mang
+    # Dune en: file trong srt_pool KHONG duoc dung nua -> hoi mang (khong co) -> thieu
     de = item(s, DUNE, "en")
-    assert de.chosen.src == "Kho" and de.chosen.tier == 1
-    assert not [c for c in http.calls_to(r"opensubtitles.*/subtitles$") if c.params.get("languages") == "en"
-                and c.params.get("query", "").startswith("Dune")]
+    assert de.chosen is None and de.candidates == [] and de.status == "không nguồn nào có"
+    assert [c for c in http.calls_to(r"opensubtitles.*/subtitles$") if c.params.get("languages") == "en"
+            and c.params.get("query", "").startswith("Dune")]
+    assert not any("kho" in m.lower() for _, m in job.lines)
     # Tap 1 vi: goi season, uoc tinh tu preview (dau ~), tu lay vi chi 1 ung vien
     v1 = item(s, EP1, "vi")
     assert v1.chosen.is_pack and v1.chosen.offset_label.endswith("~") and abs(v1.chosen.off.offset - 2.5) <= 0.25
@@ -179,14 +180,14 @@ def test_full_run(lib):
 
     rep = s.execute()
     out = lib.root / "srt_can_sync"
-    assert (rep.ok, rep.used_existing, rep.missing) == (5, 1, 0)
+    assert (rep.ok, rep.used_existing, rep.missing) == (4, 1, 1)
     # buoc 1 KHONG sua thoi gian: chep nguyen byte
     assert (out / "vi" / f"{EP1}.vi.srt").read_bytes() == pack["Show.S01E01.vi.srt"].encode("utf-8")
     assert (out / "vi" / f"{EP2}.vi.srt").read_bytes() == pack["Show.S01E02.vi.srt"].encode("utf-8")
     assert (out / "en" / f"{EP1}.en.ass").exists()  # Q7: ASS giu la ASS
     assert not (out / "en" / f"{EP1}.en.srt").exists()
     assert (out / "en" / f"{EP2}.en.srt").exists() and (sc / "random name from web.srt").exists()  # CHEP, khong di chuyen
-    assert (out / "vi" / f"{DUNE}.vi.srt").exists() and (out / "en" / f"{DUNE}.en.srt").exists()
+    assert (out / "vi" / f"{DUNE}.vi.srt").exists() and not (out / "en" / f"{DUNE}.en.srt").exists()
     assert len(http.calls_to(r"subtitles/1/download")) == 1  # goi tai MOT lan
     assert rep.os_remaining == 99
     assert rep.report_path and rep.report_path.name.startswith("fetch_")
@@ -195,7 +196,7 @@ def test_full_run(lib):
     runs = undo.list_runs(lib.root, "_subfetch_logs", "subfetch")
     trashed = []
     undo.execute_undo(undo.plan_undo(runs[0].path), trash_fn=lambda p, r=True: (trashed.append(p), os.remove(p)) and True)
-    assert len(trashed) == 6
+    assert len(trashed) == 5
     assert (sc / "random name from web.srt").exists()
     assert not (out / "vi" / f"{EP1}.vi.srt").exists()
 
@@ -226,23 +227,23 @@ def test_episode_specific_choice_not_reused_and_failed_choice_tries_next(lib):
     assert s.memory.get("100|vi") is None  # ban nho khong dung duoc -> xoa
 
 
-def test_no_subsource_entry_and_os_off_still_uses_pool(lib):
-    """TĐ-06 + TĐ-07: không có SubSource key, OpenSubtitles tắt → kho nội bộ vẫn chạy."""
+def test_no_sources_and_legacy_pool_folder_is_ignored(lib):
+    """TĐ-38: kho nội bộ đã bỏ — không có SubSource key, OpenSubtitles tắt → không nguồn nào, không gọi mạng,
+    file trong ``srt_pool`` không được dùng (và video trong đó vẫn không bị quét)."""
     pl = lib.root / "srt_pool" / "vi"
     pl.mkdir(parents=True)
     (pl / "Dune.Part.Two.2024.vi.srt").write_text(srt_text(lib.sub(DUNE, 1.0)), encoding="utf-8", newline="")
     http = FakeHTTP()
     s, job = session(lib, http, C.Config({"Languages": ["vi"], "UseOpenSubtitles": False}), secrets={})
     s.plan_all()
-    assert item(s, DUNE, "vi").chosen.src == "Kho"
+    assert sorted(i.video.stem for i in s.items) == [DUNE, EP1, EP2]
+    assert all(it.chosen is None and not it.candidates for it in s.items)
     assert not http.calls
     assert any("SubSource API key" in m for _, m in job.lines)
-    # cac tap Show: file kho cua phim KHAC chi khop yeu -> khong bao gio tu lay (TD-28)
-    for stem in (EP1, EP2):
-        it = item(s, stem, "vi")
-        assert it.chosen is None and all(c.fps == "đo: nghi ngờ" for c in it.candidates)
+    assert "pool" not in s.sources and not hasattr(s, "pool_index")
     rep = s.execute()
-    assert rep.ok == 1 and rep.missing + rep.skipped == 2
+    assert rep.ok == 0 and rep.missing == 3
+    assert (pl / "Dune.Part.Two.2024.vi.srt").exists()
 
 
 def test_keep_paid_downloads_off_trashes_weak_os_file_and_tries_next(lib, monkeypatch):

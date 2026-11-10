@@ -10,14 +10,14 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from core import naming, pool, tools
+from core import naming, tools
 from core.subfetch import Candidate, FetchItem, FetchReport, FetchSession
 from core.tmdb import ConnStatus
 
 from . import widgets as W
 
 RESET_TEXT = "↺ Làm lại từ đầu"
-SOURCES = (("subsource", "SubSource"), ("pool", "Kho nội bộ (srt_pool)"), ("opensubtitles", "OpenSubtitles"))
+SOURCES = (("subsource", "SubSource"), ("opensubtitles", "OpenSubtitles"))
 
 
 # ==========================================================================
@@ -73,8 +73,6 @@ def candidate_row(c: Candidate, i: int) -> dict[str, Any]:
 def candidate_tag(c: Candidate) -> str:
     if c.tier == 3:
         return "bad"
-    if c.fps == "đo: nghi ngờ":
-        return "need"
     if c.off is not None and c.off.total < 0:
         return "good"
     return ""
@@ -267,7 +265,6 @@ class FetchView:
             v.set(sw.get(c, False))
         self.lang_extra.delete(0, "end")
         self.lang_extra.insert(0, extra)
-        self.src_vars["pool"].set(bool(cfg["UsePool"]))
         self.src_vars["opensubtitles"].set(bool(cfg["UseOpenSubtitles"]))
         self.remember.set(bool(cfg["RememberChoice"]))
         if self.session is not None:
@@ -352,13 +349,6 @@ class FetchView:
                                 else ConnStatus(None, "chưa điền key"))
             out["opensubtitles"] = (check_connection("opensubtitles", vals, cfg, job) if vals.get("OsApiKey")
                                     else ConnStatus(None, "chưa điền key"))
-            if folder:
-                idx = pool.build_index(os.path.join(folder, cfg["PoolFolder"]), cfg["ExcludeForced"], cfg["ExcludeSdh"],
-                                       cfg["PoolDefaultLang"])
-                out["pool"] = ConnStatus(True if idx.total else None,
-                                         f"{idx.total} file: {idx.summary()}" if idx.total else f"'{cfg['PoolFolder']}' trống")
-            else:
-                out["pool"] = ConnStatus(None, "chưa chọn thư mục phim")
             return out
 
         def done(res: dict[str, ConnStatus]) -> None:

@@ -77,9 +77,9 @@ def test_reset_defaults():
     cfg = C.Config({"MinVerifyVotes": 30, "X": 1})
     cfg.reset_defaults(["MinVerifyVotes"])
     assert cfg["MinVerifyVotes"] == 20 and cfg["X"] == 1
-    cfg["PoolTryLimit"] = 3
+    cfg["MaxShowCandidates"] = 3
     cfg.reset_defaults()
-    assert cfg["PoolTryLimit"] == 8 and cfg["X"] == 1
+    assert cfg["MaxShowCandidates"] == 12 and cfg["X"] == 1
 
 
 @need_ref

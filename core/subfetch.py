@@ -8,7 +8,8 @@ Hai bước (§4 "Lập kế hoạch rồi mới thực thi"):
 2. **Thực thi** (``FetchSession.execute``): tải/chép đúng kế hoạch, ghi nhật ký hoàn tác
    ``_subfetch_logs\\actions_*.csv`` và báo cáo ``fetch_*.csv``.
 
-Nguồn theo thứ tự: file có sẵn trong ``srt_can_sync`` → kho ``srt_pool`` → SubSource → OpenSubtitles.
+Nguồn theo thứ tự: file có sẵn trong ``srt_can_sync`` → SubSource → OpenSubtitles (kho ``srt_pool`` đã bỏ ở bản
+1.2.0 — TĐ-38; thư mục ``srt_pool`` cũ vẫn bị loại khi quét).
 Bước ① KHÔNG sửa thời gian phụ đề — chỉ đo và báo (việc nắn thời gian là của bước ②).
 Phụ đề ASS giữ nguyên là ASS (Q7): đích là ``<tên phim>.<mã>.ass``.
 """
@@ -26,7 +27,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
-from . import episodes, naming, opensubs, pgs, pool, probe, srt, subsource, timing, tools, undo
+from . import episodes, naming, opensubs, pgs, probe, srt, subsource, timing, tools, undo
 from .tmdb import TmdbClient
 
 SUB_EXTS = (".srt", ".ass", ".ssa")
@@ -47,7 +48,7 @@ class Offset:
 
 @dataclass
 class Candidate:
-    """``New-Cand``. ``src`` ∈ ``SubSource`` | ``Kho`` | ``OpenSub``."""
+    """``New-Cand``. ``src`` ∈ ``SubSource`` | ``OpenSub``."""
 
     src: str
     tier: int  # 1 = FPS khop video, 2 = khong khai bao, 3 = lech
@@ -70,7 +71,7 @@ class Candidate:
         if self.tier == 1:
             return "đo được: KHỚP" if self.fps == "đo: khớp" else f"{self.fps} KHỚP"
         if self.tier == 2:
-            return "đo: nghi ngờ" if self.fps == "đo: nghi ngờ" else "không khai báo"
+            return "không khai báo"
         return "đo được: LỆCH" if self.fps == "lệch" else f"{self.fps} LỆCH"
 
     @property
@@ -421,7 +422,7 @@ class FetchSession:
         self.languages = [c.strip().lower() for c in (languages if languages is not None else cfg["Languages"]) if c.strip()]
         for c in self.languages:
             naming.register_language(c)
-        src = {"subsource": True, "pool": bool(cfg["UsePool"]), "opensubtitles": bool(cfg["UseOpenSubtitles"])}
+        src = {"subsource": True, "opensubtitles": bool(cfg["UseOpenSubtitles"])}
         src.update(sources or {})
         self.sources = src
         self.temp = Path(tempfile.mkdtemp(prefix="muxstudio_fetch_"))
@@ -448,7 +449,6 @@ class FetchSession:
                 cfg["OsUserAgent"], cfg["ApiPauseMs"], cfg["OsWarnRemaining"], cfg["OsStopRemaining"], http, sleep,
                 self.job, self.temp / "os")
         self._missing_key_ss = src["subsource"] and not key
-        self.pool_index: pool.PoolIndex | None = None
         self.items: list[FetchItem] = []
         self.videos: list[VideoInfo] = []
         self._connected = False
@@ -473,7 +473,7 @@ class FetchSession:
     def excluded_dirs(self) -> list[Path]:
         """Q6/TĐ-11: không tải phụ đề cho video trong Output, thư mục audio nguồn, kho, srt_goc, log."""
         c = self.cfg
-        names = [c["SubFolderName"], "Output", c["DonorFolder"], c["PoolFolder"], c["ExtractFolder"],
+        names = [c["SubFolderName"], "Output", c["DonorFolder"], tools.LEGACY_POOL_FOLDER, c["ExtractFolder"],
                  c["SubFetchLogDir"], c["SubPrepLogDir"], c["MuxLogDir"], *c["RefExcludeFolders"]]
         return [self.td / n for n in names if n]
 
@@ -498,9 +498,6 @@ class FetchSession:
             self.job.dim("[i] Chưa có TMDB key → tìm theo tên thay vì IMDb ID.")
         if self.os:
             self.os.login()
-        if self.sources["pool"]:
-            root = self.td / c["PoolFolder"]
-            self.pool_index = pool.build_index(root, c["ExcludeForced"], c["ExcludeSdh"], c["PoolDefaultLang"], self.job)
 
     # ------------------------------------------------------------------ 1. quet
     def scan(self) -> list[FetchItem]:
@@ -734,19 +731,8 @@ class FetchSession:
         if it.already or it.existing or it.skip:
             return []
         v = it.video
-        ref = v.ref.times if v.ref else None
-        cands: list[Candidate] = []
-        if self.sources["pool"]:
-            cands = pool.pool_candidates(self.pool_index, it.lang, v.stem, v.tokens, ref, c, self.job)
-        pool_hit = [x for x in cands if x.tier == 1 and x.off]
-        if c["PoolFirst"] and pool_hit:
-            self.job.info(f"    [i] {it.lang} : kho nội bộ đã có bản khớp → bỏ qua tìm trên mạng.")
-            cands = pool_hit
-        else:
-            if cands:
-                self.job.dim(f"    [i] {it.lang} : kho nội bộ có {len(cands)} ứng viên, tìm thêm trên mạng...")
-            self._ensure_entry(v)
-            cands += self.online_candidates(it)
+        self._ensure_entry(v)
+        cands: list[Candidate] = self.online_candidates(it)
         if not cands:
             it.status = "không nguồn nào có"
             self.job.warn(f"    [-] {it.lang} : không nguồn nào có phụ đề.")
@@ -784,10 +770,6 @@ class FetchSession:
             it.chosen, it.choice_reason = it.candidates[0], "tự động (bản đứng đầu)"
             return it.chosen
         only = it.candidates[0] if len(it.candidates) == 1 else None
-        if only is not None and only.fps == "đo: nghi ngờ":
-            # TD-28: do duoc nhung chi 8-19 moc khop ("can kiem tra") -> khong tu lay, de ban xem
-            self.job.warn("  [!] Ứng viên duy nhất chỉ khớp yếu (cần kiểm tra) → chờ bạn chọn.")
-            return None
         if c["AutoPickWhenSingle"] and only is not None:
             self.job.info("  [i] Chỉ có 1 ứng viên → lấy luôn.")
             it.chosen, it.choice_reason = it.candidates[0], "chỉ có 1 ứng viên"
@@ -857,8 +839,6 @@ class FetchSession:
             if f is None:
                 self.job.warn("      (gói này không có tập cần tìm)")
             return f
-        if cd.src == "Kho":
-            return Path(cd.payload)
         if cd.src == "OpenSub":
             return self.os.download(cd.payload) if self.os else None
         return None
