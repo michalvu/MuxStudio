@@ -1292,4 +1292,5 @@ SKIP: frozenset[str] = frozenset({
     " ({} mục [!] nên xem)",
     "{}\nLúc: {}\n\n{}",
     "Thiếu tkinter / customtkinter. Cài: pip install customtkinter",
+    "dựng được {} thẻ trong {} s, tiêu đề \"{}\"",
 })

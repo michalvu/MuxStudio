@@ -1,6 +1,6 @@
 # Bàn giao giữa các phiên làm việc (đọc file này TRƯỚC)
 
-Cập nhật: 2026-11-10, **Giai đoạn 0–6 ĐÃ DUYỆT (1.0.0); bản 1.1.0 (bảo trì đợt 1, mục 12) — CHỜ người dùng duyệt.**
+Cập nhật: 2026-11-10, **Giai đoạn 0–6 ĐÃ DUYỆT (1.0.0); bản 1.1.0 (mục 12) ĐÃ DUYỆT; bản 1.2.0 (mục 13) — CHỜ duyệt.**
 Repo `michalvu/MuxStudio`. Phiên sau (nếu có): bảo trì — sửa lỗi người dùng báo, yêu cầu mới (xem "Việc kế tiếp").
 Nhánh: chỉ còn **`claude/new-session-eckanp`** = nhánh chính (nhánh mặc định của repo). Các nhánh phiên cũ
 (`ccr-770f1e3e-dqsvcp`, `ccr-e18d248b-a69t65`, `claude/gifted-keller-fx1jey`) đã xoá ngày 2026-11-10 theo yêu cầu người
@@ -59,13 +59,14 @@ theo **IMDb** (không season) — lần dò chỉ thử theo tên (0 kết quả
 
 ```
 core/   timing pgs srt encoding episodes naming config secrets undo   (GĐ1)
-        tools probe tmdb subsource opensubs pool subfetch               (GĐ2)
+        tools probe tmdb subsource opensubs subfetch                    (GĐ2; pool ĐÃ XOÁ ở 1.2.0)
+        i18n i18n_en                                                     (1.2.0 — hai ngôn ngữ, mục 13)
         subprep                                                          (GĐ3)
         mux donor tvdb (+ phần bước ③ của probe tmdb naming)              (GĐ4)
         + set_job (3 phiên), naming.search_candidates, MuxSession.search_name (GĐ5)
 gui/    app widgets log_panel settings_view fetch_view subprep_view mux_view (GĐ5)
         + build_info / self_check (--kiem-tra) / write_startup_error trong app; resource_path / set_window_icon (GĐ6)
-tests/  pytest — 660 test (2 test alass thật tự bỏ qua nếu không có alass; 13 test test_gui_app.py + 1 test_packaging
+tests/  pytest — 683 test (2 test alass thật tự bỏ qua nếu không có alass; 15 test test_gui_app.py + 1 test_packaging
         tự bỏ qua nếu không có tkinter/màn hình); test_packaging.py (GĐ6); test_gui_logic.py (logic giao diện, không cần Tk); fakehttp.py (API giả),
         synth.py (phụ đề/PGS giả), fake_alass.py (alass GIẢ: ghi lại từng lần gọi, dịch phụ đề theo cấu hình),
         test_golden_powershell.py + test_golden_subprep.py + test_golden_mux.py + golden/ps_harness.ps1 (chạy HÀM GỐC
@@ -148,11 +149,11 @@ pip install -q uv && uv python install 3.11   # chạy test trên 3.11 (bản uv
 uv venv -p 3.11 /tmp/v311 && uv pip install -p /tmp/v311/bin/python keyring send2trash requests pytest customtkinter
 # Python 3.12 của Ubuntu + Tk 8.6 (GIỐNG Windows nhất — dùng để chụp ảnh giao diện):
 /usr/bin/python3.12 -m venv /tmp/v312 && /tmp/v312/bin/pip install -q customtkinter keyring send2trash requests pytest
-.venv/bin/python -m pytest -q              # không có Tk: 644 passed, 16 skipped (14 test cần Tk + 2 alass thật)
-xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 658 passed, 2 skipped
-xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 658 passed, 2 skipped
+.venv/bin/python -m pytest -q              # không có Tk: 665 passed, 18 skipped (16 test cần Tk + 2 alass thật)
+xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 681 passed, 2 skipped
+xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 681 passed, 2 skipped
 # Giả lập Windows (ghi file chữ \n→\r\n, Python con in cp1250) — phải qua hết:
-PYTHONPATH=tools xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider -p winemu   # 658 passed, 2 skipped
+PYTHONPATH=tools xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider -p winemu   # 681 passed, 2 skipped
 # Thử đóng gói (GĐ6) — PyInstaller trên Python 3.12 của Ubuntu (Tk 8.6), kết quả để ngoài repo:
 /usr/bin/python3.12 -m venv /tmp/vbuild && /tmp/vbuild/bin/pip install -q -r requirements-build.txt
 /tmp/vbuild/bin/python -m PyInstaller --noconfirm --clean --distpath /tmp/pyi/dist --workpath /tmp/pyi/build MuxStudio.spec
@@ -329,3 +330,44 @@ Người dùng (đang dùng bản .exe 1.0.0) gửi 4 yêu cầu + 1 yêu cầu 
   không gọi `refs.get` (khỏi trích phụ đề gốc).
 - Chụp ảnh kiểm tra bố cục: thẻ ② mốc = audio ở 1366×768 và 1920×1080 (mục 6).
 - Người dùng cập nhật: tải mã mới → `build.bat` → chép đè `dist\MuxStudio`.
+
+## 13. Bảo trì đợt 2 — bản 1.2.0 (2026-11-10)
+
+Yêu cầu: hai ngôn ngữ (English / Tiếng Việt), bỏ kho `srt_pool`, giao diện kiểu "kính" + Sáng/Tối, trang tác giả +
+bản quyền phần mềm bên khác, thanh tiến độ xanh lá có phần trăm. SPEC 7.F: TĐ-38, TĐ-39. Người dùng chốt: dịch TOÀN BỘ
+(kể cả Nhật ký), mặc định tiếng Việt, có làm nền mờ Windows 11, tác giả = Vũ Hoàng Anh (các công cụ thuộc bản quyền
+bên làm ra chúng). Nhánh phiên `claude/stoic-fermat-vbr5cy` CHƯA xoá được (môi trường chặn xoá nhánh) — người dùng tự xoá.
+
+- **Hai ngôn ngữ — nguyên tắc: mã nguồn GIỮ chữ tiếng Việt, chỉ dịch ở chỗ hiển thị.** Đừng bọc chuỗi trong mã bằng
+  hàm dịch và đừng dịch dữ liệu: rất nhiều chỗ so sánh / ghi file bằng chữ tiếng Việt (`r.status == "đã trích"`,
+  `"Khớp" in note`, cột Detail của nhật ký hoàn tác) — làm vậy thì bản English chạy khác logic mà test không thấy.
+  - `core/i18n.py`: `set_language`, `tr(text)` (vi → trả nguyên), `translate_to`, `missing`, `recorded`. `tr` nhận câu
+    ĐÃ ghép giá trị nên so ngược với MẪU (`{}` = chỗ chèn): trùng nguyên văn → khớp mẫu (regex, mẫu có chữ cố định
+    dài nhất thắng; giá trị dịch tiếp đệ quy) → mẫu "mảnh" (bắt đầu / kết thúc bằng ký tự không phải chữ-số, ≥ 5 ký
+    tự: được phép có chữ thừa phía đó — cho các chuỗi nối bằng `+`) → tách theo dòng / bỏ nhãn đầu `[!]`, `▶ 1.` / dấu
+    ngăn cách ` | `, `; `, `: `… / ngoặc / số đếm đầu câu. Không dịch được thì giữ nguyên.
+  - Bảng dịch `core/i18n_en.py` là FILE TỰ SINH: `tools/i18n/vi.json` + `en_00…08.txt` (đợt dịch đầu, mỗi dòng một
+    chuỗi JSON, cùng thứ tự) + `extra.json` (câu thêm sau; câu KHÔNG DẤU như "Sang ③ Mux →", "Xong: {}." mà công cụ
+    rút chữ không thấy). **Thêm / sửa câu chữ trong mã:** `python tools/i18n_extract.py --missing` → điền
+    `tools/i18n/extra.json` (`""` = cố ý không dịch) → `python tools/i18n_build.py`. `test_i18n` hỏng nếu quên.
+  - Soát chỗ sót: `MUXSTUDIO_I18N_RECORD=/tmp/rec.json xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider`
+    rồi `python tools/i18n_residue.py /tmp/rec.json` (hiện còn 4 câu, đều là dữ liệu giả của test / tên file).
+  - Giao diện: `W.install_i18n()` vá `__init__` / `configure` của CTkLabel, CTkButton, CTkCheckBox, CTkRadioButton,
+    CTkSwitch, CTkEntry (dịch `text`, `placeholder_text`) và `CTkTabview` (`add/tab/set/delete` dịch tên, `get()` trả
+    tên tiếng Việt). `W.TrChoice` cho OptionMenu / SegmentedButton có giá trị dùng trong logic (`prep.lang`,
+    `settings.group_var`). `Table._shown` dịch ô (trừ cột `fit="name"` = tên file), tiêu đề cột; `Tooltip`, `Dialog`,
+    `W.info/warn/ask_yes_no/ask_yes_no_cancel`, `LogPanel.write_many`. `cget("text")` trả chữ ĐÃ dịch.
+  - Test: fixture tự động `vietnamese_ui` (conftest) trả ngôn ngữ về `vi` sau mỗi test.
+- **Bỏ kho `srt_pool`** (TĐ-38): xoá `core/pool.py`, `tests/test_pool.py`; `tools.LEGACY_POOL_FOLDER` vẫn nằm trong
+  danh sách loại trừ khi quét; 6 khoá `Pool*` vào `config.IGNORED_VARS`. Test giao diện thẻ ① giờ dùng OpenSubtitles
+  giả (vá `FV.FetchSession` để truyền `FakeHTTP`).
+- **Bộ màu kính**: `tools/make_theme.py` → `assets/glass.json` (theme `blue` của CustomTkinter + phần đè; spec đã gom).
+  `W.load_glass_theme`, `W.appearance_mode`, `App.set_appearance` (đổi ngay) + `W.on_restyle` / `W.restyle` (tô lại
+  Treeview, Canvas, khung log, PanedWindow — các phần không phải widget CTk); `AppearanceModeTracker` gọi lại khi
+  Windows đổi Sáng/Tối. `W.apply_backdrop` (DWM: thuộc tính 20 + 38, kéo khung vào vùng nội dung, nền gốc đen) —
+  **CHƯA thử trên Windows thật**; `UiBackdrop` mặc định `none`. Nếu người dùng báo chữ có viền / cửa sổ đen: đó là chỗ này.
+- **Thẻ Giới thiệu** `gui/about_view.py`: `AUTHOR`, `CREDITS` (đã đối chiếu giấy phép với metadata các gói đang cài:
+  CustomTkinter MIT theo file LICENSE dù trường License ghi CC0), `ATTRIBUTIONS` (TMDB, TheTVDB), `about_lines`.
+  Thêm thư viện mới vào `requirements.txt` → thêm một `Credit`.
+- **Thanh tiến độ**: `W.PROGRESS_GREEN`, `W.progress_text` → nhãn `App.prog_pct`.
+- Đã thử đóng gói PyInstaller trên Linux: `--kiem-tra` ĐẠT, `assets/glass.json` có trong bản đóng gói.

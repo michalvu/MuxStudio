@@ -796,7 +796,7 @@ def _chk_window(items: list[CheckItem]) -> None:
         elif len(tabs) != len(TABS) or a.root.title() != APP_TITLE:
             items.append(CheckItem("Cửa sổ chính", "fail", f"thẻ: {tabs}, tiêu đề: {a.root.title()!r}"))
         else:
-            items.append(CheckItem("Cửa sổ chính", "ok", f"dựng được 4 thẻ trong {time.monotonic() - t0:.1f} s, "
+            items.append(CheckItem("Cửa sổ chính", "ok", f"dựng được {len(TABS)} thẻ trong {time.monotonic() - t0:.1f} s, "
                                                         f"tiêu đề \"{APP_TITLE}\""))
         from tkinter import font as tkfont  # noqa: PLC0415
 

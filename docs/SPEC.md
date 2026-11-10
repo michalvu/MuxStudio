@@ -94,7 +94,8 @@ Vai trò từng module `core/`:
 | `config.py` | Đọc/ghi `%APPDATA%\MuxStudio\config.json`, giá trị mặc định, **nhập cấu hình từ .bat** |
 | `secrets.py` | Đọc/ghi 7 bí mật qua `keyring` (Windows Credential Manager), hàm che (vd. `sk_ab…1234`) |
 | `subsource.py` / `opensubs.py` / `tmdb.py` / `tvdb.py` | Client API, mỗi cái có bộ nhớ đệm trong lượt chạy và hàm "Kiểm tra kết nối" |
-| `pool.py` | Kho `srt_pool`: lập chỉ mục theo ngôn ngữ, đo thật từng ứng viên |
+| `pool.py` | ~~Kho `srt_pool`~~ — **đã xoá ở bản 1.2.0 (TĐ-38)** |
+| `i18n.py`, `i18n_en.py` | (1.2.0) Hai ngôn ngữ giao diện: `tr()` dịch ở chỗ hiển thị + bảng dịch Việt → Anh (TĐ-39) |
 | `subfetch.py` | Bước ①: phụ đề gốc làm mốc, dùng file có sẵn, gom + xếp hạng ứng viên, nhớ lựa chọn, tải |
 | `subprep.py` | Bước ②: trích phụ đề gốc, chỉ mục mốc, ghép tên, đổi tên, cắt recap, alass, sửa khối 00:00:00, sức khoẻ, dọn dẹp |
 | `mux.py` | Bước ③: quy tắc audio/phụ đề, thẻ codec, dựng lệnh `mkvmerge`, thực thi + kiểm tra mã thoát |
@@ -523,11 +524,14 @@ Khoá = tên biến trong .bat (để nhập thẳng). Nhóm = nhóm trên màn 
 | `ExtraToolDirs` | MT `$ExtraToolDirs` | `['C:\Users\fenha\Desktop\alass-windows64\bin\alass']` | danh sách thư mục | nơi tìm thêm ffprobe/ffmpeg |
 | `MkvmergePath`, `MkvextractPath`, `AlassPath`, `FfprobePath`, `FfmpegPath` | *(mới)* | `''` = tự tìm | khối **"Công cụ ngoài"** ở ĐẦU nhóm Chung (GĐ5): đường dẫn + "Chọn…" + "Tự tìm"; dưới mỗi ô hiện file ĐANG được dùng + phiên bản (`tools.tool_info`, kể cả khi để trống cho tự tìm) | chú thích ghi công cụ dùng ở bước nào; báo "không phải ffprobe?" khi chọn nhầm file, "KHÔNG chạy được" khi thiếu DLL / bị Windows chặn (như MT dòng 2251). Lúc mở chương trình: log công cụ thiếu + việc gì không làm được. **Bắt buộc:** mkvmerge (bước ③), alass (bước ②) |
 | `UiScale` | *(mới, GĐ5)* | `auto` | lựa chọn `auto/90/100/110/125/150` | cỡ chữ và giao diện; `auto` = 110% trên màn hình 1440p / 4K đặt tỉ lệ 100%, còn lại 100%. Có hiệu lực khi mở lại. (Khoá phụ `UiGeometry`, `UiZoomed`, `UiLastFolder`, `UiLogHeight` — chiều cao khung Nhật ký đã kéo — do chương trình tự ghi, không có ô) |
+| `UiLanguage` | — (mới, bản 1.2.0) | `vi` | lựa chọn `vi/en` | ngôn ngữ giao diện; có hiệu lực khi mở lại (TĐ-39) |
+| `UiAppearance` | — (mới, bản 1.2.0) | `system` | lựa chọn `system/light/dark` | Sáng / Tối; đổi ngay khi lưu |
+| `UiBackdrop` | — (mới, bản 1.2.0) | `none` | lựa chọn `none/mica/acrylic` | nền mờ của Windows 11 (22H2+); máy khác tự bỏ qua; có hiệu lực khi mở lại |
 | `ScanSubFolders` ⇢ | SF, SP, MT | `true` | ô tick | |
 | `VideoExts` ⇢ | SF `.mkv .mp4 .avi .m4v .ts`; SP thêm `.mov`; MT viết cứng `mkv mp4 m4v avi ts` | `.mkv .mp4 .avi .m4v .ts .mov` | danh sách | hợp các bản |
 | `SubFolderName` ⇢ | SF, SP | `srt_can_sync` | ô chữ | |
 | `ExtractFolder` ⇢ | SF, SP | `srt_goc` | ô chữ | |
-| `PoolFolder` | SF | `srt_pool` | ô chữ | |
+| `PoolFolder` | SF | `srt_pool` | ô chữ | **ĐÃ BỎ ở bản 1.2.0 (TĐ-38)** — khi nhập từ .bat thì báo "bỏ qua" |
 | `DonorFolder` | MT | `audio_nguon` | ô chữ | |
 | `MinVerifyVotes` ⇢ | SF, SP | `20` | số | ngưỡng tin cậy; comment: khớp đúng 25–35 phiếu, khớp sai 5–15 |
 | `FpsSampleRef` ⇢ | SP (MT viết cứng) | `400` | số (Nâng cao) | |
@@ -579,11 +583,11 @@ Khoá = tên biến trong .bat (để nhập thẳng). Nhóm = nhóm trên màn 
 | `StrictFpsMatch` | SF | `true` | ô tick | |
 | `AllowUnknownFps` | SF | `true` | ô tick | |
 | `KeepPaidDownloads` | SF (không được dùng) | `true` | ô tick | xem TĐ-22, Q5 |
-| `UsePool` | SF | `true` | ô tick | |
-| `PoolTryLimit` | SF | `8` | số | |
-| `PoolMinVotes` | SF | `8` | số | |
-| `PoolFirst` | SF | `true` | ô tick | |
-| `PoolDefaultLang` | SF | `''` | lựa chọn ngôn ngữ / trống | |
+| `UsePool` | SF | `true` | ô tick | **ĐÃ BỎ ở bản 1.2.0 (TĐ-38)** — khi nhập từ .bat thì báo "bỏ qua" |
+| `PoolTryLimit` | SF | `8` | số | **ĐÃ BỎ ở bản 1.2.0 (TĐ-38)** — khi nhập từ .bat thì báo "bỏ qua" |
+| `PoolMinVotes` | SF | `8` | số | **ĐÃ BỎ ở bản 1.2.0 (TĐ-38)** — khi nhập từ .bat thì báo "bỏ qua" |
+| `PoolFirst` | SF | `true` | ô tick | **ĐÃ BỎ ở bản 1.2.0 (TĐ-38)** — khi nhập từ .bat thì báo "bỏ qua" |
+| `PoolDefaultLang` | SF | `''` | lựa chọn ngôn ngữ / trống | **ĐÃ BỎ ở bản 1.2.0 (TĐ-38)** — khi nhập từ .bat thì báo "bỏ qua" |
 | `ExcludeSdh` | SF | `true` | ô tick | |
 | `ExcludeForced` | SF | `true` | ô tick | |
 | `MaxPages` | SF | `10` | số | |
@@ -826,6 +830,9 @@ Phần console (`Initialize-Console`, `Disable-QuickEdit`, `Set-ConsoleSize`, `W
 | TĐ-35 | 1.1.0 ✅ | SP `Show-AudioStreams`: chỉ hiện audio track của **file mẫu** (file phim đầu tiên) khi mốc = audio | Thẻ ② hiện audio track của **mọi file phim** (`PrepSession.all_audio_streams` → `VideoAudio`): cột Tập, File phim, số thứ tự, ngôn ngữ, codec, kênh, tên track, Default, **Làm mốc** (track sẽ dùng của TỪNG file theo lựa chọn Tự động / Số thứ tự / Ngôn ngữ — hàm thuần `pick_audio_stream`, cũng là hàm `_pick_audio` dùng khi lập cặp). File có bố cục audio khác đa số: dòng vàng + tiêu đề cảnh báo; không đọc được: dòng đỏ. Kết quả đồng bộ **không đổi** ("Theo số thứ tự" vẫn là một số chung cho mọi file; file không có số / ngôn ngữ đó → track Default, như cũ) | `test_gui_logic.py` (`audio_rows`, `audio_summary`, `pick_audio_stream`), `test_e2e_subprep.py::test_all_audio_streams_lists_every_video` (MKV thật), `test_gui_app.py::test_subprep_audio_table_lists_every_file` |
 | TĐ-36 | 1.1.0 ✅ | SF: luôn tìm phụ đề cho mọi ngôn ngữ đã bật, kể cả khi phim đã có sẵn phụ đề ngôn ngữ đó (chỉ bỏ qua khi file đích trong `srt_can_sync` đã có) | Bước ① lúc quét: ngôn ngữ mà phim **đã có** thì không tìm / không tải nữa, chỉ gợi ý các ngôn ngữ còn thiếu. "Đã có" = (a) file `<tên phim>.<mã>.srt\|ass\|ssa\|vtt` nằm **cạnh phim** (kết quả bước ②; bỏ file `.forced.`; file không hậu tố ngôn ngữ không tính) hoặc (b) track phụ đề **chữ** trong MKV đúng ngôn ngữ (**tính cả SDH** — người dùng chọn; không tính Forced, phụ đề dạng ảnh PGS/VobSub, track `und`). Dòng hiện "phim đã có (trong MKV: track 2 SRT) — không tìm" / "(cạnh phim): tên file". Phim đã đủ mọi ngôn ngữ → khỏi đọc / trích phụ đề gốc làm mốc. Tắt được: `SkipIfVideoHasSub` (mặc định bật) | `test_subfetch.py` (4 test: `embedded_sub_langs`, `sidecar_sub_langs` với tên có `[ ]`, quét chỉ còn ngôn ngữ thiếu, công tắc), `test_gui_logic.py::test_item_status_video_already_has_sub` |
 | TĐ-37 | 1.1.0 ✅ | — (chỉ giao diện) | (a) Thẻ ②, mốc = audio: **ẩn** bước "Trích phụ đề gốc" và dòng nhắc `srt_goc` trống (trước: bước này tự ✓ xanh, gây rối); các bước còn lại đánh số lại 1–5 (`StepBar.set_hidden`, `visible_step_states`). (b) Bước "Xem trước đổi tên" đổi tên thành **"Quét phụ đề"**; hai thẻ con thành "Đổi tên" / "Đồng bộ" (bỏ số bước). (c) Nút **"↺ Làm lại từ đầu"** ở cả ba thẻ (`reset_all`): xoá bảng, tổng kết, tiến độ của lượt (thẻ ③: bỏ cả lựa chọn database; thẻ ②: phiên mới = nhật ký mới, giữ Mốc + Ngôn ngữ); **không xoá file**, không xoá khung Nhật ký; còn dòng chưa chạy thì hỏi xác nhận. (d) Thẻ ②: bước "Dọn dẹp" chỉ ✓ khi đã qua hộp thoại dọn dẹp của lượt này (trước: tự ✓ khi đồng bộ xong mà không còn gì để dọn); bấm "Quét phụ đề" lại = lượt mới (bỏ ✓ dọn dẹp, bảng đồng bộ đã chạy xong được xoá) | `test_gui_logic.py::test_visible_step_states_skips_hidden_steps`, `test_gui_app.py` (3 thẻ: `reset_all`; thẻ ②: ẩn / hiện bước + đánh số) |
+
+| TĐ-38 | 1.2.0 ✅ | SF `Initialize-Pool`, `Get-PoolCandidates`, `$UsePool`, `$PoolFolder`, `$PoolTryLimit`, `$PoolMinVotes`, `$PoolFirst`, `$PoolDefaultLang`; PROMPT §6.11 nguồn 2 (kho nội bộ `srt_pool`) | **Bỏ hẳn kho nội bộ theo yêu cầu người dùng** ("không còn cần thiết"). Xoá `core/pool.py`, ô tick nguồn "Kho nội bộ" ở thẻ ①, 6 khoá cấu hình (nhập từ .bat: 6 biến này vào danh sách "bỏ qua" kèm lý do). Nguồn còn lại: file có sẵn trong `srt_can_sync` → SubSource → OpenSubtitles. Thư mục `srt_pool` trên đĩa KHÔNG bị đụng tới và **vẫn bị loại khi quét** ở cả ba bước (`tools.LEGACY_POOL_FOLDER`) để video / phụ đề cũ trong đó không bị nhận nhầm. Hệ quả: nhánh "ứng viên duy nhất chỉ khớp yếu → chờ bạn chọn" (TĐ-28) không còn nguồn nào sinh ra nên cũng gỡ | `test_subfetch.py::test_no_sources_and_legacy_pool_folder_is_ignored`, `test_full_run` (file trong `srt_pool` không được dùng), `test_gui_app.py::test_fetch_tab_choose_and_download` (OpenSubtitles giả), `test_config.py` |
+| TĐ-39 | 1.2.0 ✅ | — (chỉ giao diện) | (a) **Hai ngôn ngữ** Tiếng Việt (gốc, mặc định) / English — `UiLanguage`. Mã nguồn giữ nguyên chữ tiếng Việt (mọi phép so sánh, tên trạng thái, nhật ký hoàn tác chạy y như nhau ở cả hai ngôn ngữ); chỉ DỊCH Ở CHỖ HIỂN THỊ: `core/i18n.tr` + bảng `core/i18n_en.py` (1.237 mẫu câu, sinh từ `tools/i18n/`), gắn vào mọi widget CustomTkinter (`W.install_i18n`), bảng, lưới, chú thích, hộp thoại, dòng Nhật ký (kể cả "Lưu log"), CSV xuất ra. Báo cáo tự kiểm tra (`--kiem-tra`) và `loi_khoi_dong.txt` giữ tiếng Việt. Tên thư mục (`srt_can_sync`, `srt_goc`, `Output`) và file nhật ký không đổi. (b) **Bộ màu "kính"** `assets/glass.json` (khung bo tròn có viền sáng, nút dạng viên thuốc) + **Sáng / Tối / theo Windows** (`UiAppearance`, đổi ngay) + **nền mờ Windows 11** Mica / Acrylic (`UiBackdrop`, mặc định tắt, CHƯA thử được trên Windows thật). CustomTkinter không làm được kính trong suốt từng khung — đã báo người dùng. (c) Thẻ **Giới thiệu**: tác giả Vũ Hoàng Anh, bản quyền, bảng phần mềm / dịch vụ của bên khác kèm chủ bản quyền + giấy phép, câu ghi nhận TMDB / TheTVDB. (d) Thanh tiến độ **xanh lá + phần trăm** (`37% · 3/8`) | `test_i18n.py` (mọi câu trong mã phải có bản dịch; số chỗ chèn; 19 câu ghép thật), `test_gui_app.py::test_english_interface_translates_display_but_keeps_logic`, `::test_light_dark_switch_about_tab_and_green_percent_progress`, `test_gui_logic.py` (trang Giới thiệu, phần trăm) |
 
 ### 7.E. API bên ngoài
 

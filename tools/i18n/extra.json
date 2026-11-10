@@ -11,6 +11,7 @@
 "File .bat": ".bat file",
 "MuxStudio {} ({})": "MuxStudio {} ({})",
 "NGOÀI": "EXTERNAL",
+"dựng được {} thẻ trong {} s, tiêu đề \"{}\"": "",
 "trong MKV: {}": "inside the MKV: {}",
 "         so với sub gốc: CÒN LỆCH {}s ({} mốc){}": "         against the original sub: STILL OFF {}s ({} cues){}",
 "         so với sub gốc: gần khớp {}s ({} mốc){}": "         against the original sub: nearly matches {}s ({} cues){}",

@@ -4,8 +4,10 @@ Phần mềm Windows (Python + CustomTkinter) thay cho ba công cụ dòng lện
 tải phụ đề → đồng bộ phụ đề → dọn track và mux MKV, đặt tên chuẩn Jellyfin.
 
 **Trạng thái:** **hoàn thành — đã duyệt cả 7 giai đoạn (0–6)**. Phiên bản **1.2.0**: bản `MuxStudio.exe` (không cần cài
-Python) tạo bằng `build.bat`; giao diện 4 thẻ ① Tải phụ đề → ② Chuẩn bị phụ đề → ③ Mux → Cài đặt, khung log màu, nút
-Dừng, màn hình Hoàn tác.
+Python) tạo bằng `build.bat`; giao diện 5 thẻ ① Tải phụ đề → ② Chuẩn bị phụ đề → ③ Mux → Cài đặt → Giới thiệu, hai ngôn ngữ (Tiếng Việt / English),
+bộ màu kiểu kính Sáng / Tối, khung log màu, nút Dừng, màn hình Hoàn tác.
+
+Tác giả: **Vũ Hoàng Anh**. Phần mềm của bên khác mà MuxStudio dùng (và giấy phép của chúng): xem thẻ **Giới thiệu**.
 
 **Bắt đầu từ đây: [`HUONG_DAN.md`](HUONG_DAN.md)** — tạo bản `.exe`, công cụ cần có, cấu hình lần đầu, quy trình
 ① → ② → ③, báo lỗi, xử lý khi Windows / phần mềm diệt virus chặn.

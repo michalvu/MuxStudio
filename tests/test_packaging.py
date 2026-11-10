@@ -194,7 +194,7 @@ def test_entry_point_script(tmp_path, config_dir):
     assert ("KẾT QUẢ: ĐẠT" in text) == (r.returncode == 0)
     if HAS_TK:
         assert r.returncode == 0, text
-        assert re.search(r"\[OK\]   Cửa sổ chính: dựng được 4 thẻ", text)
+        assert re.search(r"\[OK\]   Cửa sổ chính: dựng được 5 thẻ", text)
 
 
 @pytest.mark.skipif(not HAS_TK, reason="không có tkinter / customtkinter / màn hình")

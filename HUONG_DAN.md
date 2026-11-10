@@ -27,7 +27,7 @@ Bản `.exe` chạy **không cần cài Python**. Chỉ máy dùng để **tạo
 5. **Chép CẢ thư mục `dist\MuxStudio`** tới nơi bạn muốn (vd `C:\Users\fenha\Desktop\MuxStudio`).
    Đừng chép riêng file `MuxStudio.exe` — nó cần thư mục `_internal` nằm cạnh.
 6. Tạo lối tắt: chuột phải `MuxStudio.exe` › *Send to* (*Gửi tới*) › *Desktop (create shortcut)*.
-7. Bấm đúp `MuxStudio.exe` để chạy. Số phiên bản hiện trên thanh tiêu đề (vd **MuxStudio 1.1.0**) và ở dòng đầu
+7. Bấm đúp `MuxStudio.exe` để chạy. Số phiên bản hiện trên thanh tiêu đề (vd **MuxStudio 1.2.0**) và ở dòng đầu
    khung Nhật ký.
 
 **Cập nhật bản mới:** tải mã nguồn mới → bấm đúp `build.bat` lần nữa → chép đè thư mục `dist\MuxStudio` lên thư mục
@@ -61,6 +61,11 @@ Dòng **✗**: bấm **Chọn…** để chỉ tới đúng file `.exe`, hoặc 
    *"OpenSubtitles: đăng nhập VIP…, còn 987/1000 lượt tải"*).
 3. Xem lại các nhóm khác nếu muốn (mỗi ô có chú thích tiếng Việt; bật **Hiện mục nâng cao** để thấy hết) › **Lưu cài đặt**.
 
+4. **Giao diện** (Cài đặt › Chung): **Ngôn ngữ giao diện** `vi` = Tiếng Việt, `en` = English (đổi xong **mở lại**
+   MuxStudio mới có hiệu lực); **Chế độ Sáng / Tối** `system` / `light` / `dark` (đổi ngay khi bấm Lưu cài đặt);
+   **Nền mờ của Windows 11** `none` / `mica` / `acrylic` — nền cửa sổ mờ nhìn xuyên kiểu kính (chỉ Windows 11, mở lại
+   mới có hiệu lực). Nếu bật mà chữ có viền lạ hoặc cửa sổ hiện sai: chọn lại `none`, lưu, mở lại.
+
 Nơi lưu: cấu hình `%APPDATA%\MuxStudio\config.json` (nút **Mở thư mục cấu hình** trong Cài đặt); key trong
 *Control Panel › Credential Manager › Windows Credentials*, các mục có chữ `MuxStudio`.
 
@@ -77,7 +82,8 @@ Các nút nhỏ màu xám (Xem lệnh, Xuất CSV…, Bỏ qua…) là việc ph
 Nhật ký, và "Hoàn tác…" vẫn dùng được cho lượt cũ.
 
 **① Tải phụ đề** (thay SubFetch)
-1. Tick ngôn ngữ cần tải, bật/tắt nguồn (SubSource, kho `srt_pool`, OpenSubtitles); **Kiểm tra nguồn** để xem key /
+1. Tick ngôn ngữ cần tải, bật/tắt nguồn (SubSource, OpenSubtitles — kho `srt_pool` đã bỏ từ bản 1.2.0; muốn dùng phụ
+   đề tự có thì bỏ vào `srt_can_sync`); **Kiểm tra nguồn** để xem key /
    lượt tải còn lại.
 2. **1. Quét thư mục** → **2. Tìm phụ đề**. Ngôn ngữ mà phim **đã có phụ đề** thì dòng đó ghi *"phim đã có … — không
    tìm"* và được bỏ qua; chương trình chỉ tìm ngôn ngữ còn thiếu. "Đã có" = có file `<tên phim>.<mã>.srt` nằm cạnh
@@ -115,6 +121,10 @@ của file phim*) và **Ngôn ngữ**, rồi theo thanh các bước:
 
 ## 5. Dừng, Hoàn tác, khung Nhật ký
 
+- **Thanh tiến độ** (xanh lá, cạnh nút Dừng): số phần trăm và số file đã xong, vd `37% · 3/8`.
+- Thẻ **Giới thiệu**: phiên bản, tác giả, và danh sách phần mềm / dịch vụ của bên khác mà MuxStudio dùng kèm giấy phép
+  (bấm đúp một dòng để mở trang chủ; **Chép nội dung trang này** để dán vào nơi khác).
+
 - Đang chạy: **Dừng sau file này** (làm xong file hiện tại rồi dừng) hoặc **■ Dừng ngay** (kết thúc ngay, xoá file dở dang).
 - Nút **Hoàn tác…** ở đầu cửa sổ: danh sách các lần chạy của cả ba bước (mới nhất ở trên, giữ 20 lần mỗi bước) → tick →
   **Hoàn tác các lần đã tick…**. File tạo ra → **Thùng rác**; file đã đổi tên / di chuyển → trả về chỗ cũ.
@@ -126,7 +136,7 @@ của file phim*) và **Ngôn ngữ**, rồi theo thanh các bước:
 ## 6. Báo lỗi
 
 Gửi cho người hỗ trợ:
-1. **Số phiên bản** (thanh tiêu đề, vd *MuxStudio 1.1.0*; dòng thứ hai của khung Nhật ký ghi rõ bản `.exe`, Python, Windows).
+1. **Số phiên bản** (thanh tiêu đề, vd *MuxStudio 1.2.0*; dòng thứ hai của khung Nhật ký ghi rõ bản `.exe`, Python, Windows).
 2. **Log**: khung Nhật ký › **Lưu log…** (key, mật khẩu đã được che).
 3. **Ảnh chụp màn hình** chỗ bị lỗi.
 4. **Không mở được chương trình**: file `%APPDATA%\MuxStudio\loi_khoi_dong.txt` (gõ `%APPDATA%\MuxStudio` vào thanh
