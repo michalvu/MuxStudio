@@ -743,3 +743,21 @@ def test_progress_percent_and_text():
     assert W.progress_percent(5, 0) == 0 and W.progress_percent(9, 8) == 100 and W.progress_percent(-1, 8) == 0
     assert W.progress_text(3, 8) == "37% · 3/8" and W.progress_text(0, 0) == "0%" and W.progress_text(8, 8) == "100% · 8/8"
     assert all(c.startswith("#") for c in W.PROGRESS_GREEN)
+
+
+def test_about_page_author_and_third_party_credits():
+    from gui import about_view as AV
+
+    assert AV.AUTHOR == "Vũ Hoàng Anh" and AV.COPYRIGHT == "© 2026 Vũ Hoàng Anh"
+    names = " | ".join(c.name for c in AV.CREDITS)
+    for must in ("Python", "Tcl/Tk", "CustomTkinter", "Requests", "keyring", "Send2Trash", "PyInstaller", "MKVToolNix",
+                 "FFmpeg", "alass", "TMDB", "TheTVDB", "OpenSubtitles", "SubSource"):
+        assert must in names, must
+    assert all(c.owner and c.license and c.url.startswith("http") and c.use for c in AV.CREDITS)
+    lic = {c.name.split(" ")[0]: c.license for c in AV.CREDITS}
+    assert lic["MKVToolNix"] == "GPL-2.0" and lic["alass"] == "GPL-3.0" and lic["CustomTkinter"] == "MIT"
+    assert [c.kind for c in AV.by_kind(AV.TOOL)] == [AV.TOOL] * 3  # cong cu ngoai: KHONG di kem ban .exe
+    text = "\n".join(AV.about_lines("9.9.9"))
+    assert text.startswith("MuxStudio 9.9.9\nTác giả: Vũ Hoàng Anh\n© 2026 Vũ Hoàng Anh")
+    assert "bản quyền của chúng thuộc về tác giả / tổ chức tương ứng" in text
+    assert "This product uses the TMDB API but is not endorsed or certified by TMDB." in text and "TheTVDB" in text

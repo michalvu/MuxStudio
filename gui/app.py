@@ -33,7 +33,8 @@ TAB_FETCH = "① Tải phụ đề"
 TAB_PREP = "② Chuẩn bị phụ đề"
 TAB_MUX = "③ Mux"
 TAB_SETTINGS = "Cài đặt"
-TABS = (TAB_FETCH, TAB_PREP, TAB_MUX, TAB_SETTINGS)
+TAB_ABOUT = "Giới thiệu"
+TABS = (TAB_FETCH, TAB_PREP, TAB_MUX, TAB_SETTINGS, TAB_ABOUT)
 
 STEP_LABEL = {"subfetch": "① Tải phụ đề", "subprep": "② Chuẩn bị phụ đề", "mux": "③ Mux"}
 STEP_LOGDIR = {"subfetch": "SubFetchLogDir", "subprep": "SubPrepLogDir", "mux": "MuxLogDir"}
@@ -264,6 +265,9 @@ class App:
         self.prep = SubprepView(self, self.tabs.tab(TAB_PREP))
         self.mux = MuxView(self, self.tabs.tab(TAB_MUX))
         self.settings = SettingsView(self, self.tabs.tab(TAB_SETTINGS))
+        from .about_view import AboutView  # noqa: PLC0415
+
+        self.about = AboutView(self, self.tabs.tab(TAB_ABOUT))
         self.views = [self.fetch, self.prep, self.mux, self.settings]
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -383,7 +387,7 @@ class App:
             else:
                 self.settings.reload()
         self._current_tab = new
-        v = {TAB_FETCH: self.fetch, TAB_PREP: self.prep, TAB_MUX: self.mux, TAB_SETTINGS: self.settings}[new]
+        v = {TAB_FETCH: self.fetch, TAB_PREP: self.prep, TAB_MUX: self.mux, TAB_SETTINGS: self.settings}.get(new)
         if hasattr(v, "on_show"):
             v.on_show()
 
@@ -626,7 +630,7 @@ class UndoDialog:
 SELF_CHECK_ARGS = ("--kiem-tra", "--self-check")
 CORE_MODULES = ("config", "secrets", "tools", "probe", "episodes", "naming", "timing", "pgs", "srt", "encoding", "undo",
                 "subsource", "opensubs", "tmdb", "tvdb", "subfetch", "subprep", "mux", "donor")
-GUI_MODULES = ("widgets", "log_panel", "fetch_view", "subprep_view", "mux_view", "settings_view")
+GUI_MODULES = ("widgets", "log_panel", "fetch_view", "subprep_view", "mux_view", "settings_view", "about_view")
 CHECK_TAG = {"ok": "[OK]   ", "warn": "[!]    ", "fail": "[LỖI]  "}
 
 
