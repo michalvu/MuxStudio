@@ -1,7 +1,7 @@
 # Bàn giao giữa các phiên làm việc (đọc file này TRƯỚC)
 
-Cập nhật: 2026-11-09, **Giai đoạn 0–6 ĐÃ DUYỆT — dự án hoàn thành, phiên bản 1.0.0.** Repo `michalvu/MuxStudio`.
-Phiên sau (nếu có): bảo trì — sửa lỗi người dùng báo, yêu cầu mới (xem "Việc kế tiếp").
+Cập nhật: 2026-11-10, **Giai đoạn 0–6 ĐÃ DUYỆT (1.0.0); bản 1.1.0 (bảo trì đợt 1, mục 12) — CHỜ người dùng duyệt.**
+Repo `michalvu/MuxStudio`. Phiên sau (nếu có): bảo trì — sửa lỗi người dùng báo, yêu cầu mới (xem "Việc kế tiếp").
 Nhánh: chỉ còn **`claude/new-session-eckanp`** = nhánh chính (nhánh mặc định của repo). Các nhánh phiên cũ
 (`ccr-770f1e3e-dqsvcp`, `ccr-e18d248b-a69t65`, `claude/gifted-keller-fx1jey`) đã xoá ngày 2026-11-10 theo yêu cầu người
 dùng — mọi commit của chúng đều đã nằm trong nhánh chính.
@@ -65,7 +65,7 @@ core/   timing pgs srt encoding episodes naming config secrets undo   (GĐ1)
         + set_job (3 phiên), naming.search_candidates, MuxSession.search_name (GĐ5)
 gui/    app widgets log_panel settings_view fetch_view subprep_view mux_view (GĐ5)
         + build_info / self_check (--kiem-tra) / write_startup_error trong app; resource_path / set_window_icon (GĐ6)
-tests/  pytest — 650 test (2 test alass thật tự bỏ qua nếu không có alass; 12 test test_gui_app.py + 1 test_packaging
+tests/  pytest — 660 test (2 test alass thật tự bỏ qua nếu không có alass; 13 test test_gui_app.py + 1 test_packaging
         tự bỏ qua nếu không có tkinter/màn hình); test_packaging.py (GĐ6); test_gui_logic.py (logic giao diện, không cần Tk); fakehttp.py (API giả),
         synth.py (phụ đề/PGS giả), fake_alass.py (alass GIẢ: ghi lại từng lần gọi, dịch phụ đề theo cấu hình),
         test_golden_powershell.py + test_golden_subprep.py + test_golden_mux.py + golden/ps_harness.ps1 (chạy HÀM GỐC
@@ -143,16 +143,16 @@ python3 -m venv .venv && .venv/bin/pip install -q -r requirements-dev.txt   # py
 # PowerShell 7 cho test đối chiếu hàm gốc
 curl -sSL -o /tmp/pm.deb https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb \
   && dpkg -i /tmp/pm.deb && apt-get update -qq && apt-get install -y -qq powershell
-apt-get install -y -qq mkvtoolnix python3-tk xvfb imagemagick   # ffmpeg + Xvfb thường có sẵn
+apt-get install -y -qq mkvtoolnix python3-tk xvfb imagemagick python3.12-venv ffmpeg   # ffmpeg + Xvfb thường có sẵn
 pip install -q uv && uv python install 3.11   # chạy test trên 3.11 (bản uv có tkinter, Tk 9):
 uv venv -p 3.11 /tmp/v311 && uv pip install -p /tmp/v311/bin/python keyring send2trash requests pytest customtkinter
 # Python 3.12 của Ubuntu + Tk 8.6 (GIỐNG Windows nhất — dùng để chụp ảnh giao diện):
 /usr/bin/python3.12 -m venv /tmp/v312 && /tmp/v312/bin/pip install -q customtkinter keyring send2trash requests pytest
-.venv/bin/python -m pytest -q              # không có Tk: 635 passed, 15 skipped (13 test cần Tk + 2 alass thật)
-xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 648 passed, 2 skipped
-xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 648 passed, 2 skipped
+.venv/bin/python -m pytest -q              # không có Tk: 644 passed, 16 skipped (14 test cần Tk + 2 alass thật)
+xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 658 passed, 2 skipped
+xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 658 passed, 2 skipped
 # Giả lập Windows (ghi file chữ \n→\r\n, Python con in cp1250) — phải qua hết:
-PYTHONPATH=tools xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider -p winemu   # 648 passed, 2 skipped
+PYTHONPATH=tools xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider -p winemu   # 658 passed, 2 skipped
 # Thử đóng gói (GĐ6) — PyInstaller trên Python 3.12 của Ubuntu (Tk 8.6), kết quả để ngoài repo:
 /usr/bin/python3.12 -m venv /tmp/vbuild && /tmp/vbuild/bin/pip install -q -r requirements-build.txt
 /tmp/vbuild/bin/python -m PyInstaller --noconfirm --clean --distpath /tmp/pyi/dist --workpath /tmp/pyi/build MuxStudio.spec
@@ -304,3 +304,28 @@ Người dùng gửi: ảnh `run_tests.bat` (15 failed, 618 passed), `ket_qua_do
   vào nhật ký lượt mux, lưu lại); `mux_view.TrashDialog` (tick sẵn, nút "Đưa các file đã tick vào Thùng rác"; tắt
   `DeleteToRecycleBin` → chữ đỏ "XOÁ HẲN"); khoá mới `AskTrashSourcesAfterMux` (mặc định bật). Test giao diện thay
   `TrashDialog` bằng bản giả (fixture `ui`, `shown["TrashDialog"].answer`) — hộp thoại thật sẽ chặn test.
+
+## 12. Bảo trì đợt 1 — bản 1.1.0 (2026-11-10)
+
+Người dùng (đang dùng bản .exe 1.0.0) gửi 4 yêu cầu + 1 yêu cầu thêm giữa chừng; SPEC mục 7.F (TĐ-35, 36, 37).
+Đã hỏi và chốt: Reset thẻ ③ bỏ cả lựa chọn database; thêm Reset cho cả thẻ ①; Reset KHÔNG xoá khung Nhật ký;
+"phim đã có phụ đề" = file cạnh phim HOẶC track chữ trong MKV, **SDH có tính**.
+
+- **Nút "↺ Làm lại từ đầu"** (3 thẻ, `reset_all`, hằng `RESET_TEXT`): gọi `reset()` sẵn có + (③) `db.set("")`, (②)
+  `refresh_counts` + nạp lại bảng audio. Hỏi xác nhận khi còn dòng đã chọn chưa chạy. Không xoá file.
+- **Thẻ ② bảng audio mọi file** (TĐ-35): `subprep.all_audio_streams()` → `VideoAudio(video, ep_label, streams)`;
+  `pick_audio_stream(streams, choice)` (thuần — `_pick_audio` gọi nó, chỉ thêm log + cache); `audio_layout_groups`.
+  Giao diện: `PV.audio_rows` / `audio_summary` (thuần), iid dòng `a<file>_<số thứ tự>` (`a<file>_x` = không đọc được),
+  `fill_audio` (dựng bảng, chiều cao 2…3/4/8 dòng theo `density`), `mark_audio` (chỉ đổi ô "Làm mốc" bằng `set_cell` —
+  **không** dựng lại bảng: chọn lại dòng sẽ bắn `on_select` → tự chuyển sang "Theo số thứ tự"). `sample_audio_streams`
+  cũ vẫn còn (test cũ dùng).
+- **Thẻ ② ẩn bước trích khi mốc = audio** (TĐ-37): `StepBar.set_hidden(keys)` (ẩn nút + mũi tên đứng trước; cột lưới
+  của nút ẩn phải `weight=0, uniform=""`, không thì vẫn chiếm chỗ), `visible_step_states` (trạng thái `hidden`);
+  `update()` vẫn nhận danh sách đủ 7 bước. Bước 2 tên mới "Quét phụ đề"; thẻ con `INNER_RENAME`/`INNER_SYNC` bỏ số.
+  "Dọn dẹp" chỉ ✓ khi `_cleaned` (đã qua hộp thoại); quét lại = lượt mới.
+- **Thẻ ① bỏ qua ngôn ngữ phim đã có** (TĐ-36): `subfetch.embedded_sub_langs(json)`, `sidecar_sub_langs(video)` (dùng
+  `os.scandir`, không glob), `VideoInfo.has_subs`, `FetchItem.already` + `already_note` ("cạnh phim" / "trong MKV: …"),
+  khoá mới `SkipIfVideoHasSub` (mặc định bật; `test_config` có danh sách khoá mới không đọc từ .bat). Đủ mọi ngôn ngữ →
+  không gọi `refs.get` (khỏi trích phụ đề gốc).
+- Chụp ảnh kiểm tra bố cục: thẻ ② mốc = audio ở 1366×768 và 1920×1080 (mục 6).
+- Người dùng cập nhật: tải mã mới → `build.bat` → chép đè `dist\MuxStudio`.

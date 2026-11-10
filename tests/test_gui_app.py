@@ -228,6 +228,17 @@ def test_mux_tab_end_to_end(movie_dir, tmp_path, ui):
     assert names == ["English AAC 5.1", "Czech AAC 2.0"]
     assert sum(1 for t in t1 if t["type"] == "subtitles") == 3  # vi ngoai + English + English SDH
 
+    # 1.1.0: nut "↺ Lam lai tu dau" -> moi bang / tong ket / tien do / lua chon database ve nhu chua lam gi
+    assert v.plans and v.summary.cget("text") and v.steps.states["plan"] == "done" and v.db.get()
+    v.reset_all()
+    a.root.update()
+    assert v.plans == [] and v.session is None and v.db.get() == "" and v.summary.cget("text") == ""
+    assert not v.table.ids() and not v.atable.ids() and not v.dtable.ids() and v.trash_cands == []
+    assert v.steps.states == {"plan": "off", "run": "off", "trash": "off", "out": "todo"}  # chua chon database
+    assert v.steps.buttons["plan"].cget("text") == "1. Quét & lập kế hoạch"  # het ✓
+    assert all(o.is_file() for o in outs) and eps[1].exists()  # khong xoa file nao
+    assert "③ Đã làm lại từ đầu" in log_text(a)
+
     # Hoan tac (man hinh chung)
     from gui import app as A
 
@@ -355,6 +366,12 @@ def test_fetch_tab_pool_choose_and_download(movie_dir, ui):
     assert dest.is_file() and it.result == dest
     assert "Tải được: 1" in v.summary.cget("text")
     assert "đã tải (Kho)" in v.tree.tv.item("i0", "values")[3]
+    # 1.1.0: nut "↺ Lam lai tu dau"
+    assert v.steps.states["run"] == "done"
+    v.reset_all()
+    assert v.items == [] and v.session is None and not v.tree.ids() and not v.cands.ids()
+    assert v.summary.cget("text") == "" and dest.is_file()
+    assert v.steps.states == {"scan": "next", "gather": "off", "run": "off", "next": "todo"}
 
 
 # ---------------------------------------------------------------- ② Chuan bi phu de
@@ -386,6 +403,15 @@ def test_subprep_tab_rename_sync_export(movie_dir, ui, tmp_path, monkeypatch):
     v._mode_changed()
     pump(a)
     assert v.audio_box.winfo_manager() == "pack" and v.audio_choice() is None
+    # 1.1.0: moc = audio -> an han buoc "Trich phu de goc", cac buoc con lai danh so lai tu 1
+    assert v.steps.states["extract"] == "hidden" and v.steps.buttons["extract"].winfo_manager() == ""
+    assert v.steps.buttons["preview"].cget("text") == "▶ 1. Quét phụ đề"
+    assert v.steps.buttons["rename"].cget("text") == "2. Đổi tên" and v.steps.buttons["cleanup"].cget("text") == "5. Dọn dẹp"
+    assert v.steps.arrows["preview"].winfo_manager() == "" and v.steps.arrows["rename"].winfo_manager() == "grid"
+    assert v.extract_hint.winfo_manager() == ""
+    # bang audio: MOI file phim (2 file gia khong doc duoc audio -> 2 dong do)
+    assert v.atable.ids() == ["a0_x", "a1_x"] and "KHÔNG đọc được" in v.audio_title.cget("text")
+    assert v.atable.full("a1_x")["file"] == "Show.S01E02.1080p.mkv" and v.atable.full("a1_x")["ep"] == "S01E02"
     v.plan_sync()
     assert "Chọn audio làm mốc" in a.shown["warn"][-1][0] and not v.pairs
     v.amode.set("lang")
@@ -393,6 +419,9 @@ def test_subprep_tab_rename_sync_export(movie_dir, ui, tmp_path, monkeypatch):
     v.mode.set("sub")
     v._mode_changed()
     assert v.audio_box.winfo_manager() == ""
+    assert v.steps.states["extract"] == "done" and v.steps.buttons["extract"].winfo_manager() == "grid"
+    assert v.steps.buttons["extract"].cget("text") == "✓ 1. Trích phụ đề gốc"
+    assert v.steps.buttons["preview"].cget("text") == "▶ 2. Quét phụ đề" and v.steps.arrows["preview"].winfo_manager() == "grid"
     v.plan_rename()
     pump(a)
     assert len(v.renames) == 1 and v.renames[0].ok
@@ -430,6 +459,59 @@ def test_subprep_tab_rename_sync_export(movie_dir, ui, tmp_path, monkeypatch):
 
     ents = A.undo_entries(movie_dir, a.cfg)
     assert len(ents) == 1 and ents[0].run.counts.get("Rename") == 1 and ents[0].run.counts.get("Create") == 1
+    # 1.1.0: dong bo xong ma CHUA qua hop thoai don dep -> buoc "Don dep" khong tu ✓
+    assert v.steps.states["sync"] == "done" and v.steps.states["cleanup"] == "next"
+    # nut "↺ Lam lai tu dau": bang + thanh cac buoc ve mac dinh, phien moi (nhat ky moi), khong xoa file
+    old = v.session
+    v._cleaned = True
+    v.update_buttons()
+    assert v.steps.states["cleanup"] == "done"
+    v.reset_all()
+    pump(a)
+    assert v.renames == [] and v.pairs == [] and not v.rtable.ids() and not v.stable.ids()
+    assert v.session is not None and v.session is not old and not v.only_bad.get() and v.inner.get() == PV.INNER_RENAME
+    assert v.rename_info.cget("text") == "" and v.sync_info.cget("text") == ""
+    assert v.steps.states == {"extract": "done", "preview": "next", "rename": "off", "pairs": "todo", "sync": "off",
+                              "cleanup": "off", "next": "todo"}
+    assert v.steps.buttons["cleanup"].cget("text") == "6. Dọn dẹp" and v.mode.get() == "sub"
+    assert out.is_file() and new.is_file() and "② Đã làm lại từ đầu" in log_text(a)
+
+
+def test_subprep_audio_table_lists_every_file(movie_dir, ui, monkeypatch):
+    """TĐ-35: mốc = audio → bảng audio của MỌI file phim, đánh dấu track làm mốc của từng file."""
+    from core import probe, subprep
+    from gui import subprep_view as PV
+
+    def st(i, lang, codec="eac3", ch=6, title="", default=False):
+        return probe.AudioStream(i, lang, codec, ch, title, default)
+
+    files = [subprep.VideoAudio(movie_dir / "Show.S01E01.mkv", "S01E01", [st(0, "eng", default=True), st(1, "cze", "aac", 2)]),
+             subprep.VideoAudio(movie_dir / "Show.S01E02.mkv", "S01E02", [st(0, "eng", default=True), st(1, "cze", "aac", 2)]),
+             subprep.VideoAudio(movie_dir / "Show.S01E03.mkv", "S01E03", [st(0, "cze", "aac", 2, default=True)])]
+    monkeypatch.setattr(subprep.PrepSession, "all_audio_streams", lambda self: files)
+    a = ui(movie_dir)
+    v = a.prep
+    a.goto("② Chuẩn bị phụ đề")
+    v.mode.set("audio")
+    v._mode_changed()
+    pump(a)
+    assert v.atable.ids() == ["a0_0", "a0_1", "a1_0", "a1_1", "a2_0"]
+    assert "3 file phim" in v.audio_title.cget("text") and "1 file có bố cục audio KHÁC" in v.audio_title.cget("text")
+    assert v.atable.full("a1_0")["ep"] == "S01E02" and v.atable.full("a1_1")["ep"] == ""  # ten tap chi ghi dong dau
+    assert v.atable.tv.item("a2_0", "tags") == ("need",) and not v.atable.tv.item("a0_0", "tags")
+    assert not any(v.atable.full(i)["ref"] for i in v.atable.ids())  # chua chon cach lay audio -> chua danh dau
+    v.amode.set("auto")
+    v.mark_audio()
+    assert [i for i in v.atable.ids() if v.atable.full(i)["ref"]] == ["a0_0", "a1_0", "a2_0"]
+    v.alang.delete(0, "end")
+    v.alang.insert(0, "cs")
+    v.amode.set("lang")
+    v.mark_audio()
+    assert [i for i in v.atable.ids() if v.atable.full(i)["ref"]] == ["a0_1", "a1_1", "a2_0"]
+    v.atable.select("a1_1")  # bam mot dong -> "theo so thu tu" = so 1 cho MOI file
+    a.root.update()
+    assert v.amode.get() == "index" and v.audio_choice() == subprep.AudioChoice("index", 1)
+    assert v.atable.full("a0_1")["ref"] == PV.REF_MARK and v.atable.full("a2_0")["ref"].startswith(PV.REF_MARK + " (Default — không có")
 
 
 # ---------------------------------------------------------------- Cai dat
@@ -544,7 +626,7 @@ def test_long_names_keep_episode_in_tables_and_grid(movie_dir, ui):
 
 
 def test_title_icon_and_version_first_in_log(movie_dir, ui):
-    """GĐ6: tiêu đề "MuxStudio 1.0.0", icon MuxStudio (cửa sổ + hộp thoại), hai dòng ĐẦU khung log = bản đang chạy."""
+    """GĐ6: tiêu đề "MuxStudio <phiên bản>", icon MuxStudio (cửa sổ + hộp thoại), hai dòng ĐẦU khung log = bản đang chạy."""
     from core import __version__
     from gui import app as A
     from gui import widgets as W

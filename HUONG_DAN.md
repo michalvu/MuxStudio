@@ -27,7 +27,7 @@ Bản `.exe` chạy **không cần cài Python**. Chỉ máy dùng để **tạo
 5. **Chép CẢ thư mục `dist\MuxStudio`** tới nơi bạn muốn (vd `C:\Users\fenha\Desktop\MuxStudio`).
    Đừng chép riêng file `MuxStudio.exe` — nó cần thư mục `_internal` nằm cạnh.
 6. Tạo lối tắt: chuột phải `MuxStudio.exe` › *Send to* (*Gửi tới*) › *Desktop (create shortcut)*.
-7. Bấm đúp `MuxStudio.exe` để chạy. Số phiên bản hiện trên thanh tiêu đề (vd **MuxStudio 1.0.0**) và ở dòng đầu
+7. Bấm đúp `MuxStudio.exe` để chạy. Số phiên bản hiện trên thanh tiêu đề (vd **MuxStudio 1.1.0**) và ở dòng đầu
    khung Nhật ký.
 
 **Cập nhật bản mới:** tải mã nguồn mới → bấm đúp `build.bat` lần nữa → chép đè thư mục `dist\MuxStudio` lên thư mục
@@ -72,17 +72,28 @@ Mỗi thẻ có một **thanh các bước** (hàng nút to, đánh số, có m�
 theo; **xanh lá có ✓** = đã xong (vẫn bấm lại được); xám mờ = chưa bấm được. Nút cuối thanh chuyển sang thẻ kế tiếp.
 Các nút nhỏ màu xám (Xem lệnh, Xuất CSV…, Bỏ qua…) là việc phụ, không bắt buộc.
 
+**Làm lô file mới:** mỗi thẻ có nút xám **↺ Làm lại từ đầu** — xoá mọi bảng, dòng tổng kết và dấu ✓ của lượt vừa làm
+(thẻ ③ bỏ luôn lựa chọn TMDB / TVDB), đưa thẻ về như lúc chưa làm gì. Nút này **không xoá file nào**, không xoá khung
+Nhật ký, và "Hoàn tác…" vẫn dùng được cho lượt cũ.
+
 **① Tải phụ đề** (thay SubFetch)
 1. Tick ngôn ngữ cần tải, bật/tắt nguồn (SubSource, kho `srt_pool`, OpenSubtitles); **Kiểm tra nguồn** để xem key /
    lượt tải còn lại.
-2. **1. Quét thư mục** → **2. Tìm phụ đề**. Dòng màu vàng *"Cần chọn"*: bấm vào dòng, bảng dưới hiện ứng viên
+2. **1. Quét thư mục** → **2. Tìm phụ đề**. Ngôn ngữ mà phim **đã có phụ đề** thì dòng đó ghi *"phim đã có … — không
+   tìm"* và được bỏ qua; chương trình chỉ tìm ngôn ngữ còn thiếu. "Đã có" = có file `<tên phim>.<mã>.srt` nằm cạnh
+   phim, hoặc trong file MKV có track phụ đề chữ của ngôn ngữ đó (tính cả SDH; không tính Forced và phụ đề dạng ảnh).
+   Muốn vẫn tìm: tắt *"Phim đã có phụ đề ngôn ngữ đó thì không tìm nữa"* trong Cài đặt › ① Tải phụ đề. Dòng màu vàng *"Cần chọn"*: bấm vào dòng, bảng dưới hiện ứng viên
    (cột **Lệch** = độ lệch đo thật / `~` ước tính) → bấm đúp ứng viên (hoặc **Chọn bản này** / **Bỏ qua ngôn ngữ này**).
 3. **3. Tải phụ đề** → phụ đề vào `srt_can_sync\<mã ngôn ngữ>\`. Bước này **không** sửa thời gian phụ đề.
 
 **② Chuẩn bị phụ đề** (thay SubPrep) — trước tiên chọn **Mốc đồng bộ** (*Phụ đề gốc trong 'srt_goc'* hoặc *Audio
 của file phim*) và **Ngôn ngữ**, rồi theo thanh các bước:
 1. **Trích phụ đề gốc** — chỉ cần khi `srt_goc` trống và mốc là phụ đề gốc (có sẵn thì bước này đã ✓).
-2. **Xem trước đổi tên** → kiểm tra cột lý do → 3. **Đổi tên**.
+   Chọn mốc = *Audio của file phim* thì bước này **không hiện** (không cần), các bước sau đánh số lại từ 1; thay vào
+   đó là bảng **audio track của mọi file phim** (tập nào có audio nào): chọn *Tự động* / *Theo số thứ tự* (bấm một
+   dòng) / *Theo ngôn ngữ* — cột **Làm mốc** đánh dấu "◄ mốc" ở track sẽ dùng của từng tập. Dòng **vàng** = tập có
+   bố cục audio khác các tập còn lại (nên kiểm tra); dòng đỏ = không đọc được audio.
+2. **Quét phụ đề** (bảng xem trước đổi tên) → kiểm tra cột lý do → 3. **Đổi tên**.
 4. **Lập cặp đồng bộ** → (tuỳ chọn **Xem lệnh**) → 5. **Chạy đồng bộ**. Mỗi dòng có mức sức khoẻ **TỐT** (xanh) /
    **CẦN XEM** (vàng) / **CÓ VẤN ĐỀ** (đỏ); **Chỉ hiện file cần xem**, **Xuất CSV…**.
 6. **Dọn dẹp** (xoá file nguồn đã dùng — vào Thùng rác).
@@ -115,7 +126,7 @@ của file phim*) và **Ngôn ngữ**, rồi theo thanh các bước:
 ## 6. Báo lỗi
 
 Gửi cho người hỗ trợ:
-1. **Số phiên bản** (thanh tiêu đề, vd *MuxStudio 1.0.0*; dòng thứ hai của khung Nhật ký ghi rõ bản `.exe`, Python, Windows).
+1. **Số phiên bản** (thanh tiêu đề, vd *MuxStudio 1.1.0*; dòng thứ hai của khung Nhật ký ghi rõ bản `.exe`, Python, Windows).
 2. **Log**: khung Nhật ký › **Lưu log…** (key, mật khẩu đã được che).
 3. **Ảnh chụp màn hình** chỗ bị lỗi.
 4. **Không mở được chương trình**: file `%APPDATA%\MuxStudio\loi_khoi_dong.txt` (gõ `%APPDATA%\MuxStudio` vào thanh

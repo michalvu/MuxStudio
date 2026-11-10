@@ -149,6 +149,19 @@ def test_audio_choice_index_and_lang(movie_dir, fa):
     assert fa.calls()[0]["ref"].endswith(".wav")
 
 
+@need_ff
+def test_all_audio_streams_lists_every_video(movie_dir, fa):
+    """TĐ-35: audio track của MỌI file phim (không chỉ file mẫu), kèm nhãn tập."""
+    make_mkv(movie_dir / "Show [x] S01E01.mkv")
+    make_mkv(movie_dir / "Show [x] S01E02.mkv", audio=False)
+    with sess(movie_dir, fa) as s:
+        files = s.all_audio_streams()
+    assert [(f.video.name, f.ep_label, [a.lang for a in f.streams]) for f in files] == [
+        ("Show [x] S01E01.mkv", "S01E01", ["eng", "cze"]), ("Show [x] S01E02.mkv", "S01E02", [])]
+    assert files[0].layout == (("eng", "aac", 1), ("cze", "aac", 1))
+    assert [len(g) for g in subprep.audio_layout_groups(files)] == [1, 1]
+
+
 @need_alass
 def test_real_alass_sub_mode_recovers_offset(movie_dir):
     ref = make_ref_times(500, seed=11, min_gap=1.5, max_gap=8)

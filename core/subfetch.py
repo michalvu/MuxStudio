@@ -144,6 +144,7 @@ class VideoInfo:
     imdb: str | None = None
     mapped: tuple[int, int] | None = None  # so tap tuyet doi -> (season, tap) theo TMDB
     lang_reported: bool = False
+    has_subs: dict[str, tuple[Path, str]] = field(default_factory=dict)  # ngon ngu -> (file, "trong MKV"/"cạnh phim")
 
     @property
     def kind_text(self) -> str:
@@ -158,6 +159,7 @@ class FetchItem:
     lang: str
     lang_dir: Path
     already: Path | None = None
+    already_note: str = ""  # "trong MKV" / "cạnh phim" (TD-36); '' = file da nam trong srt_can_sync
     existing: ExistingMatch | None = None
     candidates: list[Candidate] = field(default_factory=list)
     gathered: bool = False
@@ -181,6 +183,53 @@ class FetchItem:
     @property
     def needs_choice(self) -> bool:
         return not (self.already or self.existing or self.skip or self.chosen) and bool(self.candidates)
+
+
+SIDE_EXTS = (".srt", ".ass", ".ssa", ".vtt")
+
+
+def embedded_sub_langs(j: dict | None) -> dict[str, str]:
+    """Ngôn ngữ đã có track phụ đề CHỮ trong MKV → mô tả track (TĐ-36). Tính cả SDH; không tính Forced, phụ đề dạng
+    ảnh (PGS/VobSub — không dùng được như SRT) và track không ghi ngôn ngữ (``und``)."""
+    out: dict[str, str] = {}
+    for t in probe.tracks(j, "subtitles"):
+        p = t.get("properties") or {}
+        ext = probe.sub_ext_by_codec(str(p.get("codec_id") or ""), allow_pgs=False)
+        if not ext or probe.is_forced(p):
+            continue
+        lang = probe.track_lang(t)
+        if not lang or lang == "und" or lang in out:
+            continue
+        name = str(p.get("track_name") or "").strip()
+        out[lang] = f"track {t.get('id', '?')} {ext[1:].upper()}" + (f" '{name}'" if name else "")
+    return out
+
+
+def sidecar_sub_langs(video: Path) -> dict[str, Path]:
+    """Ngôn ngữ đã có file phụ đề nằm CẠNH phim: ``<tên phim>.<mã>.srt|ass|ssa|vtt`` (kết quả của bước ②). Bỏ file
+    Forced. File không có hậu tố ngôn ngữ không tính (không biết là tiếng gì)."""
+    out: dict[str, Path] = {}
+    prefix = video.stem.casefold() + "."
+    try:
+        entries = sorted(os.scandir(video.parent), key=lambda e: e.name.casefold())
+    except OSError:
+        return out
+    for e in entries:
+        name = e.name
+        if not name.casefold().startswith(prefix) or not name.lower().endswith(SIDE_EXTS):
+            continue
+        try:
+            if not e.is_file():
+                continue
+        except OSError:
+            continue
+        parts = name[len(prefix):].rsplit(".", 1)[0].split(".")
+        if not parts or not parts[0] or any(x.lower() == "forced" for x in parts):
+            continue
+        lang = naming.lang_from_word(parts[0])
+        if lang and lang not in out:
+            out[lang] = Path(e.path)
+    return out
 
 
 @dataclass
@@ -489,11 +538,24 @@ class FetchSession:
         self.job.head(f"=== {v.name}")
         self.job.dim(f"    Nhận diện: '{title}'" + (f" ({year})" if year else "") + f" - {info.kind_text}"
                      + (f" - {info.fps} fps" if info.fps else ""))
-        if self.cfg["VerifyTiming"]:
-            info.ref = self.refs.get(v, j)
+        if self.cfg["SkipIfVideoHasSub"]:
+            # TD-36: phim da co phu de ngon ngu do (file canh phim truoc, roi track trong MKV) -> khong tim nua
+            for lang, f in sidecar_sub_langs(v).items():
+                info.has_subs[lang] = (f, "cạnh phim")
+            for lang, desc in embedded_sub_langs(j).items():
+                info.has_subs.setdefault(lang, (v, f"trong MKV: {desc}"))
+        if self.cfg["VerifyTiming"] and not all(lg in info.has_subs for lg in self.languages):
+            info.ref = self.refs.get(v, j)  # du moi ngon ngu roi thi khoi trich phu de goc lam moc
         return info
 
     def _check_existing(self, it: FetchItem) -> None:
+        have = it.video.has_subs.get(it.lang)
+        if have is not None:
+            it.already, it.already_note = have
+            it.status = "phim đã có"
+            what = have[1] if have[0] == it.video.path else f"cạnh phim: {have[0].name}"
+            self.job.dim(f"    [=] {it.lang} : phim đã có phụ đề ({what}), không tìm nữa.")
+            return
         if self.cfg["SkipIfExists"]:
             for ext in SUB_EXTS:
                 p = it.dest(ext)

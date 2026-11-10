@@ -263,6 +263,19 @@ def step_states(done: Sequence[bool], enabled: Sequence[bool]) -> list[str]:
     return out
 
 
+def visible_step_states(keys: Sequence[str], hidden: Iterable[str], done: Sequence[bool],
+                        enabled: Sequence[bool]) -> list[str]:
+    """Như ``step_states`` nhưng bỏ qua các bước đang ẩn (trạng thái ``hidden``): bước ẩn không bao giờ là "bước kế
+    tiếp" và không chặn bước sau nó."""
+    hid = set(hidden)
+    vis = [i for i, k in enumerate(keys) if k not in hid]
+    sts = step_states([done[i] for i in vis], [enabled[i] for i in vis])
+    out = ["hidden"] * len(keys)
+    for i, s in zip(vis, sts):
+        out[i] = s
+    return out
+
+
 def step_label(i: int, title: str, state: str, numbered: bool = True) -> str:
     """Chữ trên nút bước: ``1. Quét thư mục``; đã xong: ``✓ 1. Quét thư mục``; bước kế tiếp: ``▶ 1. Quét thư mục``."""
     base = f"{i + 1}. {title}" if numbered else title
@@ -282,7 +295,8 @@ class StepBar:
     xanh (▶), bước đã xong xanh lá (✓), còn lại xám. ``update(done, enabled, busy)`` sau mỗi thay đổi.
 
     ``steps``: ``[(khoá, tên, hàm)]``; bước cuối có thể là "Sang bước … →" (``numbered=False`` cho bước đó qua
-    ``plain``)."""
+    ``plain``). ``set_hidden(khoá…)`` ẩn bước không cần cho chế độ đang chọn — các bước còn lại tự đánh số lại
+    (``update`` vẫn nhận danh sách đủ MỌI bước, bước ẩn bị bỏ qua)."""
 
     def __init__(self, master: Any, steps: Sequence[tuple[str, str, Callable[[], None]]], compact: bool = False,
                  plain: Iterable[str] = ()):
@@ -293,6 +307,9 @@ class StepBar:
         self.plain = set(plain)
         self.buttons: dict[str, Any] = {}
         self.states: dict[str, str] = {k: "todo" for k in self.keys}
+        self.hidden: set[str] = set()
+        self.arrows: dict[str, Any] = {}  # mui ten dung TRUOC nut
+        self._cols: dict[str, int] = {}
         self._base = 13 if compact else 15
         self.font = font = ctk.CTkFont(size=self._base, weight="bold")
         self._fit_id: Any = None
@@ -300,8 +317,10 @@ class StepBar:
         col = 0
         for i, (k, t, fn) in enumerate(steps):
             if i:
-                ctk.CTkLabel(self.frame, text="➜", font=ctk.CTkFont(size=15 if compact else 18, weight="bold"),
-                             text_color=("#8a96a3", "#7d8894"), width=14).grid(row=0, column=col, padx=0)
+                ar = ctk.CTkLabel(self.frame, text="➜", font=ctk.CTkFont(size=15 if compact else 18, weight="bold"),
+                                  text_color=("#8a96a3", "#7d8894"), width=14)
+                ar.grid(row=0, column=col, padx=0)
+                self.arrows[k] = ar
                 col += 1
             b = ctk.CTkButton(self.frame, text=step_label(i, t, "todo", k not in self.plain), height=h, font=font,
                               command=fn, corner_radius=8, border_width=0, border_color=("#0d3a5c", "#9fd0ff"),
@@ -309,9 +328,29 @@ class StepBar:
             b.grid(row=0, column=col, sticky="ew", padx=4, pady=6 if compact else 8)
             self.frame.columnconfigure(col, weight=1, uniform="step")
             self.buttons[k] = b
+            self._cols[k] = col
             col += 1
         self.frame.bind("<Configure>", lambda _e: self._fit_later(), add="+")
         self.update([False] * len(self.keys), [True] * len(self.keys), False)
+
+    def set_hidden(self, keys: Iterable[str]) -> None:
+        """Ẩn các bước ``keys`` (và mũi tên của chúng); bước khác hiện lại. Gọi ``update`` sau đó để đánh số lại."""
+        self.hidden = set(keys) & set(self.keys)
+        first = True
+        for k in self.keys:
+            show = k not in self.hidden
+            b, ar = self.buttons[k], self.arrows.get(k)
+            if show:
+                b.grid()
+            else:
+                b.grid_remove()
+            self.frame.columnconfigure(self._cols[k], weight=1 if show else 0, uniform="step" if show else "")
+            if ar is not None:
+                if show and not first:
+                    ar.grid()
+                else:
+                    ar.grid_remove()  # buoc an, hoac buoc HIEN dau tien: khong co mui ten dung truoc
+            first = first and not show
 
     def _fit_later(self) -> None:
         if self._fit_id is None:
@@ -352,14 +391,18 @@ class StepBar:
             pass
 
     def update(self, done: Sequence[bool], enabled: Sequence[bool], busy: bool) -> list[str]:
-        sts = step_states(done, enabled)
+        sts = visible_step_states(self.keys, self.hidden, done, enabled)
+        n = 0
         for i, k in enumerate(self.keys):
             s = sts[i]
+            self.states[k] = s
+            if s == "hidden":
+                continue
             fg, hover, txt = STEP_COLORS["next" if s == "next" else "done" if s == "done" else "todo"]
-            self.buttons[k].configure(text=step_label(i, self.titles[k], s, k not in self.plain), fg_color=fg,
+            self.buttons[k].configure(text=step_label(n, self.titles[k], s, k not in self.plain), fg_color=fg,
                                       hover_color=hover, text_color=txt, border_width=2 if s == "next" else 0,
                                       state="normal" if enabled[i] and not busy else "disabled")
-            self.states[k] = s
+            n += 1
         self._fit_later()
         return sts
 

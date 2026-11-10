@@ -574,6 +574,7 @@ Khoá = tên biến trong .bat (để nhập thẳng). Nhóm = nhóm trên màn 
 | `ExistingMinScore` | SF | `0.35` | số | chỉ dùng khi không đo được |
 | `ExistingRenameMode` | SF | `copy` | lựa chọn `copy/move` | `move` có cảnh báo ghi đè dây chuyền |
 | `SkipIfExists` | SF (không được dùng) | `true` | ô tick | xem TĐ-22 |
+| `SkipIfVideoHasSub` | — (mới, bản 1.1.0) | `true` | ô tick "Phim đã có phụ đề ngôn ngữ đó thì không tìm nữa" | xem TĐ-36 |
 | `KeepExtractedRef` | SF | `true` | ô tick | giữ phụ đề gốc trong `srt_goc` |
 | `StrictFpsMatch` | SF | `true` | ô tick | |
 | `AllowUnknownFps` | SF | `true` | ô tick | |
@@ -702,9 +703,9 @@ Khoá = tên biến trong .bat (để nhập thẳng). Nhóm = nhóm trên màn 
 | 10 | SP 1898 | Đồng bộ theo: 1 audio / 2 phụ đề gốc / 0 hoàn tác | Thẻ ②: ô chọn **Mốc đồng bộ** (*Phụ đề gốc trong `srt_goc`* / *Audio của file phim*); hoàn tác là nút riêng |
 | 11 | SP 1910 | Ngôn ngữ: 1 vi / 2 cs / 3 en / 4 tự nhập / 5 tự nhận diện (Enter = 5) | Thẻ ②: ô chọn **Ngôn ngữ**, mặc định *Tự nhận diện theo thư mục con hoặc hậu tố*; ép cố định → file nằm trong thư mục ngôn ngữ khác hiện **đỏ** trên bảng |
 | 12 | SP 1915 | "Nhập hậu tố (vd: ja)" | mục "Khác…" trong ô chọn #11 (chọn từ bảng ngôn ngữ hoặc gõ mã) |
-| 13 | SP 1944 | "Trích tự động phụ đề non-SDH từ các file MKV? (Y/N)" | Nút **"Trích phụ đề gốc từ MKV"**; khi `srt_goc` trống thì có dòng nhắc màu vàng ngay trên nút |
+| 13 | SP 1944 | "Trích tự động phụ đề non-SDH từ các file MKV? (Y/N)" | Nút **"Trích phụ đề gốc từ MKV"**; khi `srt_goc` trống thì có dòng nhắc màu vàng ngay trên nút. Mốc = audio: nút và dòng nhắc **ẩn** (bản 1.1.0, TĐ-37) |
 | 14 | SP 1949 | "Trích bổ sung cho các tập còn thiếu? (Y/N)" | cùng nút #13 (luôn chỉ trích tập còn thiếu khi `SkipExistingRef`) |
-| 15 | SP 1970 | Audio làm mốc: 1 tự động / 2 số thứ tự / 3 ngôn ngữ | Thẻ ②: bảng audio track của file mẫu + 3 lựa chọn |
+| 15 | SP 1970 | Audio làm mốc: 1 tự động / 2 số thứ tự / 3 ngôn ngữ | Thẻ ②: bảng audio track của **mọi file phim** (bản 1.1.0, TĐ-35; trước: chỉ file mẫu) + 3 lựa chọn; cột "Làm mốc" đánh dấu track sẽ dùng của từng file |
 | 16 | SP 1973 | "Nhập số thứ tự audio track" | bấm chọn dòng trong bảng #15 (hoặc ô số) |
 | 17 | SP 1978 | "Nhập mã ngôn ngữ" | ô chọn ngôn ngữ cạnh #15 |
 | 18 | MT 286 | "Nhập ID các audio muốn XOÁ" | Thẻ ③: **bảng audio** của file có ≥ `AskAudioMinTracks` track (ID, ngôn ngữ, codec, kênh, bitrate, tên track; ☑ = xoá) |
@@ -817,6 +818,14 @@ Phần console (`Initialize-Console`, `Disable-QuickEdit`, `Set-ConsoleSize`, `W
 - Thêm bảng mã cũ: `ar` (1256), `tr` (1254), `pl` (1250), `ru` (1251) cho `--sub-charset`.
 - Bước ① chọn track phụ đề gốc theo `RefSubLangs` như bước ② (trước: lấy track văn bản đầu tiên không Forced, không xét ngôn ngữ).
 - Mọi chỗ nhận diện tập/tên/ngôn ngữ của ba bước dùng chung một hàm ⇒ hành vi nhất quán.
+
+### 7.F. Sau bản 1.0.0 (bảo trì — theo yêu cầu người dùng)
+
+| Mã | Bản | .bat làm gì | MuxStudio làm gì | Kiểm chứng |
+|---|---|---|---|---|
+| TĐ-35 | 1.1.0 ✅ | SP `Show-AudioStreams`: chỉ hiện audio track của **file mẫu** (file phim đầu tiên) khi mốc = audio | Thẻ ② hiện audio track của **mọi file phim** (`PrepSession.all_audio_streams` → `VideoAudio`): cột Tập, File phim, số thứ tự, ngôn ngữ, codec, kênh, tên track, Default, **Làm mốc** (track sẽ dùng của TỪNG file theo lựa chọn Tự động / Số thứ tự / Ngôn ngữ — hàm thuần `pick_audio_stream`, cũng là hàm `_pick_audio` dùng khi lập cặp). File có bố cục audio khác đa số: dòng vàng + tiêu đề cảnh báo; không đọc được: dòng đỏ. Kết quả đồng bộ **không đổi** ("Theo số thứ tự" vẫn là một số chung cho mọi file; file không có số / ngôn ngữ đó → track Default, như cũ) | `test_gui_logic.py` (`audio_rows`, `audio_summary`, `pick_audio_stream`), `test_e2e_subprep.py::test_all_audio_streams_lists_every_video` (MKV thật), `test_gui_app.py::test_subprep_audio_table_lists_every_file` |
+| TĐ-36 | 1.1.0 ✅ | SF: luôn tìm phụ đề cho mọi ngôn ngữ đã bật, kể cả khi phim đã có sẵn phụ đề ngôn ngữ đó (chỉ bỏ qua khi file đích trong `srt_can_sync` đã có) | Bước ① lúc quét: ngôn ngữ mà phim **đã có** thì không tìm / không tải nữa, chỉ gợi ý các ngôn ngữ còn thiếu. "Đã có" = (a) file `<tên phim>.<mã>.srt\|ass\|ssa\|vtt` nằm **cạnh phim** (kết quả bước ②; bỏ file `.forced.`; file không hậu tố ngôn ngữ không tính) hoặc (b) track phụ đề **chữ** trong MKV đúng ngôn ngữ (**tính cả SDH** — người dùng chọn; không tính Forced, phụ đề dạng ảnh PGS/VobSub, track `und`). Dòng hiện "phim đã có (trong MKV: track 2 SRT) — không tìm" / "(cạnh phim): tên file". Phim đã đủ mọi ngôn ngữ → khỏi đọc / trích phụ đề gốc làm mốc. Tắt được: `SkipIfVideoHasSub` (mặc định bật) | `test_subfetch.py` (4 test: `embedded_sub_langs`, `sidecar_sub_langs` với tên có `[ ]`, quét chỉ còn ngôn ngữ thiếu, công tắc), `test_gui_logic.py::test_item_status_video_already_has_sub` |
+| TĐ-37 | 1.1.0 ✅ | — (chỉ giao diện) | (a) Thẻ ②, mốc = audio: **ẩn** bước "Trích phụ đề gốc" và dòng nhắc `srt_goc` trống (trước: bước này tự ✓ xanh, gây rối); các bước còn lại đánh số lại 1–5 (`StepBar.set_hidden`, `visible_step_states`). (b) Bước "Xem trước đổi tên" đổi tên thành **"Quét phụ đề"**; hai thẻ con thành "Đổi tên" / "Đồng bộ" (bỏ số bước). (c) Nút **"↺ Làm lại từ đầu"** ở cả ba thẻ (`reset_all`): xoá bảng, tổng kết, tiến độ của lượt (thẻ ③: bỏ cả lựa chọn database; thẻ ②: phiên mới = nhật ký mới, giữ Mốc + Ngôn ngữ); **không xoá file**, không xoá khung Nhật ký; còn dòng chưa chạy thì hỏi xác nhận. (d) Thẻ ②: bước "Dọn dẹp" chỉ ✓ khi đã qua hộp thoại dọn dẹp của lượt này (trước: tự ✓ khi đồng bộ xong mà không còn gì để dọn); bấm "Quét phụ đề" lại = lượt mới (bỏ ✓ dọn dẹp, bảng đồng bộ đã chạy xong được xoá) | `test_gui_logic.py::test_visible_step_states_skips_hidden_steps`, `test_gui_app.py` (3 thẻ: `reset_all`; thẻ ②: ẩn / hiện bước + đánh số) |
 
 ### 7.E. API bên ngoài
 

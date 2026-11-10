@@ -325,3 +325,74 @@ def test_candidate_sort_order():
                                                  ("", 23.976, 2), (None, 23.976, 2), ("23,976", 23.976, 1), ("25", None, 2)])
 def test_fps_tier(declared, video, tier):
     assert subfetch.fps_tier(declared, video) == tier
+
+
+# ---------------------------------------------------------------- TD-36: phim da co phu de -> khong tim nua
+
+def _sub_track(tid, codec, lang, name="", forced=False, ietf=None):
+    props = {"codec_id": codec, "language": lang, "track_name": name, "forced_track": forced}
+    if ietf:
+        props["language_ietf"] = ietf
+    return {"id": tid, "type": "subtitles", "properties": props}
+
+
+HAS_SUBS_JSON = {"tracks": [
+    {"id": 0, "type": "video", "properties": {"default_duration": 41708333}},
+    _sub_track(2, "S_TEXT/UTF8", "eng", "English SDH"),      # SDH van tinh la da co
+    _sub_track(3, "S_TEXT/UTF8", "vie", "Forced", forced=True),  # Forced: khong tinh
+    _sub_track(4, "S_HDMV/PGS", "cze"),                       # phu de dang anh: khong tinh
+    _sub_track(5, "S_TEXT/ASS", "und"),                       # khong ghi ngon ngu: khong tinh
+    _sub_track(6, "S_TEXT/ASS", "ger", ietf="de"),
+]}
+
+
+def test_embedded_sub_langs_counts_text_and_sdh_only():
+    got = subfetch.embedded_sub_langs(HAS_SUBS_JSON)
+    assert set(got) == {"en", "de"}
+    assert got["en"] == "track 2 SRT 'English SDH'" and got["de"] == "track 6 ASS"
+    assert subfetch.embedded_sub_langs(None) == {} and subfetch.embedded_sub_langs(FPS_JSON) == {}
+
+
+def test_sidecar_sub_langs_reads_suffix_next_to_video(movie_dir):
+    v = movie_dir / "Phim [YTS.MX] (2020).mkv"
+    v.write_bytes(b"")
+    for n in ("Phim [YTS.MX] (2020).vi.srt", "Phim [YTS.MX] (2020).CS.ass", "Phim [YTS.MX] (2020).en.forced.srt",
+              "Phim [YTS.MX] (2020).srt", "Phim [YTS.MX] (2020).vi.txt", "Phim khác (2020).en.srt",
+              "Phim [YTS.MX] (2020) Extra.en.srt"):
+        (movie_dir / n).write_text("x", encoding="utf-8", newline="")
+    got = subfetch.sidecar_sub_langs(v)
+    assert {k: p.name for k, p in got.items()} == {"vi": "Phim [YTS.MX] (2020).vi.srt", "cs": "Phim [YTS.MX] (2020).CS.ass"}
+
+
+def test_scan_skips_languages_the_video_already_has(lib):
+    (lib.root / f"{DUNE}.vi.srt").write_text("x", encoding="utf-8", newline="")  # ket qua buoc ② nam canh phim
+    cfg = C.Config({"Languages": ["vi", "en", "cs"]})
+    job = tools.Job()
+    probe_json = lambda p: HAS_SUBS_JSON if p.stem == DUNE else FPS_JSON  # noqa: E731
+    s = subfetch.FetchSession(lib.root, cfg, {}, job, FakeHTTP(), Sleeper(),
+                              tool_paths={"mkvmerge": None, "mkvextract": None}, video_probe=probe_json)
+    s.scan()
+    vi, en, cs = (item(s, DUNE, x) for x in ("vi", "en", "cs"))
+    assert vi.already == lib.root / f"{DUNE}.vi.srt" and vi.already_note == "cạnh phim"
+    assert en.already == lib.root / f"{DUNE}.mkv" and en.already_note.startswith("trong MKV: track 2 SRT")
+    assert cs.already is None and not cs.already_note  # chi con thieu tieng Sec -> chi tim tieng Sec
+    assert item(s, EP1, "vi").already is None and item(s, EP1, "en").already is None
+    assert s.gather(vi) == [] and s.gather(en) == []  # khong hoi nguon nao
+    assert item(s, DUNE, "cs").video.ref is not None  # con thieu ngon ngu -> van can moc
+    rep = s.execute()
+    assert rep.already == 2
+    assert not (lib.root / "srt_can_sync" / "vi" / f"{DUNE}.vi.srt").exists()
+
+
+def test_scan_all_languages_present_skips_ref_and_switch_off(lib):
+    cfg = C.Config({"Languages": ["en", "de"]})
+    s = subfetch.FetchSession(lib.root, cfg, {}, tools.Job(), FakeHTTP(), Sleeper(),
+                              tool_paths={"mkvmerge": None, "mkvextract": None}, video_probe=lambda p: HAS_SUBS_JSON)
+    s.scan()
+    assert all(it.already is not None for it in s.items)
+    assert all(v.ref is None for v in s.videos)  # du ca roi -> khoi doc/trich phu de goc
+    cfg2 = C.Config({"Languages": ["en", "de"], "SkipIfVideoHasSub": False})
+    s2 = subfetch.FetchSession(lib.root, cfg2, {}, tools.Job(), FakeHTTP(), Sleeper(),
+                               tool_paths={"mkvmerge": None, "mkvextract": None}, video_probe=lambda p: HAS_SUBS_JSON)
+    s2.scan()
+    assert all(it.already is None for it in s2.items) and all(v.ref is not None for v in s2.videos)

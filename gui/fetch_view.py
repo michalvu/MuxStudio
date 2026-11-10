@@ -16,6 +16,7 @@ from core.tmdb import ConnStatus
 
 from . import widgets as W
 
+RESET_TEXT = "↺ Làm lại từ đầu"
 SOURCES = (("subsource", "SubSource"), ("pool", "Kho nội bộ (srt_pool)"), ("opensubtitles", "OpenSubtitles"))
 
 
@@ -37,6 +38,10 @@ def item_status(it: FetchItem) -> tuple[str, str]:
     if it.status == "lấy thất bại":
         return "lấy thất bại (mọi bản đều không lấy được)", "bad"
     if it.already is not None:
+        if it.already_note.startswith("trong MKV"):
+            return f"phim đã có ({it.already_note}) — không tìm", "dim"
+        if it.already_note:
+            return f"phim đã có ({it.already_note}): {it.already.name} — không tìm", "dim"
         return f"đã có: {it.already.name}", "dim"
     if it.existing is not None:
         return f"dùng file có sẵn ({it.existing.reason}): {it.existing.file.name}", "good"
@@ -197,6 +202,11 @@ class FetchView:
         self.skipall_btn = ctk.CTkButton(bf, text="Bỏ qua mọi dòng cần chọn", width=180, command=self.skip_all,
                                          fg_color=("gray70", "gray30"), text_color=("gray10", "gray90"))
         self.skipall_btn.pack(side="right", padx=6)
+        self.reset_btn = ctk.CTkButton(bf, text=RESET_TEXT, width=150, command=self.reset_all,
+                                       fg_color=("gray70", "gray30"), text_color=("gray10", "gray90"))
+        self.reset_btn.pack(side="right", padx=6)
+        W.Tooltip(self.reset_btn, "Xoá bảng phim / ứng viên, tổng kết và tiến độ của lượt này để làm lô file mới. KHÔNG "
+                  "xoá file nào; ngôn ngữ và nguồn đang tick được giữ.")
         self.hint = ctk.CTkLabel(bf, text="", text_color=W.LEVEL_COLORS["dim"], anchor="w")
         self.hint.pack(side="left", padx=10, fill="x", expand=True)
 
@@ -292,6 +302,17 @@ class FetchView:
             self.app.log("warn", note)
         self.update_buttons()
 
+    def reset_all(self) -> None:
+        """Nút "↺ Làm lại từ đầu": bảng, tổng kết và tiến độ về như chưa làm gì. Không xoá file."""
+        if self.app.runner.busy:
+            return
+        pending = [it for it in self.items if it.result is None and (it.chosen is not None or it.existing is not None)]
+        if pending and not W.ask_yes_no(self.frame, "Làm lại từ đầu", f"Còn {len(pending)} dòng đã chọn nhưng CHƯA tải. "
+                                        "Xoá hết bảng và tiến độ của lượt này để bắt đầu lại?\n\n(Không xoá file nào.)"):
+            return
+        self.reset()
+        self.app.log("info", "① Đã làm lại từ đầu: các bảng và thanh các bước về mặc định (không xoá file nào).")
+
     def update_buttons(self) -> None:
         busy = self.app.runner.busy
         has = self.session is not None and bool(self.items)
@@ -304,6 +325,7 @@ class FetchView:
         self.steps.update([has, gathered, has and self._executed, False], [bool(self.app.folder), has, has, True], busy)
         self.skipall_btn.configure(state=st(need > 0))
         self.check_btn.configure(state=st(True))
+        self.reset_btn.configure(state=st(bool(self.app.folder)))
         cur_ok = self.cur_item is not None and bool(self.cur_item.candidates) and self.cur_item.result is None
         self.choose_btn.configure(state=st(cur_ok))
         self.skip_btn.configure(state=st(cur_ok))

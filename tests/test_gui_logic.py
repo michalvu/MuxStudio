@@ -657,3 +657,74 @@ def test_trash_dialog_rows(tmp_path):
 def test_new_config_key_trash_after_mux():
     assert C.Config({})["AskTrashSourcesAfterMux"] is True
     assert C.FIELD_BY_KEY["AskTrashSourcesAfterMux"].group == "mux"
+
+
+# ==========================================================================
+#  1.1.0: an buoc + danh so lai, bang audio moi file, phim da co phu de
+# ==========================================================================
+
+
+def test_visible_step_states_skips_hidden_steps():
+    keys = ["extract", "preview", "rename", "next"]
+    # buoc an khong bao gio la "buoc ke tiep" va khong chan buoc sau no
+    assert W.visible_step_states(keys, {"extract"}, [False, False, False, False], [True, True, False, True]) == [
+        "hidden", "next", "off", "todo"]
+    assert W.visible_step_states(keys, (), [False, False, False, False], [True, True, False, True]) == [
+        "next", "todo", "off", "todo"]
+    assert W.visible_step_states(keys, {"extract"}, [False, True, False, False], [False, True, True, True]) == [
+        "hidden", "done", "next", "todo"]
+
+
+def _va(name, ep, *streams):
+    from core import probe
+
+    return subprep.VideoAudio(Path(name), ep, [probe.AudioStream(i, *s) for i, s in enumerate(streams)])
+
+
+def test_pick_audio_stream_per_file():
+    from core import probe
+
+    two = [probe.AudioStream(0, "eng", "eac3", 6, "", False), probe.AudioStream(1, "cze", "aac", 2, "", True)]
+    AC = subprep.AudioChoice
+    assert subprep.pick_audio_stream(two, AC("auto"))[::2] == (1, False)  # track Default
+    assert subprep.pick_audio_stream(two[:1], AC("auto"))[::2] == (0, False)  # khong co Default -> track dau
+    assert subprep.pick_audio_stream(two, AC("index", 0))[::2] == (0, False)
+    i, desc, miss = subprep.pick_audio_stream(two, AC("index", 5))
+    assert (i, miss) == (1, True) and desc.startswith("không có #5 → ")
+    assert subprep.pick_audio_stream(two, AC("lang", "en"))[::2] == (0, False)
+    i, desc, miss = subprep.pick_audio_stream(two, AC("lang", "vi"))
+    assert (i, miss) == (1, True) and desc.startswith("không có 'vi' → ")
+    assert subprep.pick_audio_stream([], AC("auto")) == (0, "không đọc được danh sách audio → thử track đầu", False)
+
+
+def test_audio_rows_and_summary_for_every_file():
+    en, cs = ("eng", "eac3", 6, "Surround", True), ("cze", "aac", 2, "", False)
+    files = [_va("Show.S01E01.mkv", "S01E01", en, cs), _va("Show.S01E02.mkv", "S01E02", en, cs),
+             _va("Show.S01E03.mkv", "S01E03", cs), _va("Show.S01E04.mkv", "S01E04")]
+    rows = PV.audio_rows(files, subprep.AudioChoice("lang", "cs"))
+    assert [r[0] for r in rows] == ["a0_0", "a0_1", "a1_0", "a1_1", "a2_0", "a3_x"]
+    assert PV.audio_iid_index("a12_3") == 3
+    assert rows[0][1] == {"ep": "S01E01", "file": "Show.S01E01.mkv", "idx": 0, "lang": "eng", "codec": "eac3", "ch": 6,
+                          "title": "Surround", "def": "✓", "ref": ""}
+    assert rows[1][1]["file"] == "" and rows[1][1]["ref"] == PV.REF_MARK
+    assert [r[2] for r in rows] == ["", "", "", "", "need", "bad"]  # tap 3 khac bo cuc; tap 4 khong doc duoc
+    assert rows[4][1]["ref"] == PV.REF_MARK
+    # tap 3 khong co so thu tu 1 -> dung Default, ghi ro
+    by_index = PV.audio_rows(files, subprep.AudioChoice("index", 1))
+    assert by_index[4][1]["ref"].startswith(PV.REF_MARK + " (Default — không có")
+    assert all(r[1]["ref"] == "" for r in PV.audio_rows(files, None))
+    txt, level = PV.audio_summary(files)
+    assert "4 file phim" in txt and "1 file có bố cục audio KHÁC" in txt and "1 file không đọc được" in txt and level == "warn"
+    assert PV.audio_summary(files[:2]) == ("Audio track của 2 file phim — mọi file cùng bố cục audio.", "info")
+    assert PV.audio_summary([])[1] == "warn" and PV.audio_summary(files[3:])[1] == "error"
+    assert PV.audio_summary(files[:1])[0].endswith(": Show.S01E01.mkv")
+
+
+def test_item_status_video_already_has_sub():
+    v = VideoInfo(Path("Phim.mkv"), "Phim", None, "Phim", 2020, 23.976, [])
+    it = FetchItem(v, "en", Path("srt_can_sync/en"), already=Path("Phim.mkv"), already_note="trong MKV: track 2 SRT")
+    assert FV.item_status(it) == ("phim đã có (trong MKV: track 2 SRT) — không tìm", "dim")
+    it2 = FetchItem(v, "vi", Path("srt_can_sync/vi"), already=Path("Phim.vi.srt"), already_note="cạnh phim")
+    assert FV.item_status(it2) == ("phim đã có (cạnh phim): Phim.vi.srt — không tìm", "dim")
+    it3 = FetchItem(v, "cs", Path("srt_can_sync/cs"), already=Path("srt_can_sync/cs/Phim.cs.srt"))
+    assert FV.item_status(it3) == ("đã có: Phim.cs.srt", "dim")

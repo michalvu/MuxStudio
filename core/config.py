@@ -106,6 +106,7 @@ FIELDS: tuple[Field, ...] = (
     Field("ExistingMinScore", 0.35, "fetch", "Độ giống tên tối thiểu (file có sẵn)", "Chỉ dùng khi không đo được thời gian."),
     Field("ExistingRenameMode", "copy", "fetch", "Cách đưa file có sẵn về đúng tên", "'copy' = giữ nguyên file gốc (an toàn, khuyên dùng); 'move' = đổi tên hẳn file gốc.", "choice", ("copy", "move")),
     Field("SkipIfExists", True, "fetch", "Đã có phụ đề ngôn ngữ đó thì bỏ qua", ""),
+    Field("SkipIfVideoHasSub", True, "fetch", "Phim đã có phụ đề ngôn ngữ đó thì không tìm nữa", "Track phụ đề chữ nằm TRONG file MKV (kể cả SDH; không tính Forced và phụ đề dạng ảnh) hoặc file <tên phim>.<mã>.srt nằm CẠNH phim → chỉ tìm các ngôn ngữ còn thiếu."),
     Field("KeepExtractedRef", True, "fetch", "Giữ phụ đề gốc đã trích", "Giữ trong srt_goc: lần sau khỏi trích lại, mở ra xem được."),
     Field("StrictFpsMatch", True, "fetch", "Loại bản khai báo FPS khác video", "Phụ đề PAL 25fps ghép vào phim 23.976 sẽ trôi dần tới ~5 phút ở cuối."),
     Field("AllowUnknownFps", True, "fetch", "Cho phép bản không khai báo FPS", "Sẽ đo bằng mốc thời gian sau khi tải."),

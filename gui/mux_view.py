@@ -221,6 +221,9 @@ def summary_text(rep: MuxReport) -> str:
 # ==========================================================================
 
 
+RESET_TEXT = "↺ Làm lại từ đầu"
+
+
 class MuxView:
     def __init__(self, app: Any, parent: Any):
         ctk = W.ctk
@@ -267,6 +270,11 @@ class MuxView:
         self.keepall_btn = ctk.CTkButton(bf, text="Giữ mọi audio tiếng Anh (mọi file)", width=230, command=self.keep_all_en,
                                          fg_color=("gray70", "gray30"), text_color=("gray10", "gray90"))
         self.keepall_btn.pack(side="right", padx=6)
+        self.reset_btn = ctk.CTkButton(bf, text=RESET_TEXT, width=150, command=self.reset_all,
+                                       fg_color=("gray70", "gray30"), text_color=("gray10", "gray90"))
+        self.reset_btn.pack(side="right", padx=6)
+        W.Tooltip(self.reset_btn, "Mux xong một lượt: xoá mọi bảng, tổng kết và tiến độ của lượt này (kể cả lựa chọn "
+                  "TMDB / TVDB) để làm lô file mới. KHÔNG xoá file nào; \"Hoàn tác…\" vẫn dùng được.")
         self.hint = ctk.CTkLabel(bf, text="", anchor="w")
         self.hint.pack(side="left", padx=10, fill="x", expand=True)
 
@@ -398,6 +406,19 @@ class MuxView:
             self.app.log("warn", note)
         self.update_buttons()
 
+    def reset_all(self) -> None:
+        """Nút "↺ Làm lại từ đầu": mọi bảng, tổng kết, tiến độ VÀ lựa chọn database về như chưa làm gì. Không xoá file."""
+        if self.app.runner.busy:
+            return
+        pending = [p for p in self.plans if p.selected and p.result is None and p.status in ("ok", "need_choice")]
+        if pending and not W.ask_yes_no(self.frame, "Làm lại từ đầu", f"Còn {len(pending)} file đã tick CHƯA mux. Xoá hết "
+                                        "bảng và tiến độ của lượt này để bắt đầu lại?\n\n(Không xoá file nào.)"):
+            return
+        self.db.set("")  # database BAT BUOC chon lai moi luot
+        self.reset()
+        self.inner.set("Audio của file đang chọn")
+        self.app.log("info", "③ Đã làm lại từ đầu: các bảng và thanh các bước về mặc định (không xoá file nào).")
+
     def update_buttons(self) -> None:
         busy = self.app.runner.busy
         db = self.db.get()
@@ -409,6 +430,7 @@ class MuxView:
         self.steps.update([has, has and self._muxed, self._trash_done or (self._muxed and not self.trash_cands), False],
                           [bool(db) and bool(self.app.folder), bool(db) and has, bool(self.trash_cands), True], busy)
         self.cmd_btn.configure(state=st(has))
+        self.reset_btn.configure(state=st(bool(self.app.folder)))
         self.keepall_btn.configure(state=st(any(multi_en(p) for p in self.plans)))
         self.db_check_btn.configure(state=st(True))
         p = self._plan()

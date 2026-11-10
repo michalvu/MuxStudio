@@ -4,11 +4,12 @@
 2. **Mốc đồng bộ**: phụ đề gốc trong ``srt_goc`` hoặc audio của file phim (bảng audio track của file mẫu + tự động /
    theo số thứ tự / theo ngôn ngữ).
 3. **Ngôn ngữ**: tự nhận diện (thư mục con / hậu tố) hoặc ép cố định — file nằm trong thư mục ngôn ngữ khác hiện đỏ.
-4. Nút "Trích phụ đề gốc từ MKV" (bảng xem trước → trích).
-5. **Bảng xem trước đổi tên** → "Đổi tên".
+4. Nút "Trích phụ đề gốc từ MKV" (bảng xem trước → trích) — ẩn khi mốc = audio (không cần phụ đề gốc).
+5. **Bảng xem trước đổi tên** (nút "Quét phụ đề") → "Đổi tên".
 6. **Bảng cặp đồng bộ** → "Chạy đồng bộ" → sức khoẻ, dịch đầu/cuối, chênh, còn lệch, mốc khớp, recap đã cắt, cờ;
    lọc "chỉ hiện file cần xem", xuất CSV, "Xem lệnh".
 7. Hộp thoại dọn dẹp sau khi chạy.
+8. Nút "↺ Làm lại từ đầu": xoá mọi bảng / tiến độ của lượt này (không xoá file nào) để làm lô file mới.
 """
 from __future__ import annotations
 
@@ -19,7 +20,7 @@ from typing import Any
 
 from core import naming, probe, tools
 from core.subprep import (LEVEL_TEXT, AudioChoice, CleanupPlan, ExtractRow, PrepCounts, PrepSession, RenameRow,
-                          SyncPair)
+                          SyncPair, VideoAudio, audio_layout_groups, pick_audio_stream)
 
 from . import widgets as W
 
@@ -28,9 +29,11 @@ OTHER_LANG = "Khác…"
 LEVEL_TAG = {0: "good", 1: "need", 2: "bad"}
 MODE_SUB = "sub"
 MODE_AUDIO = "audio"
-# the con (sau thanh cac buoc: 2–3 = doi ten, 4–5 = dong bo)
-INNER_RENAME = "Đổi tên (bước 2–3)"
-INNER_SYNC = "Đồng bộ (bước 4–5)"
+# the con (khong ghi so buoc: moc = audio thi thanh cac buoc bot buoc "Trich phu de goc" va danh so lai)
+INNER_RENAME = "Đổi tên"
+INNER_SYNC = "Đồng bộ"
+RESET_TEXT = "↺ Làm lại từ đầu"
+REF_MARK = "◄ mốc"
 
 
 # ==========================================================================
@@ -58,6 +61,66 @@ def lang_from_option(opt: str) -> str:
 def counts_text(c: PrepCounts, cfg: Any) -> str:
     return (f"Phim: {c.videos}   |   Phụ đề trong '{cfg['SubFolderName']}': {c.subs}   |   "
             f"Phụ đề gốc trong '{cfg['ExtractFolder']}': {c.refs}")
+
+
+def audio_iid(fi: int, index: int) -> str:
+    return f"a{fi}_{index}"
+
+
+def audio_iid_index(iid: str) -> int:
+    """Số thứ tự audio (0:a:N) của một dòng bảng audio."""
+    return int(iid.rsplit("_", 1)[1])
+
+
+def audio_rows(files: list[VideoAudio], choice: AudioChoice | None) -> list[tuple[str, dict[str, Any], str]]:
+    """Bảng audio của MỌI file phim (TĐ-35): ``[(iid, giá trị, nhãn màu)]`` — mỗi dòng một track của một file. Tên file /
+    tập chỉ ghi ở dòng đầu của file. Cột ``ref`` đánh dấu track sẽ làm mốc theo ``choice`` (``None`` = chưa chọn).
+    Nhãn ``need`` (vàng) = file có bố cục audio KHÁC đa số; ``bad`` = không đọc được audio."""
+    groups = audio_layout_groups(files)
+    main = groups[0][0].layout if groups else ()
+    out: list[tuple[str, dict[str, Any], str]] = []
+    for fi, f in enumerate(files):
+        if not f.streams:
+            out.append((f"a{fi}_x", {"ep": f.ep_label, "file": f.video.name, "idx": "", "lang": "", "codec": "", "ch": "",
+                                     "title": "(không đọc được audio track)", "def": "", "ref": ""}, "bad"))
+            continue
+        pick = miss = None
+        if choice is not None:
+            pick, _desc, miss = pick_audio_stream(f.streams, choice)
+        tag = "need" if f.layout != main else ""
+        for n, a in enumerate(f.streams):
+            mark = ""
+            if pick == a.index:
+                mark = REF_MARK + (" (Default — không có lựa chọn)" if miss else "")
+            out.append((audio_iid(fi, a.index), {
+                "ep": f.ep_label if n == 0 else "", "file": f.video.name if n == 0 else "", "idx": a.index,
+                "lang": a.lang, "codec": a.codec, "ch": a.channels or "", "title": a.title,
+                "def": "✓" if a.default else "", "ref": mark}, tag))
+    return out
+
+
+def audio_summary(files: list[VideoAudio]) -> tuple[str, str]:
+    """Dòng tiêu đề của bảng audio → (chữ, mức màu ``info``/``warn``/``error``)."""
+    if not files:
+        return "Không tìm thấy file phim (hoặc thiếu ffprobe) để đọc audio track.", "warn"
+    unread = sum(1 for f in files if not f.streams)
+    if unread == len(files):
+        return f"Audio track của {len(files)} file phim: KHÔNG đọc được file nào (thiếu ffprobe?).", "error"
+    groups = audio_layout_groups([f for f in files if f.streams])
+    txt = f"Audio track của {len(files)} file phim"
+    other = sum(len(g) for g in groups[1:])
+    level = "info"
+    if len(files) == 1:
+        txt += f": {files[0].video.name}"
+    elif not other:
+        txt += " — mọi file cùng bố cục audio."
+    else:
+        txt += f" — {other} file có bố cục audio KHÁC đa số (dòng vàng): kiểm tra track làm mốc của từng file."
+        level = "warn"
+    if unread:
+        txt += f"  {unread} file không đọc được audio (đỏ)."
+        level = "warn"
+    return txt, level
 
 
 def extract_values(r: ExtractRow) -> tuple[dict[str, Any], str]:
@@ -208,6 +271,11 @@ class SubprepView:
         self.counts.pack(side="left", padx=10, pady=6)
         self.recount_btn = ctk.CTkButton(cf, text="Làm mới", width=90, command=self.refresh_counts)
         self.recount_btn.pack(side="left", padx=6)
+        self.reset_btn = ctk.CTkButton(cf, text=RESET_TEXT, width=150, command=self.reset_all,
+                                       fg_color=("gray70", "gray30"), text_color=("gray10", "gray90"))
+        self.reset_btn.pack(side="right", padx=10)
+        W.Tooltip(self.reset_btn, "Xoá mọi bảng và tiến độ của lượt này (thanh các bước về như chưa làm gì) để làm lô file "
+                  "mới. KHÔNG xoá file nào; Mốc đồng bộ và Ngôn ngữ đang chọn được giữ.")
 
         # --- 2-4. moc / ngon ngu / trich ---
         of = ctk.CTkFrame(self.frame)
@@ -229,30 +297,39 @@ class SubprepView:
         self.extract_hint.grid_remove()  # chi hien khi co dieu can nhac (tiet kiem chieu cao man hinh 720p)
         of.columnconfigure(6, weight=1)
 
-        # bang audio cua file mau (chi hien khi moc = audio)
+        # bang audio cua MOI file phim (chi hien khi moc = audio) - TD-35
         self.audio_box = ctk.CTkFrame(self.frame)
-        self.audio_title = ctk.CTkLabel(self.audio_box, text="Audio track của file mẫu:", anchor="w")
+        self.audio_title = ctk.CTkLabel(self.audio_box, text="Audio track của các file phim:", anchor="w")
         self.audio_title.pack(fill="x", padx=10, pady=(6, 0))
         arow = ctk.CTkFrame(self.audio_box, fg_color="transparent")
         arow.pack(fill="x", padx=10, pady=4)
+        ctk.CTkLabel(arow, text="Audio làm mốc:", font=ctk.CTkFont(weight="bold")).pack(side="left", padx=(0, 8))
         self.amode = W.tk.StringVar(value="")
-        ctk.CTkRadioButton(arow, text="Tự động (audio Default của file)", variable=self.amode, value="auto").pack(side="left")
-        ctk.CTkRadioButton(arow, text="Theo số thứ tự (chọn dòng bên dưới)", variable=self.amode, value="index").pack(
-            side="left", padx=12)
-        ctk.CTkRadioButton(arow, text="Theo ngôn ngữ:", variable=self.amode, value="lang").pack(side="left")
+        ctk.CTkRadioButton(arow, text="Tự động (audio Default của file)", variable=self.amode, value="auto",
+                           command=self.mark_audio).pack(side="left")
+        ctk.CTkRadioButton(arow, text="Theo số thứ tự (chọn dòng bên dưới)", variable=self.amode, value="index",
+                           command=self.mark_audio).pack(side="left", padx=12)
+        ctk.CTkRadioButton(arow, text="Theo ngôn ngữ:", variable=self.amode, value="lang",
+                           command=self.mark_audio).pack(side="left")
         self.alang = ctk.CTkEntry(arow, width=70)
         self.alang.pack(side="left", padx=4)
-        acols = [W.Col("idx", "Số thứ tự", 80, "e"), W.Col("lang", "Ngôn ngữ", 90), W.Col("codec", "Codec", 110),
-                 W.Col("ch", "Kênh", 60, "e"), W.Col("title", "Tên track", 360, stretch=True), W.Col("def", "Default", 70)]
-        self.atable = W.Table(self.audio_box, acols, height=3)
+        self.alang.bind("<KeyRelease>", lambda _e: self.mark_audio(), add="+")
+        acols = [W.Col("ep", "Tập", 70), W.Col("file", "File phim", 320, stretch=True, fit="name"),
+                 W.Col("idx", "Số thứ tự", 70, "e"), W.Col("lang", "Ngôn ngữ", 80), W.Col("codec", "Codec", 80),
+                 W.Col("ch", "Kênh", 50, "e"), W.Col("title", "Tên track", 220, stretch=True), W.Col("def", "Default", 60),
+                 W.Col("ref", "Làm mốc", 260)]
+        # so dong toi da theo co man hinh (nhieu hon thi cuon): khong de bang nay che mat bang doi ten / dong bo
+        self._audio_max_rows = {"compact": 3, "large": 8}.get(app.density, 4)
+        self.atable = W.Table(self.audio_box, acols, height=3, selectmode="browse")
         self.atable.frame.pack(fill="x", padx=10, pady=(0, 8))
-        self.atable.on_select = lambda ids: self.amode.set("index") if ids else None
+        self.atable.on_select = self._audio_selected
+        self.audio_files: list[VideoAudio] = []
 
         # --- cac buoc: nut TO theo thu tu, buoc ke tiep sang mau ---
         self._counts: PrepCounts | None = None
         self._renames_planned = self._pairs_planned = self._cleaned = False
         self.steps = W.StepBar(self.frame, [
-            ("extract", "Trích phụ đề gốc", self.plan_extract), ("preview", "Xem trước đổi tên", self.plan_rename),
+            ("extract", "Trích phụ đề gốc", self.plan_extract), ("preview", "Quét phụ đề", self.plan_rename),
             ("rename", "Đổi tên", self.do_rename), ("pairs", "Lập cặp đồng bộ", self.plan_sync),
             ("sync", "Chạy đồng bộ", self.do_sync), ("cleanup", "Dọn dẹp", self.cleanup),
             ("next", "Sang ③ Mux →", lambda: self.app.goto("③ Mux"))], compact=app.density == "compact", plain=("next",))
@@ -326,25 +403,45 @@ class SubprepView:
         self.lang.set(next((o for o in opts if lang_from_option(o) == code), AUTO_LANG))
 
     def _mode_changed(self) -> None:
-        if self._mode() == MODE_AUDIO:
+        audio = self._mode() == MODE_AUDIO
+        # moc = audio: khong can phu de goc -> an han buoc "Trich phu de goc" (cac buoc con lai danh so lai)
+        self.steps.set_hidden(("extract",) if audio else ())
+        if audio:
             self.audio_box.pack(fill="x", pady=(0, 6), before=self.steps.frame)
-            if not self.streams:
+            if not self.audio_files:
                 self.load_streams()
         else:
             self.audio_box.pack_forget()
+        self._show_extract_hint()
         self.pairs = []
         self._pairs_planned = False
         self.fill_pairs()
         self.update_buttons()
+
+    def _show_extract_hint(self) -> None:
+        """Dòng nhắc "srt_goc đang trống": chỉ khi mốc = phụ đề gốc (mốc = audio thì không cần phụ đề gốc)."""
+        c, cfg = self._counts, self.app.cfg
+        if self._mode() == MODE_SUB and c is not None and c.refs == 0 and c.videos:
+            self.extract_hint.configure(text=f"'{cfg['ExtractFolder']}' đang trống → bấm \"1. Trích phụ đề gốc\" "
+                                        "(hoặc chọn mốc = Audio của file phim).")
+            self.extract_hint.grid()
+        else:
+            self.extract_hint.configure(text="")
+            self.extract_hint.grid_remove()
+
+    def _audio_selected(self, ids: list[str]) -> None:
+        if ids and not ids[0].endswith("_x"):
+            self.amode.set("index")
+        self.mark_audio()
 
     def audio_choice(self) -> AudioChoice | None:
         m = self.amode.get()
         if m == "auto":
             return AudioChoice("auto")
         if m == "index":
-            sel = self.atable.selected()
+            sel = [i for i in self.atable.selected() if not i.endswith("_x")]
             if sel:
-                return AudioChoice("index", int(sel[0][1:]))
+                return AudioChoice("index", audio_iid_index(sel[0]))
             return AudioChoice("index", int(self.app.cfg["SyncAudioIndex"]))
         if m == "lang":
             lg = self.alang.get().strip().lower() or str(self.app.cfg["SyncAudioLang"])
@@ -365,10 +462,32 @@ class SubprepView:
     def on_folder_changed(self) -> None:
         self.reset()
         self.refresh_counts()
+        self._reload_audio()
 
     def on_files_changed(self) -> None:
         self.reset("File trong thư mục đã thay đổi (hoàn tác) → lập lại bảng ở thẻ ②.")
         self.refresh_counts()
+        self._reload_audio()
+
+    def _reload_audio(self) -> None:
+        if self._mode() == MODE_AUDIO and self.app.folder:
+            self.load_streams()
+
+    def reset_all(self) -> None:
+        """Nút "↺ Làm lại từ đầu": mọi bảng + tiến độ về như chưa làm gì (phiên mới = nhật ký mới). Không xoá file."""
+        if self.app.runner.busy:
+            return
+        pending = [r for r in self.renames if r.ok and r.selected and not r.status] + \
+                  [p for p in self.pairs if p.ok and p.selected and p.result is None]
+        if pending and not W.ask_yes_no(self.frame, "Làm lại từ đầu", f"Còn {len(pending)} dòng CHƯA chạy trong các bảng. "
+                                        "Xoá hết bảng và tiến độ của lượt này để bắt đầu lại?\n\n(Không xoá file nào.)"):
+            return
+        self.reset()
+        self.only_bad.set(False)
+        self.inner.set(INNER_RENAME)
+        self.app.log("info", "② Đã làm lại từ đầu: các bảng và thanh các bước về mặc định (không xoá file nào).")
+        self.refresh_counts()
+        self._reload_audio()
 
     def on_show(self) -> None:
         self.refresh_counts()
@@ -381,7 +500,9 @@ class SubprepView:
         self._counts = None
         self._renames_planned = self._pairs_planned = self._cleaned = False
         self.streams, self.sample = [], None
+        self.audio_files = []
         self.atable.clear()
+        self.audio_title.configure(text="Audio track của các file phim:", text_color=W.LEVEL_COLORS["info"])
         self.fill_renames()
         self.fill_pairs()
         self.rename_info.configure(text="")
@@ -415,10 +536,11 @@ class SubprepView:
         done = [self._mode() == MODE_AUDIO or (c is not None and c.refs > 0),  # moc = audio: khong can phu de goc
                 self._renames_planned, self._renames_planned and not ok_ren,
                 self._pairs_planned, synced,
-                self._cleaned or (synced and not processed),  # khong co gi de don
+                self._cleaned,  # chi ✓ khi da qua hop thoai don dep cua LUOT NAY
                 False]
         self.steps.update(done, [folder, folder, bool(ok_ren), folder, bool(ok_pairs), processed, True], busy)
         self.recount_btn.configure(state=st(folder))
+        self.reset_btn.configure(state=st(folder))
         self.cmd_btn.configure(state=st(any(p.ok for p in self.pairs)))
         self.export_btn.configure(state=st(bool(self.pairs)))
 
@@ -436,38 +558,52 @@ class SubprepView:
         def done(c: PrepCounts) -> None:
             self._counts = c
             self.counts.configure(text=counts_text(c, cfg))
-            if c.refs == 0 and c.videos:
-                self.extract_hint.configure(text=f"'{cfg['ExtractFolder']}' đang trống → bấm \"1. Trích phụ đề gốc\" "
-                                            "(hoặc chọn mốc = Audio của file phim).")
-                self.extract_hint.grid()
-            else:
-                self.extract_hint.configure(text="")
-                self.extract_hint.grid_remove()
+            self._show_extract_hint()
             self.update_buttons()
 
         self.app.runner.start("Đếm file (bước ②)", work, done, when_free=True)
 
-    # ------------------------------------------------------------------ 2. audio mau
+    # ------------------------------------------------------------------ 2. audio cua moi file
     def load_streams(self) -> None:
         if not self.app.folder:
             return
 
-        def work(job: tools.Job) -> tuple[Path | None, list[probe.AudioStream]]:
-            return self._session(job).sample_audio_streams()
+        def work(job: tools.Job) -> list[VideoAudio]:
+            return self._session(job).all_audio_streams()
 
-        def done(res: tuple[Path | None, list[probe.AudioStream]]) -> None:
-            self.sample, self.streams = res
-            self.atable.clear()
-            self.audio_title.configure(text=f"Audio track của file mẫu: {W.shorten_name(self.sample.name, 90)}" if self.sample else
-                                       "Không tìm thấy file phim (hoặc thiếu ffprobe) để đọc audio track.")
-            for a in self.streams:
-                self.atable.add(f"a{a.index}", {"idx": a.index, "lang": a.lang, "codec": a.codec, "ch": a.channels or "",
-                                                "title": a.title, "def": "✓" if a.default else ""})
-            if self.amode.get() == "index":
-                i = int(self.app.cfg["SyncAudioIndex"])
-                self.atable.select(f"a{i}")
+        def done(files: list[VideoAudio]) -> None:
+            self.audio_files = files
+            self.sample = files[0].video if files else None
+            self.streams = files[0].streams if files else []
+            self.fill_audio()
 
-        self.app.runner.start("Đọc audio track của file mẫu", work, done, when_free=True)
+        self.app.runner.start("Đọc audio track của các file phim", work, done, when_free=True)
+
+    def fill_audio(self) -> None:
+        self.atable.clear()
+        txt, level = audio_summary(self.audio_files)
+        self.audio_title.configure(text=txt if len(self.audio_files) != 1 else
+                                   f"Audio track của file phim: {W.shorten_name(self.audio_files[0].video.name, 90)}",
+                                   text_color=W.LEVEL_COLORS[level])
+        rows = audio_rows(self.audio_files, self._choice_for_marks())
+        self.atable.tv.configure(height=max(2, min(len(rows), self._audio_max_rows)))
+        for iid, vals, tag in rows:
+            self.atable.add(iid, vals, tags=(tag,) if tag else ())
+        if self.amode.get() == "index":  # so thu tu trong Cai dat -> chon san dong do cua file dau
+            self.atable.select(audio_iid(0, int(self.app.cfg["SyncAudioIndex"])))
+
+    def _choice_for_marks(self) -> AudioChoice | None:
+        """Lựa chọn đang có hiệu lực để đánh dấu "◄ mốc" (chưa chọn cách lấy audio → không đánh dấu)."""
+        try:
+            return self.audio_choice()
+        except ValueError:
+            return None
+
+    def mark_audio(self) -> None:
+        """Đổi cách chọn audio / chọn dòng khác → cập nhật cột "Làm mốc" (không dựng lại bảng: giữ dòng đang chọn)."""
+        for iid, vals, _tag in audio_rows(self.audio_files, self._choice_for_marks()):
+            if self.atable.full(iid).get("ref") != vals["ref"]:
+                self.atable.set_cell(iid, "ref", vals["ref"])
 
     # ------------------------------------------------------------------ 4. trich
     def plan_extract(self) -> None:
@@ -528,11 +664,16 @@ class SubprepView:
         def done(rows: list[RenameRow]) -> None:
             self.renames = rows
             self._renames_planned = True
+            self._cleaned = False  # quet lai = luot moi: buoc "Don dep" khong con ✓ cua luot truoc
+            if self._pairs_planned and not any(p.ok and p.selected and p.result is None for p in self.pairs):
+                self.pairs, self._pairs_planned = [], False  # cac cap cu da chay xong -> bang dong bo lam lai
+                self.fill_pairs()
+                self.sync_info.configure(text="")
             self.fill_renames()
             self.inner.set(INNER_RENAME)
             self.update_buttons()
 
-        self.app.runner.start("Xem trước đổi tên", work, done)
+        self.app.runner.start("Quét phụ đề (xem trước đổi tên)", work, done)
 
     def fill_renames(self) -> None:
         self.rtable.clear()
@@ -580,7 +721,7 @@ class SubprepView:
             self.fill_pairs()
             self.update_buttons()
             if rep.ok:
-                self.app.log("info", "→ Bấm \"4. Lập cặp đồng bộ\".")
+                self.app.log("info", "→ Bấm \"Lập cặp đồng bộ\".")
                 self.inner.set(INNER_SYNC)
             self.refresh_counts_later()
 

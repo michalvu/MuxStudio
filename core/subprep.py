@@ -510,6 +510,55 @@ class AudioChoice:
             return cls("lang", str(cfg["SyncAudioLang"]))
         return cls("auto")  # 'ask' = GUI hien bang de chon; loi khong co lua chon -> tu dong
 
+
+def pick_audio_stream(streams: Sequence[probe.AudioStream], choice: AudioChoice) -> tuple[int, str, bool]:
+    """Audio track làm mốc của MỘT file theo lựa chọn → ``(số thứ tự, mô tả, không_có)``. ``không_có`` = số thứ tự /
+    ngôn ngữ đã chọn không có trong file này nên phải dùng track Default (không có thì track đầu)."""
+
+    def auto(prefix: str = "") -> tuple[int, str]:
+        for st in streams:
+            if st.default:
+                return st.index, prefix + st.describe()
+        return 0, prefix + (streams[0].describe() if streams else "track đầu")
+
+    if not streams:
+        return 0, "không đọc được danh sách audio → thử track đầu", False
+    if choice.mode == "index":
+        i = int(choice.value or 0)
+        if 0 <= i < len(streams):
+            return i, streams[i].describe(), False
+        return (*auto(f"không có #{i} → "), True)
+    if choice.mode == "lang":
+        want = str(choice.value or "")
+        hit = next((st for st in streams if naming.lang_match(st.lang, want)), None)
+        if hit is not None:
+            return hit.index, hit.describe(), False
+        return (*auto(f"không có '{want}' → "), True)
+    return (*auto(), False)
+
+
+@dataclass
+class VideoAudio:
+    """Audio track của một file phim (bảng audio ở thẻ ② — TĐ-35: liệt kê MỌI file, không chỉ file mẫu)."""
+
+    video: Path
+    ep_label: str  # 'S01E05' / 'E643' / '' (phim le)
+    streams: list[probe.AudioStream]
+
+    @property
+    def layout(self) -> tuple[tuple[str, str, int], ...]:
+        """Bố cục audio để so giữa các file: (ngôn ngữ, codec, số kênh) theo thứ tự track."""
+        return tuple((a.lang.lower(), a.codec.lower(), a.channels) for a in self.streams)
+
+
+def audio_layout_groups(files: Sequence[VideoAudio]) -> list[list[VideoAudio]]:
+    """Gom các file theo bố cục audio, nhóm nhiều file nhất đứng trước (bằng nhau: nhóm gặp trước)."""
+    groups: dict[Any, list[VideoAudio]] = {}
+    for f in files:
+        groups.setdefault(f.layout, []).append(f)
+    return sorted(groups.values(), key=lambda g: -len(g))
+
+
     def describe(self) -> str:
         if self.mode == "index":
             return f"theo số thứ tự = {self.value}"
@@ -786,6 +835,18 @@ class PrepSession:
         if not vids:
             return None, []
         return vids[0], probe.audio_streams(probe.ffprobe_streams(vids[0], self.ffprobe, "a", self.job, self.ffprobe_cache))
+
+    def all_audio_streams(self) -> list[VideoAudio]:
+        """Audio track của MỌI file phim (TĐ-35) — để thấy tập nào có audio nào trước khi chọn mốc."""
+        vids = self.list_videos()
+        out: list[VideoAudio] = []
+        for i, v in enumerate(vids, 1):
+            self.job.check()
+            self.job.progress(i, len(vids), v.name)
+            info = episodes.parse_episode(v.stem)
+            streams = probe.audio_streams(probe.ffprobe_streams(v, self.ffprobe, "a", self.job, self.ffprobe_cache))
+            out.append(VideoAudio(v, info.label if info else "", streams))
+        return out
 
     def _ensure_dir(self, d: Path) -> None:
         if d.exists():
@@ -1088,33 +1149,14 @@ class PrepSession:
         if key in self._audio_cache:
             return self._audio_cache[key]
         streams = probe.audio_streams(probe.ffprobe_streams(video, self.ffprobe, "a", self.job, self.ffprobe_cache))
-
-        def auto(prefix: str = "") -> tuple[int, str]:
-            for s in streams:
-                if s.default:
-                    return s.index, prefix + s.describe()
-            return 0, prefix + (streams[0].describe() if streams else "track đầu")
-
+        idx, desc, miss = pick_audio_stream(streams, choice)
         if not streams:
-            res: tuple[int | None, str] = (0, "không đọc được danh sách audio → thử track đầu")
             self.job.warn(f"  [!] Không đọc được audio: {video.name} → thử track đầu.")
-        elif choice.mode == "index":
-            i = int(choice.value or 0)
-            if 0 <= i < len(streams):
-                res = (i, streams[i].describe())
-            else:
-                self.job.warn(f"  [!] {video.name} chỉ có {len(streams)} audio → dùng audio Default.")
-                res = auto(f"không có #{i} → ")
-        elif choice.mode == "lang":
-            want = str(choice.value or "")
-            hit = next((s for s in streams if naming.lang_match(s.lang, want)), None)
-            if hit is not None:
-                res = (hit.index, hit.describe())
-            else:
-                self.job.warn(f"  [!] {video.name}: không có audio '{want}' → dùng audio Default.")
-                res = auto(f"không có '{want}' → ")
-        else:
-            res = auto()
+        elif miss and choice.mode == "index":
+            self.job.warn(f"  [!] {video.name} chỉ có {len(streams)} audio → dùng audio Default.")
+        elif miss:
+            self.job.warn(f"  [!] {video.name}: không có audio '{choice.value or ''}' → dùng audio Default.")
+        res: tuple[int | None, str] = (idx, desc)
         self._audio_cache[key] = res
         return res
 
