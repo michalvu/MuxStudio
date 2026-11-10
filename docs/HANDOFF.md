@@ -2,8 +2,11 @@
 
 Cập nhật: 2026-11-09, **Giai đoạn 0–6 ĐÃ DUYỆT — dự án hoàn thành, phiên bản 1.0.0.** Repo `michalvu/MuxStudio`.
 Phiên sau (nếu có): bảo trì — sửa lỗi người dùng báo, yêu cầu mới (xem "Việc kế tiếp").
-Nhánh: GĐ6 làm trên nhánh phiên `ccr-e18d248b-a69t65`, đẩy cả `claude/new-session-eckanp` (người dùng yêu cầu: hai nhánh giống nhau).
-Phiên sau: làm trên nhánh phiên được giao; đẩy cả `claude/new-session-eckanp`.
+Nhánh: chỉ còn **`claude/new-session-eckanp`** = nhánh chính (nhánh mặc định của repo). Các nhánh phiên cũ
+(`ccr-770f1e3e-dqsvcp`, `ccr-e18d248b-a69t65`, `claude/gifted-keller-fx1jey`) đã xoá ngày 2026-11-10 theo yêu cầu người
+dùng — mọi commit của chúng đều đã nằm trong nhánh chính.
+Phiên sau: làm trên nhánh phiên được giao, đẩy cả nhánh chính `claude/new-session-eckanp`; xong việc (người dùng
+duyệt) thì xoá nhánh phiên trên GitHub, chỉ giữ nhánh chính.
 
 ## 1. Đọc gì, theo thứ tự
 
