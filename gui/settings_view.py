@@ -417,7 +417,7 @@ class FieldRow:
     # ---- nut ----
     def _pick_dir(self) -> None:
         cur = self.entry.get().strip()
-        d = W.filedialog.askdirectory(parent=self.parent, title=self.f.label,
+        d = W.filedialog.askdirectory(parent=self.parent, title=W.tr(self.f.label),
                                       initialdir=cur if cur and os.path.isdir(cur) else None)
         if d:
             self.entry.delete(0, "end")
@@ -425,7 +425,7 @@ class FieldRow:
 
     def _pick_file(self) -> None:
         cur = self.entry.get().strip()
-        p = W.filedialog.askopenfilename(parent=self.parent, title=self.f.label,
+        p = W.filedialog.askopenfilename(parent=self.parent, title=W.tr(self.f.label),
                                          initialdir=os.path.dirname(cur) if cur else None,
                                          filetypes=[("Chương trình", "*.exe"), ("Mọi file", "*.*")]
                                          if os.name == "nt" else [("Mọi file", "*")])
@@ -500,8 +500,8 @@ class SettingsView:
         self.frame.pack(fill="both", expand=True)
         top = ctk.CTkFrame(self.frame, fg_color="transparent")
         top.pack(fill="x", pady=(0, 6))
-        self.group_var = W.tk.StringVar(value=C.GROUPS["chung"])
-        self.seg = ctk.CTkSegmentedButton(top, values=list(C.GROUPS.values()), variable=self.group_var,
+        self.group_var = W.TrChoice(C.GROUPS["chung"])  # hien ten nhom da dich; get() van la ten tieng Viet
+        self.seg = ctk.CTkSegmentedButton(top, values=self.group_var.values(C.GROUPS.values()), variable=self.group_var.var,
                                           command=lambda _v: self.show_group())
         self.seg.pack(side="left")
         self.adv = W.tk.BooleanVar(value=False)
@@ -781,7 +781,7 @@ class SettingsView:
 
     # ---- nhap tu .bat ----
     def import_bat(self) -> None:
-        paths = W.filedialog.askopenfilenames(parent=self.frame, title="Chọn SubFetch / SubPrep / MuxTool .bat",
+        paths = W.filedialog.askopenfilenames(parent=self.frame, title=W.tr("Chọn SubFetch / SubPrep / MuxTool .bat"),
                                               filetypes=[("File .bat", "*.bat"), ("Mọi file", "*.*")])
         if not paths:
             return

@@ -97,6 +97,7 @@ class LogPanel:
         for level, msg in items:
             if self.redact:
                 msg = self.redact(msg)
+            msg = str(W.tr(msg))  # hien thi (va "Luu log") theo ngon ngu giao dien
             lv = level if level in LEVELS else "info"
             self.lines.append((now, lv, msg))
             self.box.insert("end", msg + "\n", lv)
@@ -167,7 +168,7 @@ class LogPanel:
     def save(self) -> Path | None:
         d = self.folder() or os.path.expanduser("~")
         name = f"MuxStudio_log_{_dt.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        p = W.filedialog.asksaveasfilename(parent=self.frame, title="Lưu log", initialdir=d, initialfile=name,
+        p = W.filedialog.asksaveasfilename(parent=self.frame, title=W.tr("Lưu log"), initialdir=d, initialfile=name,
                                            defaultextension=".txt", filetypes=[("Văn bản", "*.txt"), ("Mọi file", "*.*")])
         if not p:
             return None

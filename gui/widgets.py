@@ -25,7 +25,8 @@ import traceback
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Sequence
 
-from core import tools
+from core import i18n, tools
+from core.i18n import tr
 
 try:  # pragma: no cover - phu thuoc may
     import tkinter as tk
@@ -991,6 +992,7 @@ class Tooltip:
 
     def _show(self, txt: str) -> None:
         self._after = None
+        txt = str(tr(txt))
         tw = tk.Toplevel(self.w)
         tw.wm_overrideredirect(True)
         try:
@@ -1059,14 +1061,14 @@ class Table:
         self.tv = ttk.Treeview(self.frame, columns=ids, show=("tree headings" if tree else "headings"),
                                height=height, selectmode=selectmode)
         if tree:
-            self.tv.heading("#0", text=tree, anchor="w")
+            self.tv.heading("#0", text=tr(tree), anchor="w")
             self.tv.column("#0", width=px(self.frame, tree_width), stretch=True, anchor="w",
                            minwidth=px(self.frame, tree_width * 0.5))
         if check:
-            self.tv.heading(self.CHECK, text=check, anchor="center")
+            self.tv.heading(self.CHECK, text=tr(check), anchor="center")
             self.tv.column(self.CHECK, width=px(self.frame, max(46, 9 * len(check) + 16)), stretch=False, anchor="center")
         for c in self.cols:
-            self.tv.heading(c.id, text=c.title, anchor=c.anchor if c.anchor != "e" else "e",
+            self.tv.heading(c.id, text=tr(c.title), anchor=c.anchor if c.anchor != "e" else "e",
                             command=(lambda cid=c.id: self._heading(cid)))
             self.tv.column(c.id, width=px(self.frame, c.width), stretch=c.stretch, anchor=c.anchor,
                            minwidth=px(self.frame, c.width * 0.5 if c.stretch else 30))
@@ -1129,6 +1131,8 @@ class Table:
         for c in self.cols:
             v = full.get(c.id, "")
             v = "" if v is None else v
+            if c.fit != "name":  # cot ten file: khong dich
+                v = tr(v)
             if c.fit and isinstance(v, str) and v:
                 v = fit_text(v, self._col_width(c.id) - self._pad, self._measure, c.fit)
             out.append(v)
@@ -1137,7 +1141,7 @@ class Table:
     def _shown_text(self, iid: str) -> str:
         t = self._full_text.get(iid, "")
         if not t or not self.tree_fit:
-            return t
+            return str(tr(t))
         lead = len(t) - len(t.lstrip(" "))
         w = self._col_width(self.TREE) - self._pad - (self._depth(iid) + 1) * self._indent
         return t[:lead] + fit_text(t[lead:], w - self._measure(t[:lead]), self._measure, self.tree_fit)
@@ -1504,13 +1508,13 @@ class CheckGrid:
         w = self.label_w + self.col_w * len(m.cols)
         h = self.head_h + self.row_h * len(m.rows)
         cv.create_rectangle(0, 0, w, self.head_h, fill=g["head"], outline=g["line"])
-        cv.create_text(pad, self.head_h / 2, text=fit_text("Tập  (bấm tên = cả dòng)", self.label_w - 2 * pad,
+        cv.create_text(pad, self.head_h / 2, text=fit_text(str(tr("Tập  (bấm tên = cả dòng)")), self.label_w - 2 * pad,
                                                             self.bold.measure), anchor="w", font=self.bold, fill=g["fg"])
         for i, c in enumerate(m.cols):
             x0 = self.label_w + i * self.col_w
             hb = g["head_ext"] if str(c).startswith("E|") else g["head"]
             cv.create_rectangle(x0, 0, x0 + self.col_w, self.head_h, fill=hb, outline=g["line"])
-            cv.create_text(x0 + self.col_w / 2, self.head_h / 2, text=self.headers.get(c, c), font=self.font, fill=g["fg"],
+            cv.create_text(x0 + self.col_w / 2, self.head_h / 2, text=tr(self.headers.get(c, c)), font=self.font, fill=g["fg"],
                            justify="center", width=self.col_w - 6)
         for j, r in enumerate(m.rows):
             y0 = self.head_h + j * self.row_h
@@ -1555,7 +1559,7 @@ class Dialog:
         self.parent = parent
         self.win = ctk.CTkToplevel(parent)
         set_window_icon(self.win)
-        self.win.title(title)
+        self.win.title(str(tr(title)))
         sw, sh = screen_logical(self.win)  # hop thoai khong bao gio to hon man hinh (720p)
         width, height = int(min(width, sw - 40)), int(min(height, sh - 90))
         self.win.geometry(f"{width}x{height}")
@@ -1603,7 +1607,7 @@ def text_box(master: Any, text: str = "", height: int = 12, wrap: str = "none", 
     tb = ctk.CTkTextbox(master, height=height * 18, wrap=wrap,
                         font=ctk.CTkFont(family=mono_family(), size=12) if mono else None)
     if text:
-        tb.insert("1.0", text)
+        tb.insert("1.0", str(tr(text)))
     return tb
 
 
@@ -1656,12 +1660,107 @@ def ask_string(parent: Any, title: str, prompt: str, initial: str = "") -> str |
 
 
 def info(parent: Any, title: str, message: str) -> None:
-    messagebox.showinfo(title, message, parent=parent)
+    messagebox.showinfo(tr(title), tr(message), parent=parent)
 
 
 def warn(parent: Any, title: str, message: str) -> None:
-    messagebox.showwarning(title, message, parent=parent)
+    messagebox.showwarning(tr(title), tr(message), parent=parent)
 
 
 def ask_yes_no(parent: Any, title: str, message: str) -> bool:
-    return bool(messagebox.askyesno(title, message, parent=parent))
+    return bool(messagebox.askyesno(tr(title), tr(message), parent=parent))
+
+
+def ask_yes_no_cancel(parent: Any, title: str, message: str) -> bool | None:
+    """Có / Không / Huỷ (``None``) — chữ được dịch theo ngôn ngữ giao diện."""
+    return messagebox.askyesnocancel(tr(title), tr(message), parent=parent)
+
+
+# ==========================================================================
+#  HAI NGÔN NGỮ: dịch ở chỗ hiển thị (core/i18n.py)
+# ==========================================================================
+
+_I18N_KW = ("text", "placeholder_text", "label_text")
+_I18N_CLASSES = ("CTkLabel", "CTkButton", "CTkCheckBox", "CTkRadioButton", "CTkSwitch", "CTkEntry", "CTkScrollableFrame")
+
+
+def _tr_kwargs(kw: dict[str, Any]) -> None:
+    for k in _I18N_KW:
+        v = kw.get(k)
+        if isinstance(v, str) and v:
+            kw[k] = tr(v)
+
+
+def install_i18n() -> bool:
+    """Cho mọi widget CustomTkinter tự dịch chữ (``text=…``) lúc tạo và lúc ``configure`` — mã các thẻ không phải sửa.
+    Tiếng Việt: ``tr`` trả nguyên văn. Thẻ (``CTkTabview``): tên hiển thị được dịch, nhưng ``get()`` vẫn trả tên tiếng
+    Việt để mã so sánh như cũ. Gọi nhiều lần cũng chỉ cài một lần."""
+    if ctk is None or getattr(ctk, "_muxstudio_i18n", False):
+        return False
+    ctk._muxstudio_i18n = True
+
+    def wrap(cls: Any) -> None:
+        init, conf = cls.__init__, cls.configure
+
+        def __init__(self: Any, *a: Any, **kw: Any) -> None:
+            _tr_kwargs(kw)
+            init(self, *a, **kw)
+
+        def configure(self: Any, *a: Any, **kw: Any) -> Any:
+            _tr_kwargs(kw)
+            return conf(self, *a, **kw)
+
+        cls.__init__, cls.configure = __init__, configure
+
+    for name in _I18N_CLASSES:
+        cls = getattr(ctk, name, None)
+        if cls is not None:
+            wrap(cls)
+
+    tv = ctk.CTkTabview
+    add, tab, set_, get, delete = tv.add, tv.tab, tv.set, tv.get, tv.delete
+
+    def names(self: Any) -> dict[str, str]:
+        d = getattr(self, "_mux_names", None)
+        if d is None:
+            d = self._mux_names = {}
+        return d
+
+    def shown(self: Any, name: str) -> str:
+        s = str(tr(name))
+        names(self)[s] = name
+        return s
+
+    tv.add = lambda self, name: add(self, shown(self, name))
+    tv.tab = lambda self, name: tab(self, shown(self, name))
+    tv.set = lambda self, name: set_(self, shown(self, name))
+    tv.delete = lambda self, name: delete(self, shown(self, name))
+    tv.get = lambda self: names(self).get(get(self), get(self))
+    return True
+
+
+class TrChoice:
+    """Một ``StringVar`` hiển thị chữ ĐÃ DỊCH cho ô chọn (OptionMenu / SegmentedButton) nhưng ``get()`` / ``set()`` vẫn
+    dùng giá trị tiếng Việt gốc — để mã so sánh như cũ ở cả hai ngôn ngữ."""
+
+    def __init__(self, value: str = ""):
+        self._map: dict[str, str] = {}
+        self.var = tk.StringVar(value=self.shown(value))
+
+    def shown(self, value: str) -> str:
+        s = str(tr(value))
+        self._map[s] = value
+        return s
+
+    def values(self, items: Iterable[str]) -> list[str]:
+        return [self.shown(x) for x in items]
+
+    def get(self) -> str:
+        v = self.var.get()
+        return self._map.get(v, v)
+
+    def set(self, value: str) -> None:
+        self.var.set(self.shown(value))
+
+    def original(self, shown: str) -> str:
+        return self._map.get(shown, shown)

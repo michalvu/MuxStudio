@@ -806,9 +806,9 @@ class MuxView:
         need_name = [p for p in sel if p.name.status == "need_choice"]
         keep_names = False
         if need_name:
-            ans = W.messagebox.askyesnocancel(
-                "Còn dòng cần chọn tên", f"Còn {len(need_name)} file CẦN CHỌN tên (vàng).\n\nCó = giữ tên file gốc cho "
-                "các file đó rồi mux luôn.\nKhông = quay lại để chọn.", parent=self.frame)
+            ans = W.ask_yes_no_cancel(
+                self.frame, "Còn dòng cần chọn tên", f"Còn {len(need_name)} file CẦN CHỌN tên (vàng).\n\nCó = giữ tên file "
+                "gốc cho các file đó rồi mux luôn.\nKhông = quay lại để chọn.")
             if not ans:
                 return
             keep_names = True

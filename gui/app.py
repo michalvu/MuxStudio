@@ -24,7 +24,7 @@ from typing import Any, Callable, Mapping
 from core import __version__ as VERSION
 from core import config as C
 from core import secrets as S
-from core import tools, undo
+from core import i18n, tools, undo
 
 from . import widgets as W
 
@@ -154,6 +154,9 @@ class App:
         if ctk is None:  # pragma: no cover
             raise RuntimeError("Thiếu tkinter / customtkinter")
         self.cfg = cfg if cfg is not None else C.load_config()
+        # 1.2.0: ngon ngu giao dien (vi / en) - dat TRUOC khi tao widget; co hieu luc khi mo lai chuong trinh
+        self.language = i18n.set_language(self.cfg["UiLanguage"])
+        W.install_i18n()
         # 1.2.0: bo mau "kinh" + che do Sang / Toi theo Cai dat (``appearance`` chi de test ep mot che do)
         W._RESTYLE.clear()
         self._forced_appearance = bool(appearance)
@@ -375,8 +378,7 @@ class App:
         new = self.tabs.get()
         old = self._current_tab
         if old == TAB_SETTINGS and new != TAB_SETTINGS and self.settings.is_dirty():
-            ans = W.messagebox.askyesnocancel("Cài đặt", "Bạn đã sửa cài đặt mà chưa lưu. Lưu ngay bây giờ?",
-                                              parent=self.root)
+            ans = W.ask_yes_no_cancel(self.root, "Cài đặt", "Bạn đã sửa cài đặt mà chưa lưu. Lưu ngay bây giờ?")
             if ans is None:
                 self.tabs.set(TAB_SETTINGS)
                 return
@@ -394,7 +396,7 @@ class App:
     # ------------------------------------------------------------------ thu muc phim
     def choose_folder(self) -> None:
         cur = self.folder or self.cfg.get("UiLastFolder") or None
-        d = W.filedialog.askdirectory(parent=self.root, title="Chọn thư mục phim",
+        d = W.filedialog.askdirectory(parent=self.root, title=W.tr("Chọn thư mục phim"),
                                       initialdir=cur if cur and os.path.isdir(str(cur)) else None)
         if d:
             self.set_folder(d)
@@ -507,7 +509,7 @@ class App:
             if job is not None:
                 job.cancel_now()
         if self.settings.is_dirty():
-            ans = W.messagebox.askyesnocancel("Cài đặt", "Lưu cài đặt đã sửa trước khi thoát?", parent=self.root)
+            ans = W.ask_yes_no_cancel(self.root, "Cài đặt", "Lưu cài đặt đã sửa trước khi thoát?")
             if ans is None:
                 return
             if ans and not self.settings.save():

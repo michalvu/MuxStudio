@@ -233,10 +233,10 @@ def export_csv(pairs: list[SyncPair], path: str | os.PathLike[str]) -> int:
     """Nút "Xuất CSV" (UTF-8 có BOM để Excel đọc đúng dấu)."""
     with open(path, "w", encoding="utf-8-sig", newline="") as fh:
         w = csv.writer(fh, quoting=csv.QUOTE_ALL, lineterminator="\r\n")
-        w.writerow([t for _k, t in EXPORT_COLS])
+        w.writerow([W.tr(t) for _k, t in EXPORT_COLS])
         for p in pairs:
             vals, _tag = pair_values(p)
-            w.writerow([vals.get(k, "") for k, _t in EXPORT_COLS])
+            w.writerow([vals.get(k, "") if k in ("sub", "ref", "out") else W.tr(vals.get(k, "")) for k, _t in EXPORT_COLS])
     return len(pairs)
 
 
@@ -288,8 +288,8 @@ class SubprepView:
         ctk.CTkRadioButton(of, text="Audio của file phim", variable=self.mode, value=MODE_AUDIO,
                            command=self._mode_changed).grid(row=0, column=2, sticky="w", padx=12)
         ctk.CTkLabel(of, text="Ngôn ngữ:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=3, sticky="e", padx=(24, 6))
-        self.lang = W.tk.StringVar(value=AUTO_LANG)
-        self.lang_menu = ctk.CTkOptionMenu(of, values=lang_options(), variable=self.lang, width=330,
+        self.lang = W.TrChoice(AUTO_LANG)  # hien chu da dich; get() van la lua chon tieng Viet
+        self.lang_menu = ctk.CTkOptionMenu(of, values=self.lang.values(lang_options()), variable=self.lang.var, width=330,
                                            command=self._lang_changed)
         self.lang_menu.grid(row=0, column=4, sticky="w")
         self.extract_hint = ctk.CTkLabel(of, text="", text_color=W.LEVEL_COLORS["warn"], anchor="w")
@@ -389,6 +389,7 @@ class SubprepView:
         return lang_from_option(self.lang.get())
 
     def _lang_changed(self, opt: str) -> None:
+        opt = self.lang.original(opt)
         if opt != OTHER_LANG:
             return
         code = W.ask_string(self.frame, "Ngôn ngữ khác", "Nhập mã ngôn ngữ (vd ja, pt, ru):")
@@ -399,7 +400,7 @@ class SubprepView:
         code = naming.lang_from_word(code) or code
         naming.register_language(code)
         opts = lang_options([code])
-        self.lang_menu.configure(values=opts)
+        self.lang_menu.configure(values=self.lang.values(opts))
         self.lang.set(next((o for o in opts if lang_from_option(o) == code), AUTO_LANG))
 
     def _mode_changed(self) -> None:
@@ -829,7 +830,7 @@ class SubprepView:
     def export(self) -> None:
         if not self.pairs:
             return
-        p = W.filedialog.asksaveasfilename(parent=self.frame, title="Xuất CSV", initialdir=self.app.folder,
+        p = W.filedialog.asksaveasfilename(parent=self.frame, title=W.tr("Xuất CSV"), initialdir=self.app.folder,
                                            initialfile="dong_bo.csv", defaultextension=".csv",
                                            filetypes=[("CSV", "*.csv")])
         if p:
