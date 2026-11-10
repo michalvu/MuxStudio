@@ -86,7 +86,7 @@ def main() -> None:
         sys.path.insert(0, ROOT)
         from core import i18n_en  # noqa: PLC0415
 
-        known = i18n_en.EN
+        known = {**i18n_en.EN, **{k: "" for k in i18n_en.SKIP}}
     n = 0
     for t, where in found.items():
         if t in known:

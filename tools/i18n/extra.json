@@ -1,0 +1,20 @@
+{
+"Xong: {}.": "Done: {}.",
+"trong MKV": "inside the MKV",
+"vd: pt ru": "e.g. pt ru",
+"vd: pt ru it": "e.g. pt ru it",
+"File phim": "Video file",
+"Sang ③ Mux →": "Go to ③ Mux →",
+"\n\n— '{}' ({} file):\n": "\n\n— '{}' ({} files):\n",
+"— '{}' ({} file):\n": "— '{}' ({} files):\n",
+"TRONG MKV\n{}": "INSIDE MKV\n{}",
+"File .bat": ".bat file",
+"MuxStudio {} ({})": "MuxStudio {} ({})",
+"NGOÀI": "EXTERNAL",
+"trong MKV: {}": "inside the MKV: {}",
+"         so với sub gốc: CÒN LỆCH {}s ({} mốc){}": "         against the original sub: STILL OFF {}s ({} cues){}",
+"         so với sub gốc: gần khớp {}s ({} mốc){}": "         against the original sub: nearly matches {}s ({} cues){}",
+" — tick track muốn xoá": " — tick the tracks to remove",
+"TRONG MKV": "INSIDE MKV",
+"Phim lẻ ({}): {}": "Movie ({}): {}"
+}

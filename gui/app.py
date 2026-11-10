@@ -630,7 +630,7 @@ class UndoDialog:
 # ==========================================================================
 
 SELF_CHECK_ARGS = ("--kiem-tra", "--self-check")
-CORE_MODULES = ("config", "secrets", "tools", "probe", "episodes", "naming", "timing", "pgs", "srt", "encoding", "undo",
+CORE_MODULES = ("i18n", "i18n_en", "config", "secrets", "tools", "probe", "episodes", "naming", "timing", "pgs", "srt", "encoding", "undo",
                 "subsource", "opensubs", "tmdb", "tvdb", "subfetch", "subprep", "mux", "donor")
 GUI_MODULES = ("widgets", "log_panel", "fetch_view", "subprep_view", "mux_view", "settings_view", "about_view")
 CHECK_TAG = {"ok": "[OK]   ", "warn": "[!]    ", "fail": "[LỖI]  "}

@@ -783,3 +783,83 @@ def test_sub_grid_hover_frame_and_boxes(movie_dir, ui):
     assert g.cv.find_withtag("hover") and len([i for i in g.cv.find_all() if g.cv.type(i) == "line"]) == 3
     g._set_hover(None)
     assert not g.cv.find_withtag("hover")
+
+
+# ---------------------------------------------------------------- 1.2.0: English, Sang/Toi, Gioi thieu, tien do
+def test_english_interface_translates_display_but_keeps_logic(movie_dir, ui):
+    from core import i18n
+    from gui import app as A
+    from gui import subprep_view as PV
+
+    for n in (1, 2):
+        (movie_dir / f"Show.S01E0{n}.1080p.mkv").write_bytes(b"\x1a\x45\xdf\xa3")
+    a = ui(movie_dir, {"UiLanguage": "en"})
+    assert a.language == "en" and i18n.language() == "en"
+    # ten the HIEN THI bang tieng Anh, nhung get()/goto van dung ten tieng Viet (ma so sanh nhu cu)
+    assert a.tabs._segmented_button.cget("values") == ["① Fetch subtitles", "② Prepare subtitles", "③ Mux", "Settings", "About"]
+    a.goto(A.TAB_PREP)
+    pump(a)
+    assert a.tabs.get() == A.TAB_PREP == "② Chuẩn bị phụ đề"
+    v = a.prep
+    assert v.counts.cget("text").startswith("Videos: 2   |   Subtitles in 'srt_can_sync': 0")
+    assert v.reset_btn.cget("text") == "↺ Start over" and v.recount_btn.cget("text") == "Refresh"
+    assert v.steps.buttons["extract"].cget("text") == "▶ 1. Extract original subs"
+    assert v.steps.buttons["preview"].cget("text") == "2. Scan subtitles"
+    assert v.rtable.tv.heading("old", "text") == "Old name" and v.rtable.tv.heading(v.rtable.CHECK, "text") == "Rename"
+    # o chon ngon ngu: hien tieng Anh, gia tri van la lua chon tieng Viet -> "auto"
+    assert v.lang.var.get().startswith("Auto-detect") and v.lang.get() == PV.AUTO_LANG and v._lang() == "auto"
+    assert v.inner.get() == PV.INNER_RENAME  # the con
+    v.inner.set(PV.INNER_SYNC)
+    assert v.inner.get() == PV.INNER_SYNC
+    # moc = audio: buoc trich an, danh so lai, bang audio co tieu de tieng Anh
+    v.mode.set("audio")
+    v._mode_changed()
+    pump(a)
+    assert v.steps.buttons["preview"].cget("text") == "▶ 1. Scan subtitles"
+    assert "could NOT read any file" in v.audio_title.cget("text")
+    assert v.atable.tv.item("a0_x", "values")[6].startswith("(cannot read the audio")
+    assert v.atable.full("a0_x")["title"] == "(không đọc được audio track)"  # du lieu goc van tieng Viet
+    # nhat ky: dong hien thi (va "Luu log") bang tieng Anh
+    text = log_text(a)
+    assert "choose the video folder above" in text and "Video folder: " in text
+    assert a.status.cget("text").startswith("Done: ")
+    # Cai dat: ten nhom dich, nhung gia tri nhom van la ten goc
+    s = a.settings
+    assert s.seg.cget("values")[0] == "General — folders & tools" and s.group_var.get() == C.GROUPS["chung"]
+    a.goto(A.TAB_ABOUT)
+    assert a.about.author.cget("text") == "Author: Vũ Hoàng Anh"
+    assert a.about.table.tv.heading("lic", "text") == "Licence"
+
+
+def test_light_dark_switch_about_tab_and_green_percent_progress(movie_dir, ui):
+    from gui import app as A
+    from gui import widgets as W
+
+    a = ui(movie_dir)
+    assert a.glass_theme and W.ctk.ThemeManager.theme["CTkFrame"]["corner_radius"] == 14  # bo mau "kinh"
+    assert A.TABS[-1] == A.TAB_ABOUT == "Giới thiệu" and a.tabs.tab(A.TAB_ABOUT) is not None
+    assert a.about.title.cget("text") == f"MuxStudio {A.VERSION}" and a.about.author.cget("text") == "Tác giả: Vũ Hoàng Anh"
+    assert len(a.about.table.ids()) == 3 + len(__import__("gui.about_view", fromlist=["x"]).CREDITS)
+    a.about.copy()
+    assert a.root.clipboard_get().startswith(f"MuxStudio {A.VERSION}\nTác giả: Vũ Hoàng Anh")
+    # thanh tien do: xanh la + phan tram
+    assert tuple(a.prog.cget("progress_color")) == W.PROGRESS_GREEN
+    a._progress(3, 8, "Show.S01E03.mkv")
+    assert a.prog_pct.cget("text") == "37% · 3/8" and abs(a.prog.get() - 0.375) < 1e-6
+    a._progress(8, 8, "")
+    assert a.prog_pct.cget("text") == "100% · 8/8"
+    # Sang / Toi doi ngay: bang, khung log duoc to lai
+    a.set_appearance("dark")
+    a.root.update()
+    assert W.is_dark()
+    field_dark = W.ttk.Style(a.root).lookup("Treeview", "fieldbackground")
+    need_dark = str(a.mux.table.tv.tag_configure("need", "background"))
+    a.set_appearance("light")
+    a.root.update()
+    assert not W.is_dark()
+    assert W.ttk.Style(a.root).lookup("Treeview", "fieldbackground") != field_dark
+    assert str(a.mux.table.tv.tag_configure("need", "background")) != need_dark == W.ROW_BG["need"][1]
+    assert W.appearance_mode("DARK") == "Dark" and W.appearance_mode("x") == "System" and W.appearance_mode(None) == "System"
+    # nen mo Windows 11: may nay khong phai Windows 11 -> bo qua, khong loi
+    assert a.backdrop is False and not W.backdrop_supported("mica", 19045) and W.backdrop_supported("mica", 22631)
+    assert not W.backdrop_supported("none", 26100) and W.backdrop_supported("Acrylic", 26100)

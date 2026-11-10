@@ -1,6 +1,7 @@
 """Tiện ích chung cho test: keyring giả trong bộ nhớ, thư mục cấu hình tạm, thư mục tên có [ ]."""
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -52,6 +53,16 @@ def config_dir(tmp_path, monkeypatch):
     return d
 
 
+@pytest.fixture(autouse=True)
+def vietnamese_ui():
+    """Mọi test chạy với giao diện tiếng Việt (ngôn ngữ gốc); test nào đổi sang English thì tự trả lại ở đây."""
+    from core import i18n
+
+    i18n.set_language("vi")
+    yield
+    i18n.set_language("vi")
+
+
 @pytest.fixture
 def movie_dir(tmp_path):
     """Thư mục phim có ký tự [ ] trong tên (§6.1)."""
@@ -61,3 +72,32 @@ def movie_dir(tmp_path):
 
 
 REFERENCE = ROOT / "reference"
+
+
+# ---------------------------------------------------------------------------
+# Công cụ phát triển (bản 1.2.0): MUXSTUDIO_I18N_RECORD=<file> → gom MỌI câu hiển thị (chữ giao diện + dòng nhật ký của
+# lõi) trong lúc chạy test vào file JSON; ``python tools/i18n_residue.py <file>`` liệt kê câu dịch sang tiếng Anh còn
+# sót chữ tiếng Việt. Không đặt biến môi trường thì không làm gì.
+# ---------------------------------------------------------------------------
+_REC = os.environ.get("MUXSTUDIO_I18N_RECORD")
+if _REC:
+    import atexit
+    import json as _json
+
+    from core import i18n as _i18n
+    from core import tools as _tools
+
+    _i18n.recorded = set()
+    _orig_log = _tools.Job.log
+
+    def _rec_log(self, msg, level="info"):  # noqa: ANN001
+        _i18n.recorded.add(str(msg))
+        return _orig_log(self, msg, level)
+
+    _tools.Job.log = _rec_log
+
+    def _dump() -> None:
+        with open(_REC, "w", encoding="utf-8") as fh:
+            _json.dump(sorted(_i18n.recorded), fh, ensure_ascii=False, indent=0)
+
+    atexit.register(_dump)
