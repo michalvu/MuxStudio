@@ -17,11 +17,18 @@
 * Form đăng nhập: ``POST https://www.titulky.com/`` với ``Login``, ``Password``, ``foreverlog=1``, ``Detail2=''``,
   ``prihlasit='Přihlásit'``.
 
-CHƯA kiểm chứng được (cần tài khoản / cần người gõ CAPTCHA) — người dùng chạy ``tools/probe_titulky.py`` để xác nhận:
+ĐÃ KIỂM CHỨNG trên máy người dùng ngày 2026-11-12 (``chay_do_titulky.bat``, kiểu khách, tự gõ CAPTCHA):
 
-* dấu hiệu đăng nhập thành công (đang dùng: trang trả về không còn ô ``id="log_login"``);
-* trang sau khi gõ đúng CAPTCHA, hoặc khi còn lượt tải (đang dựa vào ``downfnc.js``: ``CountDown(n)`` + ``downlink``);
-* file trả về (đang nhận: ZIP bắt đầu ``PK``, hoặc file phụ đề trần).
+* gõ SAI mã → trang trả lại form CAPTCHA kèm chữ "CHYBA - Byl špatně zadaný bezpečnostní kód" (ảnh mới) ⇒ hỏi lại;
+* gõ ĐÚNG → trang có ``CountDown(10)`` + ``<a id="downlink" href="/idown.php?id=<số>">`` (các id: ``count_down``,
+  ``downdiv``, ``downlink``, ``razenidiv``, ``afterdown``); chờ xong ``GET`` link đó → ``application/octet-stream``,
+  ``Content-Disposition: attachment; filename=Breaking-Bad-S01E05(0000126732).zip`` — ZIP chứa một file ``.srt`` bảng mã
+  cũ (cp1250; bước ② đổi sang UTF-8 trên bản sao);
+* đăng nhập SAI tên / mật khẩu → trang trả về một trang chuyển hướng nhỏ tới
+  ``/?ShowInfo=LoginError&BadId=&BadLogin=<tên>`` (176 byte + 2 × độ dài tên đăng nhập).
+
+CHƯA kiểm chứng được (chưa có lần đăng nhập thành công nào): trang sau khi đăng nhập ĐÚNG. Đang làm: không thấy
+``LoginError`` / ``BadLogin`` thì tải lại trang chủ, coi là đã đăng nhập khi trang chủ không còn ô ``id="log_login"``.
 
 Quy tắc của MuxStudio vẫn giữ: không sửa nội dung phụ đề ở bước ① (chép nguyên byte — đổi bảng mã là việc của bước ②),
 không tự vượt CAPTCHA (bạn gõ mã), chờ đủ thời gian trang yêu cầu, nghỉ giữa các lượt gọi.
@@ -244,6 +251,7 @@ class TitulkyClient:
         self.now = now
         self.user_agent = user_agent or USER_AGENT
         self.logged_in: bool | None = None  # None = khong dung tai khoan
+        self.login_note = ""
         self.disabled = False
         self.captcha_declined = False  # ban da bo qua mot lan -> khong hoi nua trong luot nay
         self.last_status = 0
@@ -295,7 +303,11 @@ class TitulkyClient:
 
     # ------------------------------------------------------------------ dang nhap
     def login(self, quiet: bool = False) -> bool:
-        """Đăng nhập (tuỳ chọn). Không có tài khoản → ``False`` và vẫn dùng được kiểu khách."""
+        """Đăng nhập (tuỳ chọn). Không có tài khoản → ``False`` và vẫn dùng được kiểu khách.
+
+        ``login_note`` sau khi gọi: ``''`` (được / không dùng tài khoản), ``'rejected'`` (trang báo sai tên hoặc mật
+        khẩu — ``LoginError``), ``'unconfirmed'`` (gửi xong nhưng trang chủ vẫn hiện ô đăng nhập), ``'network'``."""
+        self.login_note = ""
         if not self.has_account:
             self.logged_in = None
             return False
@@ -303,20 +315,31 @@ class TitulkyClient:
                 "prihlasit": "Přihlásit"}
         r = self._request("POST", BASE, data=data)
         ok = False
-        if r is not None:
-            page = r.text or ""
-            if "BadLogin" not in page and "BadLogin" not in str(getattr(r, "url", "")):
-                ok = not has_login_form(page)
-                if not ok:  # trang tra ve co the la trang trung gian: xem lai trang chu mot lan
-                    r2 = self._request("GET", BASE)
-                    ok = r2 is not None and not has_login_form(r2.text or "")
+        if r is None:
+            self.login_note = "network"
+        elif re.search(r"LoginError|BadLogin", (r.text or "") + " " + str(getattr(r, "url", ""))):
+            self.login_note = "rejected"  # trang that: chuyen huong toi /?ShowInfo=LoginError&BadId=&BadLogin=<ten>
+        else:
+            # khong bao loi -> xem trang chu: da dang nhap thi khong con o dang nhap (chua co lan thanh cong nao de doi chieu)
+            r2 = self._request("GET", BASE)
+            ok = r2 is not None and not has_login_form(r2.text or "")
+            if not ok:
+                self.login_note = "unconfirmed" if r2 is not None else "network"
         self.logged_in = ok
         if ok and not quiet:
             self.job.info("[i] Titulky: đã đăng nhập.")
         elif not ok and not quiet:
-            self.job.warn("[!] Đăng nhập Titulky thất bại — kiểm tra tên đăng nhập / mật khẩu. Vẫn tìm và tải được kiểu "
-                          "khách (hay phải gõ CAPTCHA).")
+            self.job.warn(f"[!] {self.login_problem()} Vẫn tìm và tải được kiểu khách (hay phải gõ CAPTCHA).")
         return ok
+
+    def login_problem(self) -> str:
+        """Câu giải thích lần đăng nhập vừa hỏng (theo ``login_note``)."""
+        if self.login_note == "rejected":
+            return ("Titulky từ chối tên đăng nhập / mật khẩu (trang báo LoginError) — thử đăng nhập trên titulky.com bằng "
+                    "trình duyệt với đúng tên và mật khẩu đó để kiểm tra.")
+        if self.login_note == "unconfirmed":
+            return "Đã gửi đăng nhập Titulky nhưng trang chủ vẫn hiện ô đăng nhập — chưa đăng nhập được."
+        return "Không gửi được đăng nhập tới Titulky (lỗi mạng)."
 
     # ------------------------------------------------------------------ tim
     def search(self, query: str) -> list[SearchRow]:
@@ -487,4 +510,4 @@ class TitulkyClient:
             return ConnStatus(True, "Titulky: dùng kiểu khách (không tài khoản) — tìm được; tải hay phải gõ CAPTCHA")
         if self.login(quiet=True):
             return ConnStatus(True, "Titulky: đăng nhập được")
-        return ConnStatus(False, "Titulky: đăng nhập lỗi — kiểm tra tên đăng nhập / mật khẩu")
+        return ConnStatus(False, "Titulky: đăng nhập lỗi — " + self.login_problem())

@@ -68,6 +68,8 @@ class Spy:
             rep.line(f"     KHÔNG phải trang web → file: 8 byte đầu {data[:8]!r}")
             return r
         page = r.text or ""
+        if len(data) < 600:  # trang nho (vd trang chuyen huong sau khi dang nhap): ghi nguyen van, da che ten / mat khau
+            rep.line(f"     nguyên văn trang nhỏ: {self._clean(' '.join(page.split()))}")
         title = re.search(r"<title>([^<]*)", page, re.I)
         rep.line(f"     tiêu đề trang: {self._clean(title.group(1).strip()) if title else '(không có)'}")
         rep.line(f"     còn ô đăng nhập (id=log_login / name=Login): {T.has_login_form(page)} | có chữ 'Odhlásit': "
@@ -95,23 +97,48 @@ def run(rep: Reporter, cfg: Any, secrets: dict[str, str], download: bool = True,
 
     rep.section("TITULKY.COM")
     user, pw = secrets.get("TitulkyUsername", ""), secrets.get("TitulkyPassword", "")
+
+    def ask_account(first: bool) -> tuple[str, str]:
+        """Hỏi tài khoản ở cửa sổ đen. Số ký tự đã nhận chỉ in ra màn hình (KHÔNG ghi vào file) — để bạn biết dán mật
+        khẩu có vào không: gõ / dán mật khẩu thì màn hình không hiện gì."""
+        try:
+            u = input("Tên đăng nhập Titulky (Enter = dò kiểu khách, không đăng nhập): " if first else
+                      "Gõ lại tên đăng nhập Titulky (Enter = thôi, dò tiếp kiểu khách): ").strip()
+            p = getpass.getpass("Mật khẩu Titulky (KHÔNG hiện khi gõ — cứ gõ rồi Enter): ").strip("\r\n") if u else ""
+        except EOFError:
+            return "", ""
+        if u:
+            print(f"  (đã nhận: tên đăng nhập {len(u)} ký tự, mật khẩu {len(p)} ký tự — hai con số này không ghi vào file)")
+        return u, p
+
     if not user and interactive:
         rep.line("Chưa có tài khoản Titulky trong Windows Credential Manager (Cài đặt › API & tài khoản của MuxStudio).")
-        try:
-            user = input("Tên đăng nhập Titulky (Enter = dò kiểu khách, không đăng nhập): ").strip()
-            pw = getpass.getpass("Mật khẩu Titulky (không hiện khi gõ): ") if user else ""
-        except EOFError:
-            user = pw = ""
-    rep.add_secret(user)
-    rep.add_secret(pw)
-    hide = [user, pw]
+        user, pw = ask_account(True)
     job = tools.Job(log=lambda lv, m: rep.line(f"     [{lv}] {m}"))
+    hide: list[str] = []
     spy = Spy(requests.Session(), rep, hide)
-    client = T.TitulkyClient(user, pw, int(cfg["ApiPauseMs"]), spy, job=job, temp_dir=ROOT / "_titulky_probe_tmp")
 
     rep.step("1. Kết nối + đăng nhập")
-    st = client.check()
-    rep.conclude(f"{st.text}" + ("" if client.has_account else "  (không có tài khoản: bỏ qua phần đăng nhập)"))
+    client = None
+    for attempt in range(1, 4):
+        rep.add_secret(user)
+        rep.add_secret(pw)
+        hide[:] = [h for h in (user, pw) if h and len(h) >= 2]
+        spy.hide = hide
+        client = T.TitulkyClient(user, pw, int(cfg["ApiPauseMs"]), spy, job=job, temp_dir=ROOT / "_titulky_probe_tmp")
+        st = client.check()
+        rep.conclude(f"Lần {attempt}: {st.text}" + ("" if client.has_account else "  (không có tài khoản: bỏ qua phần đăng nhập)"))
+        if client.has_account:
+            rep.line(f"  ghi chú đăng nhập: {client.login_note or 'được'}")
+        if st.ok or not client.has_account or not interactive or attempt == 3:
+            break
+        print("  Trang không nhận tên đăng nhập / mật khẩu vừa gõ. Kiểm tra: đăng nhập thử trên https://www.titulky.com bằng")
+        print("  trình duyệt; tên đăng nhập là TÊN TÀI KHOẢN (không phải e-mail); chú ý chữ hoa / chữ thường, bàn phím đang")
+        print("  ở tiếng Anh hay tiếng Séc.")
+        user, pw = ask_account(False)
+        if not user:
+            break
+    assert client is not None
 
     rep.step("2. Tìm một tập phim bộ")
     rows = client.search(T.search_query(QUERY_TITLE, QUERY_SEASON, QUERY_EPISODE))

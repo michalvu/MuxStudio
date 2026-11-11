@@ -1,6 +1,6 @@
 # Bàn giao giữa các phiên làm việc (đọc file này TRƯỚC)
 
-Cập nhật: 2026-11-11, **Giai đoạn 0–6 ĐÃ DUYỆT (1.0.0); 1.1.0 (mục 12) ĐÃ DUYỆT; 1.2.0 (mục 13) và 1.3.0 (mục 14, nguồn
+Cập nhật: 2026-11-12, **Giai đoạn 0–6 ĐÃ DUYỆT (1.0.0); 1.1.0 (mục 12) ĐÃ DUYỆT; 1.2.0 (mục 13) và 1.3.1 (mục 14, nguồn
 Titulky.com) — CHỜ duyệt.**
 Repo `michalvu/MuxStudio`. Phiên sau (nếu có): bảo trì — sửa lỗi người dùng báo, yêu cầu mới (xem "Việc kế tiếp").
 Nhánh: chỉ còn **`claude/new-session-eckanp`** = nhánh chính (nhánh mặc định của repo). Các nhánh phiên cũ
@@ -67,7 +67,7 @@ core/   timing pgs srt encoding episodes naming config secrets undo   (GĐ1)
         + set_job (3 phiên), naming.search_candidates, MuxSession.search_name (GĐ5)
 gui/    app widgets log_panel settings_view fetch_view subprep_view mux_view (GĐ5)
         + build_info / self_check (--kiem-tra) / write_startup_error trong app; resource_path / set_window_icon (GĐ6)
-tests/  pytest — 704 test (2 test alass thật tự bỏ qua nếu không có alass; 17 test test_gui_app.py + 1 test_packaging
+tests/  pytest — 705 test (2 test alass thật tự bỏ qua nếu không có alass; 17 test test_gui_app.py + 1 test_packaging
         tự bỏ qua nếu không có tkinter/màn hình); test_packaging.py (GĐ6); test_gui_logic.py (logic giao diện, không cần Tk); fakehttp.py (API giả),
         synth.py (phụ đề/PGS giả), fake_alass.py (alass GIẢ: ghi lại từng lần gọi, dịch phụ đề theo cấu hình),
         test_golden_powershell.py + test_golden_subprep.py + test_golden_mux.py + golden/ps_harness.ps1 (chạy HÀM GỐC
@@ -150,11 +150,11 @@ pip install -q uv && uv python install 3.11   # chạy test trên 3.11 (bản uv
 uv venv -p 3.11 /tmp/v311 && uv pip install -p /tmp/v311/bin/python keyring send2trash requests pytest customtkinter pillow
 # Python 3.12 của Ubuntu + Tk 8.6 (GIỐNG Windows nhất — dùng để chụp ảnh giao diện):
 /usr/bin/python3.12 -m venv /tmp/v312 && /tmp/v312/bin/pip install -q customtkinter keyring send2trash requests pytest pillow
-.venv/bin/python -m pytest -q              # không có Tk: 684 passed, 20 skipped (18 test cần Tk + 2 alass thật)
-xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 702 passed, 2 skipped
-xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 702 passed, 2 skipped
+.venv/bin/python -m pytest -q              # không có Tk: 685 passed, 20 skipped (18 test cần Tk + 2 alass thật)
+xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 703 passed, 2 skipped
+xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 703 passed, 2 skipped
 # Giả lập Windows (ghi file chữ \n→\r\n, Python con in cp1250) — phải qua hết:
-PYTHONPATH=tools xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider -p winemu   # 702 passed, 2 skipped
+PYTHONPATH=tools xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider -p winemu   # 703 passed, 2 skipped
 # Thử đóng gói (GĐ6) — PyInstaller trên Python 3.12 của Ubuntu (Tk 8.6), kết quả để ngoài repo:
 /usr/bin/python3.12 -m venv /tmp/vbuild && /tmp/vbuild/bin/pip install -q -r requirements-build.txt
 /tmp/vbuild/bin/python -m PyInstaller --noconfirm --clean --distpath /tmp/pyi/dist --workpath /tmp/pyi/build MuxStudio.spec
@@ -417,3 +417,19 @@ Titulky → OpenSubtitles. SPEC 7.F: **TĐ-40**.
   vì Titulky chạy được cả khi không có tài khoản, quên truyền `FakeHTTP` là gọi thẳng trang thật.
 - Bảng dịch: 52 câu mới trong `tools/i18n/extra.json` (chữ tiếng Séc `název`, `seriál`, `Přihlásit` bị công cụ rút chữ
   bắt nhầm → khai báo `""`).
+- **Kết quả dò thật của người dùng (2026-11-12, Windows, kiểu khách) → bản 1.3.1:**
+  - TẢI: đã kiểm chứng trọn vẹn. Gõ sai mã → trang "CHYBA - Byl špatně zadaný bezpečnostní kód" + CAPTCHA mới → hỏi lại;
+    gõ đúng → `CountDown(10)`, `<a id="downlink" href="/idown.php?id=100196299">`, các id `afterdown count_down downdiv
+    downlink imgLoader razenidiv`; chờ 15,5 s → ZIP `application/octet-stream`, `Content-Disposition: attachment;
+    filename=Breaking-Bad-S01E05(0000126732).zip`, bên trong một file `Breaking Bad S01E05.srt` cp1250 (550 mốc). Mã
+    1.3.0 chạy đúng, không phải sửa. Test tái hiện: `test_download_replays_the_real_run_of_2026_11_12`.
+  - ĐĂNG NHẬP: người dùng nhận trang 192 byte có `BadLogin` = trang TỪ CHỐI tên / mật khẩu. Đã tự thử từ đây với một tên
+    không tồn tại: trang trả về `<meta http-equiv="Refresh" content="0.1;URL=/?ShowInfo=LoginError&BadId=&BadLogin=<tên>">`
+    + script cùng địa chỉ (232 byte với tên 28 ký tự ⇒ 176 + 2 × độ dài tên; 192 = tên 8 ký tự). Form gửi đúng (form thật
+    không có script biến đổi mật khẩu). Khả năng cao người dùng gõ sai / dán mật khẩu không vào (ô mật khẩu của cửa sổ
+    đen không hiện chữ). 1.3.1: `login()` nhận `LoginError|BadLogin` → `login_note = "rejected"`; không thấy lỗi thì
+    LUÔN tải lại trang chủ và chỉ coi là đã đăng nhập khi không còn ô `id="log_login"` (`"unconfirmed"` nếu còn);
+    `login_problem()` cho câu báo. **Vẫn chưa có lần đăng nhập thành công nào** → khi người dùng gửi kết quả mới, xem dòng
+    "nguyên văn trang nhỏ" sau POST và cờ "còn ô đăng nhập" của trang chủ kế tiếp.
+  - Script dò: in số ký tự tên / mật khẩu đã nhận (chỉ ra màn hình), cho gõ lại 2 lần khi bị từ chối, ghi nguyên văn trang
+    < 600 byte (đã che tên / mật khẩu).

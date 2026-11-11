@@ -1282,6 +1282,11 @@ EN: dict[str, str] = {
     "Mã trong ảnh:": "Code in the picture:",
     "Tải": "Download",
     "Bỏ qua bản này": "Skip this release",
+    "[!] {} Vẫn tìm và tải được kiểu khách (hay phải gõ CAPTCHA).": "[!] {} Searching and downloading still work as a guest (often with a CAPTCHA).",
+    "Titulky từ chối tên đăng nhập / mật khẩu (trang báo LoginError) — thử đăng nhập trên titulky.com bằng trình duyệt với đúng tên và mật khẩu đó để kiểm tra.": "Titulky rejected the username / password (the site reports LoginError) — try logging in on titulky.com in a browser with exactly that name and password to check.",
+    "Đã gửi đăng nhập Titulky nhưng trang chủ vẫn hiện ô đăng nhập — chưa đăng nhập được.": "The Titulky login was sent but the home page still shows the login box — not logged in.",
+    "Không gửi được đăng nhập tới Titulky (lỗi mạng).": "Could not send the login to Titulky (network error).",
+    "Titulky: đăng nhập lỗi — ": "Titulky: login error — ",
 }
 
 #: Chuỗi có chữ tiếng Việt nhưng CỐ Ý không dịch (không hiển thị, hoặc chỉ nằm trong báo cáo tự kiểm tra).

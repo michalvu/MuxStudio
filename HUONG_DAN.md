@@ -27,7 +27,7 @@ Bản `.exe` chạy **không cần cài Python**. Chỉ máy dùng để **tạo
 5. **Chép CẢ thư mục `dist\MuxStudio`** tới nơi bạn muốn (vd `C:\Users\fenha\Desktop\MuxStudio`).
    Đừng chép riêng file `MuxStudio.exe` — nó cần thư mục `_internal` nằm cạnh.
 6. Tạo lối tắt: chuột phải `MuxStudio.exe` › *Send to* (*Gửi tới*) › *Desktop (create shortcut)*.
-7. Bấm đúp `MuxStudio.exe` để chạy. Số phiên bản hiện trên thanh tiêu đề (vd **MuxStudio 1.3.0**) và ở dòng đầu
+7. Bấm đúp `MuxStudio.exe` để chạy. Số phiên bản hiện trên thanh tiêu đề (vd **MuxStudio 1.3.1**) và ở dòng đầu
    khung Nhật ký.
 
 **Cập nhật bản mới:** tải mã nguồn mới → bấm đúp `build.bat` lần nữa → chép đè thư mục `dist\MuxStudio` lên thư mục
@@ -98,7 +98,10 @@ Nhật ký, và "Hoàn tác…" vẫn dùng được cho lượt cũ.
      thử lại 3 lần). Bấm **Bỏ qua bản này** thì trong lượt đó chương trình không hỏi CAPTCHA nữa. Trang bắt chờ vài
      giây trước mỗi lần tải — chương trình tự chờ. Không cần tài khoản; có tài khoản thì điền ở Cài đặt › API & tài
      khoản › *Titulky.com — tên đăng nhập / mật khẩu* (theo thông báo của trang, tài khoản Premium tải được 25 phụ
-     đề mỗi ngày). Tắt nguồn này: bỏ tick ô *Titulky.com (cs)* hoặc Cài đặt › ① Tải phụ đề › *Dùng Titulky.com*.
+     đề mỗi ngày). Điền xong bấm **Kiểm tra kết nối**: *"Titulky: đăng nhập được"* là ổn; *"Titulky từ chối tên đăng
+     nhập / mật khẩu"* = trang không nhận tên hoặc mật khẩu đã gõ (tick **Hiện** để xem lại chữ đã gõ; thử đăng nhập
+     trên titulky.com bằng trình duyệt với đúng tên và mật khẩu đó). Đăng nhập không được thì vẫn tìm và tải được kiểu
+     khách. Tắt nguồn này: bỏ tick ô *Titulky.com (cs)* hoặc Cài đặt › ① Tải phụ đề › *Dùng Titulky.com*.
 
 **② Chuẩn bị phụ đề** (thay SubPrep) — trước tiên chọn **Mốc đồng bộ** (*Phụ đề gốc trong 'srt_goc'* hoặc *Audio
 của file phim*) và **Ngôn ngữ**, rồi theo thanh các bước:
@@ -144,7 +147,7 @@ của file phim*) và **Ngôn ngữ**, rồi theo thanh các bước:
 ## 6. Báo lỗi
 
 Gửi cho người hỗ trợ:
-1. **Số phiên bản** (thanh tiêu đề, vd *MuxStudio 1.3.0*; dòng thứ hai của khung Nhật ký ghi rõ bản `.exe`, Python, Windows).
+1. **Số phiên bản** (thanh tiêu đề, vd *MuxStudio 1.3.1*; dòng thứ hai của khung Nhật ký ghi rõ bản `.exe`, Python, Windows).
 2. **Log**: khung Nhật ký › **Lưu log…** (key, mật khẩu đã được che).
 3. **Ảnh chụp màn hình** chỗ bị lỗi.
 4. **Không mở được chương trình**: file `%APPDATA%\MuxStudio\loi_khoi_dong.txt` (gõ `%APPDATA%\MuxStudio` vào thanh

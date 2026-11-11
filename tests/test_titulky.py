@@ -211,24 +211,56 @@ def test_download_captcha_skipped_once_is_not_asked_again_and_other_failures(tmp
     assert "Titulky không cho tải: Limit vyčerpán" in text and "RAR" in text
 
 
-def test_login_real_field_names_and_connection_check(tmp_path):
+def login_error_page(name: str) -> str:
+    """Cùng cấu trúc với trang THẬT khi sai tên / mật khẩu (xem ngày 2026-11-12): thẻ meta Refresh + script chuyển hướng
+    tới ``/?ShowInfo=LoginError&BadId=&BadLogin=<tên>`` (trang thật dài 232 byte với tên 28 ký tự; người dùng nhận 192
+    byte = tên 8 ký tự; khoảng trắng giữa hai thẻ ở đây không sao chép chính xác)."""
+    url = f"/?ShowInfo=LoginError&BadId=&BadLogin={name}"
+    return f'<meta http-equiv="Refresh" content="0.1;URL={url}">\t\t\t\t\t<script>window.location.assign("{url}")</script>'
+
+
+def site_with_login(valid: tuple[str, str] | None):
+    """Máy chủ giả có trạng thái: trang chủ hiện form đăng nhập cho tới khi POST đúng tên + mật khẩu."""
     form, home_in = page("home_login_form.html"), "<html><body><a href='/?logoff=1'>Odhlásit</a></body></html>"
     http = FakeHTTP()
-    http.add("POST", r"titulky\.com/$", FakeResponse(200, text=home_in))
-    http.add("GET", r"titulky\.com/$", FakeResponse(200, text=form))
+    state = {"in": False}
+
+    def post(call):
+        if valid and (call.data["Login"], call.data["Password"]) == valid:
+            state["in"] = True
+            return FakeResponse(200, text='<meta http-equiv="Refresh" content="0.1;URL=/">')
+        return FakeResponse(200, text=login_error_page(call.data["Login"]))
+
+    http.add("POST", r"titulky\.com/$", post)
+    http.add("GET", r"titulky\.com/$", lambda call: FakeResponse(200, text=home_in if state["in"] else form))
+    return http
+
+
+def test_login_real_field_names_and_connection_check(tmp_path):
+    http = site_with_login(("anh", "demo-pass"))
     c, job, _ = client(http, tmp_path, username=" anh ", password="demo-pass")
-    assert c.login() and c.logged_in is True
+    assert c.login() and c.logged_in is True and c.login_note == ""
     post = http.calls_to(r"titulky\.com/$", "POST")[0]
     assert post.data == {"Login": "anh", "Password": "demo-pass", "foreverlog": "1", "Detail2": "", "prihlasit": "Přihlásit"}
+    assert http.calls[-1].method == "GET"  # sau khi gui: xem lai trang chu de CHAC la da dang nhap
     assert c.check().ok is True and c.check().text == "Titulky: đăng nhập được"
-    # sai mat khau: trang tra ve van con form dang nhap (ke ca khi xem lai trang chu)
-    bad = FakeHTTP()
-    bad.add("POST", r"titulky\.com/$", FakeResponse(200, text=form))
-    bad.add("GET", r"titulky\.com/$", FakeResponse(200, text=form))
+    # sai mat khau: trang that tra ve trang chuyen huong LoginError -> bao ro la trang TU CHOI, khong goi them
+    bad = site_with_login(("anh", "demo-pass"))
     c2, job2, _ = client(bad, tmp_path, username="anh", password="demo-sai")
-    assert not c2.login() and c2.logged_in is False and any("Đăng nhập Titulky thất bại" in m for _, m in job2.lines)
-    assert c2.check().ok is False
-    assert not any("demo-sai" in m for _, m in job2.lines)
+    assert not c2.login() and c2.logged_in is False and c2.login_note == "rejected"
+    assert len(bad.calls) == 1
+    msg = "\n".join(m for _, m in job2.lines)
+    assert "Titulky từ chối tên đăng nhập / mật khẩu (trang báo LoginError)" in msg and "kiểu khách" in msg
+    st = c2.check()
+    assert st.ok is False and st.text.startswith("Titulky: đăng nhập lỗi — Titulky từ chối tên đăng nhập / mật khẩu")
+    assert "demo-sai" not in msg and "demo-sai" not in st.text
+    # trang khong bao loi nhung trang chu van hien o dang nhap -> KHONG coi la da dang nhap
+    odd = FakeHTTP()
+    odd.add("POST", r"titulky\.com/$", FakeResponse(200, text="<html>ok?</html>"))
+    odd.add("GET", r"titulky\.com/$", FakeResponse(200, text=page("home_login_form.html")))
+    c5, job5, _ = client(odd, tmp_path, username="anh", password="demo-pass")
+    assert not c5.login() and c5.login_note == "unconfirmed"
+    assert any("trang chủ vẫn hiện ô đăng nhập" in m for _, m in job5.lines)
     # khong tai khoan: dung kieu khach, khong gui form dang nhap
     c3, _, _ = client(bad, tmp_path)
     n = len(bad.calls_to(r"titulky\.com/$", "POST"))
@@ -240,6 +272,37 @@ def test_login_real_field_names_and_connection_check(tmp_path):
     down.add("GET", r"titulky\.com/$", FakeResponse(500, text="x"))
     c4, _, _ = client(down, tmp_path)
     assert c4.check().ok is False and "500" in c4.check().text
+
+
+def test_download_replays_the_real_run_of_2026_11_12(tmp_path):
+    """Đúng chuỗi trả lời người dùng nhận được trên Windows: gõ SAI mã → trang báo "CHYBA…" + CAPTCHA mới; gõ ĐÚNG →
+    CountDown(10) + link ``/idown.php?id=100196299`` → ZIP ``application/octet-stream`` chứa một file .srt cp1250."""
+    srt_cp1250 = "1\r\n00:00:01,000 --> 00:00:02,000\r\nP\u0159\u00edli\u0161 \u017elu\u0165ou\u010dk\u00fd k\u016f\u0148\r\n".encode("cp1250")
+    wrong = page("idown_captcha.html").replace("<h3>Zabezpečené", "<b>CHYBA - Byl špatně zadaný bezpečnostní kód</b><h3>Zabezpečené")
+    ready = ('<!DOCTYPE html><html><body><div id="imgLoader"></div><div id="razenidiv"></div><span id="count_down">10</span>'
+             '<div id="downdiv" style="display:none"><a id="downlink" href="/idown.php?id=100196299">STÁHNOUT TITULKY</a></div>'
+             '<div id="afterdown"></div><script>CountDown(10)</script></body></html>')
+    http = FakeHTTP()
+    http.add("GET", r"titulky\.com/idown\.php\?id=100196299$", FakeResponse(
+        200, content=zip_bytes({"Breaking Bad S01E05.srt": srt_cp1250}),
+        headers={"Content-Type": "application/octet-stream",
+                 "Content-Disposition": "attachment; filename=Breaking-Bad-S01E05(0000126732).zip"}))
+    http.add("GET", r"captcha/captcha\.php", FakeResponse(200, content=b"\xff\xd8\xff\xe0\x00\x10JFIF", headers={"Content-Type": "image/jpeg"}))
+    http.add("POST", r"titulky\.com/idown\.php$", [FakeResponse(200, text=wrong), FakeResponse(200, text=ready)])
+    http.add("GET", r"titulky\.com/idown\.php$", FakeResponse(200, text=page("idown_captcha.html")))
+    c, job, sl = client(http, tmp_path)
+    notes = []
+    row = SearchRow(126732, "Breaking Bad S01E05", "Breaking-Bad-S01E05-126732.htm", "Breaking.Bad.S01E05.DVDRip.XviD-ORPHEUS")
+    d = c.download(row, lambda img, note: notes.append(note) or f"ma{len(notes)}")
+    (f,) = c.subtitle_files(d)
+    assert f.name == "Breaking Bad S01E05.srt" and f.read_bytes() == srt_cp1250  # nguyen byte (cp1250), buoc ② moi doi ma
+    assert len(notes) == 2 and "không đúng" in notes[1]
+    assert http.calls[-1].url == "https://www.titulky.com/idown.php?id=100196299"  # link dang /idown.php?id=… (tuyet doi)
+    assert sum(1 for x in sl.calls if x == 0.5) == 31  # CountDown(10): 10 x 1,5 + 0,5 = 15,5 s (may that: 16 giay)
+    assert any("chờ 16 giây" in m for _, m in job.lines)
+    from core import encoding
+
+    assert encoding.detect_kind_bytes(f.read_bytes()) == "legacy"
 
 
 def test_stop_now_interrupts_the_countdown(tmp_path):
@@ -277,9 +340,17 @@ def test_probe_script_runs_the_real_client_and_never_writes_credentials(tmp_path
     http.add("GET", r"titulky\.com/idown\.php$", FakeResponse(200, text=countdown_page(2), headers={"Content-Type": "text/html"}))
     http.add("GET", r"titulky\.com/nahled\.php", FakeResponse(200, text='<div id="nahled_zdroj">1<br />00:00:05,000 --&gt; 00:00:06,000<br />x</div>'))
     http.add("GET", r"titulky\.com/Breaking-Bad-S01E05-\d+\.htm", FakeResponse(200, text=page("detail_breaking_bad_s01e05.html")))
-    http.add("POST", r"titulky\.com/$", FakeResponse(200, text="<html><title>Titulky</title>přihlášen: tajny-uzivatel <a>Odhlásit</a></html>"))
-    http.add("GET", r"titulky\.com/$", lambda call: FakeResponse(200, text=page("search_breaking_bad_s01e05.html") if call.params
-                                                                 else "<!--\r\n** -->" + page("home_login_form.html")))
+    state = {"in": False}
+
+    def post(call):
+        state["in"] = True
+        return FakeResponse(200, text='<meta http-equiv="Refresh" content="0.1;URL=/?welcome=tajny-uzivatel">')
+
+    http.add("POST", r"titulky\.com/$", post)
+    http.add("GET", r"titulky\.com/$", lambda call: FakeResponse(
+        200, text=page("search_breaking_bad_s01e05.html") if call.params else
+        ("<!--\r\n** --><html><title>Titulky</title>přihlášen: tajny-uzivatel <a>Odhlásit</a></html>" if state["in"]
+         else "<!--\r\n** -->" + page("home_login_form.html"))))
     monkeypatch.setattr(requests, "Session", lambda: http)
     monkeypatch.setattr(P, "ROOT", tmp_path)
     monkeypatch.setattr(P, "CAPTCHA_FILE", tmp_path / "captcha_titulky.jpg")
