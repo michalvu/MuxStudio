@@ -1,7 +1,9 @@
 # Bàn giao giữa các phiên làm việc (đọc file này TRƯỚC)
 
-Cập nhật: 2026-11-12, **Giai đoạn 0–6 ĐÃ DUYỆT (1.0.0); 1.1.0 (mục 12) ĐÃ DUYỆT; 1.2.0 (mục 13) và 1.3.1 (mục 14, nguồn
-Titulky.com) — CHỜ duyệt.**
+Cập nhật: 2026-11-12, **Giai đoạn 0–6 ĐÃ DUYỆT (1.0.0); 1.1.0 (mục 12) ĐÃ DUYỆT; 1.2.0 (mục 13) và 1.3.2 (mục 14, nguồn
+Titulky.com + sửa sập khi đóng cửa sổ trên Windows) — CHỜ duyệt.**
+**Máy người dùng: Windows 11 trên ARM, Python 3.14 bản ARM64** (`py -3` trong các file .bat chọn bản Python mới nhất) —
+không còn là Python 3.11 như ghi ở các mục cũ. Phải chạy test cả trên 3.14 (mục 6).
 Repo `michalvu/MuxStudio`. Phiên sau (nếu có): bảo trì — sửa lỗi người dùng báo, yêu cầu mới (xem "Việc kế tiếp").
 Nhánh: chỉ còn **`claude/new-session-eckanp`** = nhánh chính (nhánh mặc định của repo). Các nhánh phiên cũ
 (`ccr-770f1e3e-dqsvcp`, `ccr-e18d248b-a69t65`, `claude/gifted-keller-fx1jey`) đã xoá ngày 2026-11-10 theo yêu cầu người
@@ -67,7 +69,7 @@ core/   timing pgs srt encoding episodes naming config secrets undo   (GĐ1)
         + set_job (3 phiên), naming.search_candidates, MuxSession.search_name (GĐ5)
 gui/    app widgets log_panel settings_view fetch_view subprep_view mux_view (GĐ5)
         + build_info / self_check (--kiem-tra) / write_startup_error trong app; resource_path / set_window_icon (GĐ6)
-tests/  pytest — 705 test (2 test alass thật tự bỏ qua nếu không có alass; 17 test test_gui_app.py + 1 test_packaging
+tests/  pytest — 707 test (2 test alass thật tự bỏ qua nếu không có alass; 18 test test_gui_app.py + 1 test_packaging
         tự bỏ qua nếu không có tkinter/màn hình); test_packaging.py (GĐ6); test_gui_logic.py (logic giao diện, không cần Tk); fakehttp.py (API giả),
         synth.py (phụ đề/PGS giả), fake_alass.py (alass GIẢ: ghi lại từng lần gọi, dịch phụ đề theo cấu hình),
         test_golden_powershell.py + test_golden_subprep.py + test_golden_mux.py + golden/ps_harness.ps1 (chạy HÀM GỐC
@@ -132,6 +134,15 @@ GĐ6: MuxStudio.pyw (điểm vào), MuxStudio.spec, build.bat, requirements-buil
   THẬT chỉ chạy được trên Windows — dữ liệu phải hợp lý (phim giả 3 s + phụ đề 40 phút ⇒ sức khoẻ báo đúng "vượt thời
   lượng"). (5) Test tìm công cụ phải dùng `tools.find_tool` (trên Windows mkvmerge thường không có trong PATH).
   Kiểm tra trước khi đẩy: `tools/winemu.py` (mục 6) giả lập (1) + (2) trên Linux.
+- **Windows xử lý sự kiện đang chờ NGAY TRONG LÚC huỷ widget** (lỗi thật bản 1.3.1, Windows ARM64 + Python 3.14:
+  `run_tests.bat` sập "Windows fatal exception: access violation" ở `update_idletasks` ← `CTkOptionMenu._draw` ←
+  `_update_dimensions_event` ← `destroy`). Trên Windows, hàm xử lý cửa sổ của Tk gọi `Tcl_ServiceAll()` trước khi trả về,
+  nên khi một widget con đang bị huỷ thì sự kiện `<Configure>` đang chờ của widget cha được xử lý luôn; widget
+  CustomTkinter tự vẽ lại lúc các thành phần con đã chết rồi gọi `update_idletasks()` ⇒ Tk sập. Linux không làm vậy nên
+  không tái hiện trực tiếp được; giả lập bằng một `<Destroy>` gọi `update()` (xem
+  `test_closing_window_never_redraws_widgets_being_destroyed`). **Quy tắc: không bao giờ gọi `.destroy()` trần cho cửa sổ
+  / hộp thoại có widget CustomTkinter — dùng `W.safe_destroy(win)`** (gỡ mọi lệnh `<Configure>` của cả cây rồi mới
+  huỷ); `App.destroy` và `Dialog.close` đã đi qua hàm này.
 - **Test giao diện phụ thuộc cỡ màn hình:** `xvfb-run -a` ở container này cho màn hình 1280×1024 (< 1400×860) → cửa sổ tự
   phóng to hết màn hình; Xvfb không có trình quản lý cửa sổ nên Tk KHÔNG bỏ phóng to được (`-zoomed` kẹt ở 1). Test nào
   đặt cỡ cửa sổ phải xét `a.window.zoomed` (đã sửa `test_window_fits_screen_and_remembers_logical_size` ở GĐ6 — trước đó
@@ -150,11 +161,14 @@ pip install -q uv && uv python install 3.11   # chạy test trên 3.11 (bản uv
 uv venv -p 3.11 /tmp/v311 && uv pip install -p /tmp/v311/bin/python keyring send2trash requests pytest customtkinter pillow
 # Python 3.12 của Ubuntu + Tk 8.6 (GIỐNG Windows nhất — dùng để chụp ảnh giao diện):
 /usr/bin/python3.12 -m venv /tmp/v312 && /tmp/v312/bin/pip install -q customtkinter keyring send2trash requests pytest pillow
-.venv/bin/python -m pytest -q              # không có Tk: 685 passed, 20 skipped (18 test cần Tk + 2 alass thật)
-xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 703 passed, 2 skipped
-xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 703 passed, 2 skipped
+# Python 3.14 (bản người dùng đang chạy; uv cho Tk 9):
+uv python install 3.14 && uv venv -p 3.14 /tmp/v314 && uv pip install -p /tmp/v314/bin/python -r requirements-dev.txt
+xvfb-run -a /tmp/v314/bin/python -m pytest -q -p no:cacheprovider   # 705 passed, 2 skipped
+.venv/bin/python -m pytest -q              # không có Tk: 686 passed, 21 skipped (19 test cần Tk + 2 alass thật)
+xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 705 passed, 2 skipped
+xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 705 passed, 2 skipped
 # Giả lập Windows (ghi file chữ \n→\r\n, Python con in cp1250) — phải qua hết:
-PYTHONPATH=tools xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider -p winemu   # 703 passed, 2 skipped
+PYTHONPATH=tools xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider -p winemu   # 705 passed, 2 skipped
 # Thử đóng gói (GĐ6) — PyInstaller trên Python 3.12 của Ubuntu (Tk 8.6), kết quả để ngoài repo:
 /usr/bin/python3.12 -m venv /tmp/vbuild && /tmp/vbuild/bin/pip install -q -r requirements-build.txt
 /tmp/vbuild/bin/python -m PyInstaller --noconfirm --clean --distpath /tmp/pyi/dist --workpath /tmp/pyi/build MuxStudio.spec
@@ -433,3 +447,10 @@ Titulky → OpenSubtitles. SPEC 7.F: **TĐ-40**.
     "nguyên văn trang nhỏ" sau POST và cờ "còn ô đăng nhập" của trang chủ kế tiếp.
   - Script dò: in số ký tự tên / mật khẩu đã nhận (chỉ ra màn hình), cho gõ lại 2 lần khi bị từ chối, ghi nguyên văn trang
     < 600 byte (đã che tên / mật khẩu).
+- **Kết quả dò lần 2 của người dùng (đăng nhập ĐÚNG) + `run_tests.bat` sập → bản 1.3.2:**
+  - Titulky: đăng nhập đúng → trang chuyển hướng `/?welcome=` (120 byte), cookie `LogonLogin`, `LogonId`, `CRC`, trang chủ
+    không còn `log_login`, có "Odhlásit" ⇒ `login()` nhận đúng. Đã đăng nhập: bảng kết quả thêm cột `Uloženo` (dò theo
+    tiêu đề nên không ảnh hưởng); tải không cần CAPTCHA, `CountDown(1)`. **Không còn phần nào của Titulky chưa kiểm chứng.**
+  - Sập khi đóng cửa sổ: xem bài học mới ở mục 5 + `W.detach_configure` / `W.safe_destroy`; `App.destroy` gọi lại lần hai
+    không sao. Đã chạy cả bộ test trên Python 3.14 (Linux, Tk 9): không có lỗi nào khác riêng cho 3.14; Pillow có bản
+    `cp314-win_arm64`. CHƯA chạy lại được trên Windows ARM64 thật — chờ người dùng chạy `run_tests.bat`.

@@ -534,7 +534,10 @@ class App:
         self.destroy()
 
     def destroy(self) -> None:
-        """Đóng phiên các thẻ (xoá thư mục tạm), huỷ lệnh ``after`` còn chờ, rồi đóng cửa sổ."""
+        """Đóng phiên các thẻ (xoá thư mục tạm), huỷ lệnh ``after`` còn chờ, rồi đóng cửa sổ (gọi lại lần nữa không sao)."""
+        if getattr(self, "_destroyed", False):
+            return
+        self._destroyed = True
         for v in self.views:
             if hasattr(v, "close"):
                 try:
@@ -550,7 +553,7 @@ class App:
             W.ctk.AppearanceModeTracker.remove(self._appearance_cb)
         except Exception:  # noqa: BLE001
             pass
-        self.root.destroy()
+        W.safe_destroy(self.root)  # khong de widget CustomTkinter tu ve lai trong luc dang bi huy (sap tren Windows)
 
     def run(self) -> None:
         self.root.mainloop()

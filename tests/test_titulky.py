@@ -59,6 +59,27 @@ def test_parse_search_real_movie_page_languages_years_and_missing_cells():
     assert 'class="soupis"' in page("search_dune.html") and "table.find" not in page("search_dune.html")
 
 
+def test_parse_search_logged_in_layout_has_extra_saved_column():
+    """Đã đăng nhập (người dùng dò 2026-11-12): bảng có thêm cột ``Uloženo`` giữa Rok và Staž. — chèn cột đó vào mẫu
+    thật rồi đọc phải ra đúng như cũ (dò theo tiêu đề cột). Đoạn mã đọc theo vị trí cứng sẽ lấy nhầm lượt tải / ngôn ngữ."""
+    html = page("search_breaking_bad_s01e05.html")
+    head_cells = re.findall(r'<td[^>]*class="detailh[^>]*>.*?</td>', html, re.S)
+    assert len(head_cells) == 7
+    html = html.replace(head_cells[3], head_cells[3] + '<td class="detailh ucase">Uloženo</td>', 1)
+
+    def add_cell(m):
+        cells = re.findall(r"<td[^>]*>.*?</td>", m.group(0), re.S)
+        return m.group(0).replace(cells[3], cells[3] + "<td>12.11.2026</td>", 1)
+
+    html = re.sub(r'<tr class="r1?">.*?</tr>', add_cell, html, flags=re.S)
+    assert [titulky._text(c) for c in re.findall(r'<td[^>]*class="detailh[^>]*>(.*?)</td>', html, re.S)] == [
+        "Název", "V.", "Seriál", "Rok", "Uloženo", "Staž.", "Jazyk", "Uložil"]
+    rows, plain = titulky.parse_search(html), titulky.parse_search(page("search_breaking_bad_s01e05.html"))
+    assert len(rows) == 4 and [(r.id, r.title, r.release, r.series, r.year, r.downloads, r.lang) for r in rows] == [
+        (r.id, r.title, r.release, r.series, r.year, r.downloads, r.lang) for r in plain]
+    assert all(r.lang == "CZ" and r.downloads > 500 for r in rows)
+
+
 def test_parse_search_follows_header_when_columns_move():
     """Đăng nhập có thể thêm cột → dò theo TIÊU ĐỀ cột chứ không theo vị trí cứng."""
     html = ('<table class="soupis"><tr><td class="detailh ucase">Jazyk</td><td class="detailh">Nový</td>'
@@ -228,7 +249,9 @@ def site_with_login(valid: tuple[str, str] | None):
     def post(call):
         if valid and (call.data["Login"], call.data["Password"]) == valid:
             state["in"] = True
-            return FakeResponse(200, text='<meta http-equiv="Refresh" content="0.1;URL=/">')
+            # nguyen van trang that khi dang nhap DUNG (nguoi dung do 2026-11-12, 120 byte)
+            return FakeResponse(200, text='<meta http-equiv="Refresh" content="0.1;URL=/?welcome=">\t\t\t\t\t'
+                                          '<script>window.location.assign("/?welcome=")</script>')
         return FakeResponse(200, text=login_error_page(call.data["Login"]))
 
     http.add("POST", r"titulky\.com/$", post)

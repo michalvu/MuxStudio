@@ -963,3 +963,74 @@ def test_captcha_dialog_shows_jpeg_and_returns_typed_code(movie_dir, ui):
     assert d2.photo is None and d2.picture is None
     d2.d.close(None)
     assert d2.d.result is None
+
+
+# ---------------------------------------------------------------- 1.3.2: dong cua so khong lam sap Tk tren Windows
+def _watch_redraws_while_dying(root, menu, monkeypatch):
+    """Giả lập cách Tk trên WINDOWS xử lý sự kiện đang chờ ngay trong lúc huỷ widget con (``Tcl_ServiceAll`` ở cuối hàm xử
+    lý cửa sổ): ô chọn có sự kiện đổi cỡ đang chờ, và một ``<Destroy>`` của thành phần con gọi ``update()``. Trả danh sách
+    ghi lại mỗi lần ô chọn tự vẽ lại: (canvas còn sống?, nhãn còn sống?)."""
+    draws: list = []
+    cls = type(menu)
+    orig = cls._draw
+
+    def spy(self, *args, **kw):
+        if self is menu:
+            draws.append(tuple(bool(int(self.tk.call("winfo", "exists", w._w))) for w in (self._canvas, self._text_label)))
+        return orig(self, *args, **kw)
+
+    monkeypatch.setattr(cls, "_draw", spy)
+    root.update()
+    menu.tk.call(menu._w, "configure", "-width", 700)  # doi co THAT ma CustomTkinter chua biet -> <Configure> dang cho
+    menu._text_label.bind("<Destroy>", lambda _e: root.update(), add="+")
+    draws.clear()
+    return draws
+
+
+def test_closing_window_never_redraws_widgets_being_destroyed(movie_dir, ui, monkeypatch):
+    """Lỗi thật của bản 1.3.1 trên Windows ARM64 + Python 3.14 (``run_tests.bat`` sập "access violation" trong
+    ``update_idletasks`` ← ``CTkOptionMenu._draw`` ← ``<Configure>`` ← ``destroy``): lúc đóng cửa sổ, ô chọn tự vẽ lại khi
+    các thành phần con của nó đã bị huỷ. Sửa: gỡ mọi lệnh ``<Configure>`` trước khi huỷ (``W.safe_destroy``)."""
+    from gui import app as A
+    from gui import widgets as W
+
+    a = ui(movie_dir)
+    a.root.deiconify()
+    a.goto(A.TAB_PREP)
+    pump(a)
+    # 1) chung minh moi nguy: huy theo cach THUONG mot cua so con co o chon -> o chon tu ve lai khi con da chet
+    top = W.ctk.CTkToplevel(a.root)
+    box = W.ctk.CTkFrame(top)
+    box.pack(padx=10, pady=10)
+    menu = W.ctk.CTkOptionMenu(box, values=["a", "b"])
+    menu.grid(row=0, column=0)
+    a.root.update()
+    draws = _watch_redraws_while_dying(a.root, menu, monkeypatch)
+    top.destroy()
+    assert draws and not any(draws[0]), draws  # da ve lai, luc ca canvas lan nhan deu da bi huy
+    # 2) cung tinh huong, huy bang safe_destroy -> khong ve lai lan nao
+    top2 = W.ctk.CTkToplevel(a.root)
+    box2 = W.ctk.CTkFrame(top2)
+    box2.pack(padx=10, pady=10)
+    menu2 = W.ctk.CTkOptionMenu(box2, values=["a", "b"])
+    menu2.grid(row=0, column=0)
+    a.root.update()
+    draws2 = _watch_redraws_while_dying(a.root, menu2, monkeypatch)
+    assert W.detach_configure(top2) >= 3 and menu2.tk.call("bind", menu2._w, "<Configure>") == ""
+    W.safe_destroy(top2)
+    assert draws2 == []
+    # 3) cua so chinh (o chon "Ngon ngu" cua the ② la o chon dau tien bi huy - dung cho trong dau vet loi cua nguoi dung)
+    draws3 = _watch_redraws_while_dying(a.root, a.prep.lang_menu, monkeypatch)
+    a.destroy()
+    assert draws3 == []
+    a.destroy()  # goi lai lan nua (fixture cung goi) khong loi
+    # 4) hop thoai dong bang Dialog.close cung di qua safe_destroy
+    b = ui(movie_dir)
+    d = W.Dialog(b.root, "Thử", 300, 200)
+    m4 = W.ctk.CTkOptionMenu(d.body, values=["x"])
+    m4.pack()
+    b.root.deiconify()
+    b.root.update()
+    draws4 = _watch_redraws_while_dying(b.root, m4, monkeypatch)
+    d.close("xong")
+    assert draws4 == [] and d.result == "xong"

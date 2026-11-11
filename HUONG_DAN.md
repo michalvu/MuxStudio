@@ -14,7 +14,7 @@ Mục lục: [1. Tạo MuxStudio.exe](#1-tạo-muxstudioexe-một-lần) · [2. 
 
 Bản `.exe` chạy **không cần cài Python**. Chỉ máy dùng để **tạo** (build) bản `.exe` mới cần Python.
 
-1. Cài **Python 3.11 trở lên** từ <https://www.python.org/downloads/>. Ở màn hình đầu của bộ cài, **tick ô
+1. Cài **Python 3.11 trở lên** (đã thử tới 3.14, cả bản ARM64 cho máy Windows on ARM) từ <https://www.python.org/downloads/>. Ở màn hình đầu của bộ cài, **tick ô
    "Add python.exe to PATH"** rồi bấm *Install Now*.
 2. Tải mã nguồn MuxStudio về (trên GitHub: nút **Code › Download ZIP**, rồi giải nén), hoặc dùng thư mục đã có.
 3. Mở thư mục đó, **bấm đúp `build.bat`**. Một cửa sổ đen hiện ra và chạy 4 bước:
@@ -27,7 +27,7 @@ Bản `.exe` chạy **không cần cài Python**. Chỉ máy dùng để **tạo
 5. **Chép CẢ thư mục `dist\MuxStudio`** tới nơi bạn muốn (vd `C:\Users\fenha\Desktop\MuxStudio`).
    Đừng chép riêng file `MuxStudio.exe` — nó cần thư mục `_internal` nằm cạnh.
 6. Tạo lối tắt: chuột phải `MuxStudio.exe` › *Send to* (*Gửi tới*) › *Desktop (create shortcut)*.
-7. Bấm đúp `MuxStudio.exe` để chạy. Số phiên bản hiện trên thanh tiêu đề (vd **MuxStudio 1.3.1**) và ở dòng đầu
+7. Bấm đúp `MuxStudio.exe` để chạy. Số phiên bản hiện trên thanh tiêu đề (vd **MuxStudio 1.3.2**) và ở dòng đầu
    khung Nhật ký.
 
 **Cập nhật bản mới:** tải mã nguồn mới → bấm đúp `build.bat` lần nữa → chép đè thư mục `dist\MuxStudio` lên thư mục
@@ -147,7 +147,7 @@ của file phim*) và **Ngôn ngữ**, rồi theo thanh các bước:
 ## 6. Báo lỗi
 
 Gửi cho người hỗ trợ:
-1. **Số phiên bản** (thanh tiêu đề, vd *MuxStudio 1.3.1*; dòng thứ hai của khung Nhật ký ghi rõ bản `.exe`, Python, Windows).
+1. **Số phiên bản** (thanh tiêu đề, vd *MuxStudio 1.3.2*; dòng thứ hai của khung Nhật ký ghi rõ bản `.exe`, Python, Windows).
 2. **Log**: khung Nhật ký › **Lưu log…** (key, mật khẩu đã được che).
 3. **Ảnh chụp màn hình** chỗ bị lỗi.
 4. **Không mở được chương trình**: file `%APPDATA%\MuxStudio\loi_khoi_dong.txt` (gõ `%APPDATA%\MuxStudio` vào thanh

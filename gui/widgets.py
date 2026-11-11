@@ -1575,6 +1575,32 @@ def _center(win: Any, parent: Any) -> None:
         pass
 
 
+def detach_configure(win: Any) -> int:
+    """Gỡ mọi lệnh gắn với sự kiện ``<Configure>`` (đổi cỡ) trong cả cây widget của ``win``. Trả số widget đã gỡ.
+
+    Gọi NGAY TRƯỚC khi huỷ một cửa sổ. Lý do (lỗi thật trên Windows ARM64 + Python 3.14, bản 1.3.1: ``run_tests.bat``
+    sập "access violation"): trên Windows, trong lúc một widget con đang bị huỷ, Tk xử lý luôn các sự kiện đang chờ; ô
+    chọn của CustomTkinter (``CTkOptionMenu``) có sự kiện đổi cỡ đang chờ thì tự VẼ LẠI — lúc các thành phần con của nó
+    đã bị huỷ — và gọi ``update_idletasks()`` ⇒ Tk sập. Không còn lệnh ``<Configure>`` thì không gì vẽ lại lúc đang huỷ."""
+    n = 0
+    stack = [win]
+    while stack:
+        w = stack.pop()
+        try:
+            w.tk.call("bind", w._w, "<Configure>", "")
+            n += 1
+            stack.extend(w.winfo_children())
+        except Exception:  # noqa: BLE001 - widget da bi huy / khong phai widget Tk
+            pass
+    return n
+
+
+def safe_destroy(win: Any) -> None:
+    """Huỷ một cửa sổ / hộp thoại an toàn trên Windows: gỡ lệnh ``<Configure>`` của cả cây rồi mới ``destroy()``."""
+    detach_configure(win)
+    win.destroy()
+
+
 class Dialog:
     """Hộp thoại modal đơn giản (CTkToplevel). ``result`` = giá trị trả về khi đóng."""
 
@@ -1609,7 +1635,7 @@ class Dialog:
             self.win.grab_release()
         except Exception:
             pass
-        self.win.destroy()
+        safe_destroy(self.win)
 
     def run(self) -> Any:
         _center(self.win, self.parent)

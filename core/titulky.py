@@ -27,8 +27,15 @@
 * đăng nhập SAI tên / mật khẩu → trang trả về một trang chuyển hướng nhỏ tới
   ``/?ShowInfo=LoginError&BadId=&BadLogin=<tên>`` (176 byte + 2 × độ dài tên đăng nhập).
 
-CHƯA kiểm chứng được (chưa có lần đăng nhập thành công nào): trang sau khi đăng nhập ĐÚNG. Đang làm: không thấy
-``LoginError`` / ``BadLogin`` thì tải lại trang chủ, coi là đã đăng nhập khi trang chủ không còn ô ``id="log_login"``.
+ĐÃ KIỂM CHỨNG trên máy người dùng ngày 2026-11-12, lần 2 (ĐĂNG NHẬP ĐÚNG):
+
+* đăng nhập đúng → trang chuyển hướng nhỏ tới ``/?welcome=`` (120 byte), có thêm cookie ``LogonLogin``, ``LogonId``,
+  ``CRC``; trang chủ sau đó KHÔNG còn ô ``id="log_login"`` và có chữ "Odhlásit" — đúng dấu hiệu ``login()`` đang dùng;
+* đã đăng nhập thì bảng kết quả có THÊM cột ``Uloženo`` (Název, V., Seriál, Rok, Uloženo, Staž., Jazyk, Uložil) — vì thế
+  ``parse_search`` dò cột theo tiêu đề, không theo vị trí;
+* đã đăng nhập thì tải KHÔNG cần CAPTCHA: trang tải có ngay ``CountDown(1)`` + link, cùng file ZIP như kiểu khách.
+
+Mọi bước (tìm, chi tiết, xem trước, đăng nhập đúng / sai, tải có / không CAPTCHA) đều đã chạy thật ít nhất một lần.
 
 Quy tắc của MuxStudio vẫn giữ: không sửa nội dung phụ đề ở bước ① (chép nguyên byte — đổi bảng mã là việc của bước ②),
 không tự vượt CAPTCHA (bạn gõ mã), chờ đủ thời gian trang yêu cầu, nghỉ giữa các lượt gọi.
