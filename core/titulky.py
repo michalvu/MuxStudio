@@ -210,8 +210,9 @@ def has_login_form(page: str) -> bool:
 
 
 def looks_like_html(data: bytes) -> bool:
-    head = data.lstrip(b"\xef\xbb\xbf \t\r\n")[:16].lower()
-    return head.startswith((b"<!doctype", b"<html", b"<head", b"<body", b"<?xml", b"<br", b"<div", b"<b>", b"<h"))
+    """Trả lời là TRANG WEB (không phải file phụ đề / file nén)? Trang thật của Titulky bắt đầu bằng ``<!--`` (chú thích)
+    hoặc ``<!DOCTYPE``; file phụ đề không bao giờ bắt đầu bằng ``<`` (SRT: số, ASS: ``[``, MicroDVD: ``{``, ZIP: ``PK``)."""
+    return data.lstrip(b"\xef\xbb\xbf \t\r\n")[:1] == b"<"
 
 
 def search_query(title: str, season: int | None = None, episode: int | None = None) -> str:

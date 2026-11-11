@@ -24,3 +24,6 @@ _muxtool_logs/
 
 # Ket qua do API cua ban (da che bi mat, nhung la thong tin ca nhan)
 ket_qua_do_api.txt
+ket_qua_do_titulky.txt
+captcha_titulky.jpg
+_titulky_probe_tmp/

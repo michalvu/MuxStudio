@@ -1,6 +1,7 @@
 # Bàn giao giữa các phiên làm việc (đọc file này TRƯỚC)
 
-Cập nhật: 2026-11-10, **Giai đoạn 0–6 ĐÃ DUYỆT (1.0.0); bản 1.1.0 (mục 12) ĐÃ DUYỆT; bản 1.2.0 (mục 13) — CHỜ duyệt.**
+Cập nhật: 2026-11-11, **Giai đoạn 0–6 ĐÃ DUYỆT (1.0.0); 1.1.0 (mục 12) ĐÃ DUYỆT; 1.2.0 (mục 13) và 1.3.0 (mục 14, nguồn
+Titulky.com) — CHỜ duyệt.**
 Repo `michalvu/MuxStudio`. Phiên sau (nếu có): bảo trì — sửa lỗi người dùng báo, yêu cầu mới (xem "Việc kế tiếp").
 Nhánh: chỉ còn **`claude/new-session-eckanp`** = nhánh chính (nhánh mặc định của repo). Các nhánh phiên cũ
 (`ccr-770f1e3e-dqsvcp`, `ccr-e18d248b-a69t65`, `claude/gifted-keller-fx1jey`) đã xoá ngày 2026-11-10 theo yêu cầu người
@@ -66,7 +67,7 @@ core/   timing pgs srt encoding episodes naming config secrets undo   (GĐ1)
         + set_job (3 phiên), naming.search_candidates, MuxSession.search_name (GĐ5)
 gui/    app widgets log_panel settings_view fetch_view subprep_view mux_view (GĐ5)
         + build_info / self_check (--kiem-tra) / write_startup_error trong app; resource_path / set_window_icon (GĐ6)
-tests/  pytest — 683 test (2 test alass thật tự bỏ qua nếu không có alass; 15 test test_gui_app.py + 1 test_packaging
+tests/  pytest — 704 test (2 test alass thật tự bỏ qua nếu không có alass; 17 test test_gui_app.py + 1 test_packaging
         tự bỏ qua nếu không có tkinter/màn hình); test_packaging.py (GĐ6); test_gui_logic.py (logic giao diện, không cần Tk); fakehttp.py (API giả),
         synth.py (phụ đề/PGS giả), fake_alass.py (alass GIẢ: ghi lại từng lần gọi, dịch phụ đề theo cấu hình),
         test_golden_powershell.py + test_golden_subprep.py + test_golden_mux.py + golden/ps_harness.ps1 (chạy HÀM GỐC
@@ -146,14 +147,14 @@ curl -sSL -o /tmp/pm.deb https://packages.microsoft.com/config/ubuntu/24.04/pack
   && dpkg -i /tmp/pm.deb && apt-get update -qq && apt-get install -y -qq powershell
 apt-get install -y -qq mkvtoolnix python3-tk xvfb imagemagick python3.12-venv ffmpeg   # ffmpeg + Xvfb thường có sẵn
 pip install -q uv && uv python install 3.11   # chạy test trên 3.11 (bản uv có tkinter, Tk 9):
-uv venv -p 3.11 /tmp/v311 && uv pip install -p /tmp/v311/bin/python keyring send2trash requests pytest customtkinter
+uv venv -p 3.11 /tmp/v311 && uv pip install -p /tmp/v311/bin/python keyring send2trash requests pytest customtkinter pillow
 # Python 3.12 của Ubuntu + Tk 8.6 (GIỐNG Windows nhất — dùng để chụp ảnh giao diện):
-/usr/bin/python3.12 -m venv /tmp/v312 && /tmp/v312/bin/pip install -q customtkinter keyring send2trash requests pytest
-.venv/bin/python -m pytest -q              # không có Tk: 665 passed, 18 skipped (16 test cần Tk + 2 alass thật)
-xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 681 passed, 2 skipped
-xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 681 passed, 2 skipped
+/usr/bin/python3.12 -m venv /tmp/v312 && /tmp/v312/bin/pip install -q customtkinter keyring send2trash requests pytest pillow
+.venv/bin/python -m pytest -q              # không có Tk: 684 passed, 20 skipped (18 test cần Tk + 2 alass thật)
+xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 702 passed, 2 skipped
+xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 702 passed, 2 skipped
 # Giả lập Windows (ghi file chữ \n→\r\n, Python con in cp1250) — phải qua hết:
-PYTHONPATH=tools xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider -p winemu   # 681 passed, 2 skipped
+PYTHONPATH=tools xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider -p winemu   # 702 passed, 2 skipped
 # Thử đóng gói (GĐ6) — PyInstaller trên Python 3.12 của Ubuntu (Tk 8.6), kết quả để ngoài repo:
 /usr/bin/python3.12 -m venv /tmp/vbuild && /tmp/vbuild/bin/pip install -q -r requirements-build.txt
 /tmp/vbuild/bin/python -m PyInstaller --noconfirm --clean --distpath /tmp/pyi/dist --workpath /tmp/pyi/build MuxStudio.spec
@@ -376,3 +377,43 @@ bên làm ra chúng). Nhánh phiên `claude/stoic-fermat-vbr5cy` CHƯA xoá đư
   `KeyError: 'PoolTryLimit'`, và `test_i18n` thấy 12 câu chữ của `pool.py` chưa dịch. Sửa: `run_tests.bat` và
   `build.bat` tự xoá hai file đó trước khi chạy. **Bài học: xoá file khỏi repo thì phải thêm nó vào danh sách dọn
   trong hai file .bat** (người dùng cập nhật bằng cách tải ZIP rồi chép đè, không dùng git).
+
+## 14. Bảo trì đợt 3 — bản 1.3.0: nguồn Titulky.com (2026-11-11)
+
+Người dùng đưa một đoạn mã `TitulkyClient` (do AI khác viết, ĐOÁN cấu trúc trang) + một đề bài của Gemini, hỏi có tích
+hợp được không. Đã chốt: tài khoản lúc miễn phí lúc VIP (⇒ phải có CAPTCHA), chỉ tiếng Séc, thứ tự nguồn SubSource →
+Titulky → OpenSubtitles. SPEC 7.F: **TĐ-40**.
+
+- **Môi trường cloud mới tên "MuxStudio"** (cá nhân; phiên này đã chuyển sang): mạng cho phép thêm `www.titulky.com`,
+  `premium.titulky.com`; có kịch bản cài sẵn công cụ test (mục 6). Phiên mới chọn môi trường này thì khỏi dựng lại, và
+  gọi được trang Titulky thật (`python -m tools.probe_titulky --no-input` = dò kiểu khách, không gõ CAPTCHA).
+  Kịch bản cài (cài theo `requirements-dev.txt` của repo) đã chạy thử bằng tay trong phiên tạo ra nó nhưng CHƯA được
+  kiểm chứng bằng một phiên mới — nếu phiên mới thiếu công cụ thì dựng tay theo mục 6 và sửa kịch bản.
+- **Đã xem trang thật** (không đăng nhập) → mọi biểu thức đọc HTML trong `core/titulky.py` lấy từ đó; mẫu cắt gọn nằm ở
+  `tests/data/titulky/` (bảng `soupis`, trang chi tiết, trang tải có CAPTCHA, form đăng nhập, `downfnc.js`). Đoạn mã người
+  dùng đưa sai 4 chỗ (tên bảng, tên ô đăng nhập, thời gian chờ, ghi file) — xem TĐ-40.
+- **CHƯA kiểm chứng (cần tài khoản / cần người gõ CAPTCHA):** (1) dấu hiệu đăng nhập thành công — đang coi "trang không còn
+  ô `id="log_login"`" là đã đăng nhập; (2) trang sau khi gõ đúng CAPTCHA / khi không cần CAPTCHA — đang dựa vào
+  `downfnc.js` (`CountDown(n)` + `<a id="downlink">`); (3) file trả về (đang nhận ZIP `PK` hoặc file phụ đề trần; RAR →
+  báo cần 7-Zip). **Việc đầu tiên khi người dùng quay lại:** xin `ket_qua_do_titulky.txt` (bấm đúp `chay_do_titulky.bat`)
+  rồi sửa theo thực tế. `tools/probe_titulky.py` chạy đúng `TitulkyClient` qua lớp `Spy` ghi từng lượt gọi.
+- **Không tự vượt CAPTCHA** — kể cả khi phát triển (không đọc mã trong ảnh). Người dùng gõ qua `W.CaptchaDialog`.
+- `core/titulky.py`: hàm thuần `parse_search` (dò cột theo TIÊU ĐỀ — đăng nhập có thể thêm cột), `parse_detail`,
+  `parse_preview`, `parse_download_page`, `has_login_form`, `looks_like_html` (trang thật bắt đầu bằng `<!--` — đã sai một
+  lần), `search_query`; `TitulkyClient(username, password, pause_ms, http, sleep, job, temp_dir, clock, now)`: `login`,
+  `search` (nhớ đệm), `fill_detail`, `preview`, `download(row, captcha)` → thư mục tạm (ZIP đã giải nén bằng
+  `subsource.safe_extract`), `check`. `captcha_declined`: bỏ qua một lần thì không hỏi nữa trong lượt.
+- `core/subfetch.py`: `self.tt` (chỉ tạo khi nguồn bật VÀ ngôn ngữ có `cs`), `self.captcha` (giao diện gán
+  `app.ask_captcha`), `_titulky_rows` (lọc `CZ`, đúng tập / đúng phim + năm; đã có bản ghi năm thì bỏ bản không ghi năm),
+  `_titulky_candidates` (`TitulkyProbeTop` bản đầu: chi tiết + xem trước; dòng đầu của bản xem trước thường là quảng cáo
+  `www.titulky.com` ⇒ thử bỏ 1–2 mốc đầu), `_fetch` nhánh `"Titulky"`. Tên release trùng nhau thì thêm ` #<id>` (vì
+  `Candidate.ident` = nguồn + tên release).
+- Giao diện: `Runner.ask(fn)` (luồng phụ nhờ luồng giao diện chạy `fn` và chờ — `Runner.wait` của test phải poll xen kẽ),
+  `W.image_png` (JPEG → PNG bằng Pillow; Tk không đọc JPEG), `W.CaptchaDialog`, `App.ask_captcha`; thẻ ① thêm ô nguồn
+  `Titulky.com (cs)`; Cài đặt thêm 2 bí mật + nút kiểm tra kết nối; thẻ Giới thiệu thêm Pillow và Titulky.com.
+- **Pillow** vào `requirements.txt` / `pyproject.toml`; bỏ `PIL` khỏi `excludes` của `MuxStudio.spec` (bản đóng gói thử
+  trên Linux: 52 → 70 MB, `--kiem-tra` có mục "Ảnh CAPTCHA (Pillow)").
+- **Chốt chặn mạng trong test**: fixture tự động `no_real_network` (conftest) làm hỏng test nào gọi `requests` thật — cần
+  vì Titulky chạy được cả khi không có tài khoản, quên truyền `FakeHTTP` là gọi thẳng trang thật.
+- Bảng dịch: 52 câu mới trong `tools/i18n/extra.json` (chữ tiếng Séc `název`, `seriál`, `Přihlásit` bị công cụ rút chữ
+  bắt nhầm → khai báo `""`).

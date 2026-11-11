@@ -101,6 +101,8 @@ def test_parse_detail_preview_download_and_login_real_pages():
 def test_search_query_and_html_sniffing():
     assert titulky.search_query("Breaking  Bad", 1, 5) == "Breaking Bad S01E05" and titulky.search_query(" Dune ") == "Dune"
     assert titulky.looks_like_html(b"\xef\xbb\xbf\n <!DOCTYPE html><html>") and titulky.looks_like_html(b"<html>")
+    assert titulky.looks_like_html(b"<!--\r\n** trang that cua Titulky bat dau bang chu thich (do that 2026-11-11) -->")
+    assert titulky.looks_like_html(b"\t\t<!DOCTYPE html>") and not titulky.looks_like_html(b"{1}{25}MicroDVD") and not titulky.looks_like_html(b"")
     assert not titulky.looks_like_html(b"PK\x03\x04") and not titulky.looks_like_html(b"1\r\n00:00:01,000 --> 00:00:02,000")
     assert not titulky.looks_like_html(b"[Script Info]") and not titulky.looks_like_html(b"\xef\xbb\xbf1\n00:00")
 
@@ -256,3 +258,46 @@ def test_stop_now_interrupts_the_countdown(tmp_path):
         c.download(SearchRow(9, "G", "G-9.htm"), None)
     assert len(sl.calls) == 5 and orig is not None  # dung sau 5 nhip 0,5 s, khong cho het 60 s
     assert re.search(r"idown\.php$", http.calls[-1].url)  # chua goi link tai
+
+
+# ---------------------------------------------------------------- script do (nguoi dung chay voi tai khoan that)
+
+def test_probe_script_runs_the_real_client_and_never_writes_credentials(tmp_path, monkeypatch):
+    import requests
+
+    from core import config as C
+    from core.secrets import Redactor
+    from tools import probe_titulky as P
+    from tools.probe_common import Reporter
+
+    sub = b"1\r\n00:00:01,000 --> 00:00:02,000\r\nAhoj\r\n\r\n2\r\n00:00:03,000 --> 00:00:04,000\r\nNazdar\r\n"
+    http = FakeHTTP()
+    http.add("GET", r"idown\.php\?id=abc123", FakeResponse(200, content=zip_bytes({"Breaking.Bad.S01E05.srt": sub}),
+                                                           headers={"Content-Type": "application/zip"}))
+    http.add("GET", r"titulky\.com/idown\.php$", FakeResponse(200, text=countdown_page(2), headers={"Content-Type": "text/html"}))
+    http.add("GET", r"titulky\.com/nahled\.php", FakeResponse(200, text='<div id="nahled_zdroj">1<br />00:00:05,000 --&gt; 00:00:06,000<br />x</div>'))
+    http.add("GET", r"titulky\.com/Breaking-Bad-S01E05-\d+\.htm", FakeResponse(200, text=page("detail_breaking_bad_s01e05.html")))
+    http.add("POST", r"titulky\.com/$", FakeResponse(200, text="<html><title>Titulky</title>přihlášen: tajny-uzivatel <a>Odhlásit</a></html>"))
+    http.add("GET", r"titulky\.com/$", lambda call: FakeResponse(200, text=page("search_breaking_bad_s01e05.html") if call.params
+                                                                 else "<!--\r\n** -->" + page("home_login_form.html")))
+    monkeypatch.setattr(requests, "Session", lambda: http)
+    monkeypatch.setattr(P, "ROOT", tmp_path)
+    monkeypatch.setattr(P, "CAPTCHA_FILE", tmp_path / "captcha_titulky.jpg")
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    out = tmp_path / "ket_qua.txt"
+    rep = Reporter(out, Redactor([]))
+    P.run(rep, C.Config({"ApiPauseMs": 0}), {"TitulkyUsername": "tajny-uzivatel", "TitulkyPassword": "demo-heslo-123"},
+          download=True, interactive=False)
+    rep.close()
+    text = out.read_text(encoding="utf-8")
+    assert "tajny-uzivatel" not in text and "demo-heslo-123" not in text  # ten dang nhap / mat khau khong lot vao file
+    assert "Titulky: đăng nhập được" in text and "4 bản tiếng Séc" in text
+    assert "FPS = 23.976" in text and "bản xem trước có 1 mốc thời gian" in text
+    assert "Tải thử: ĐƯỢC (hỏi CAPTCHA 0 lần)" in text and "Breaking.Bad.S01E05.srt" in text and "2 mốc thời gian" in text
+    assert "form: ['Detail2', 'Login', 'Password', 'foreverlog', 'prihlasit']" in text  # chi ghi TEN o, khong ghi gia tri
+    assert "bảng kết quả: tiêu đề cột = ['Název', 'V.', 'Seriál', 'Rok', 'Staž.', 'Jazyk', 'Uložil']" in text
+    assert "CountDown = 2 | link = idown.php?id=abc123" in text
+    assert not (tmp_path / "_titulky_probe_tmp").exists()  # don thu muc tam
+    # file .bat de nguoi dung bam dup: ASCII + CRLF, goi dung script
+    bat = (Path(__file__).resolve().parent.parent / "chay_do_titulky.bat").read_bytes()
+    assert bat.isascii() and b"\n" not in bat.replace(b"\r\n", b"") and b"-m tools.probe_titulky" in bat

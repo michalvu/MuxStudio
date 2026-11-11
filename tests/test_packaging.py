@@ -322,7 +322,11 @@ def test_requirements_files():
     build = (ROOT / "requirements-build.txt").read_text().split()
     assert "-r" in build and "requirements.txt" in build and any(x.startswith("pyinstaller") for x in build)
     app = (ROOT / "requirements.txt").read_text().lower()
-    assert "pyinstaller" not in app and "pytest" not in app and "pillow" not in app  # .exe chi chua thu vien can chay
+    assert "pyinstaller" not in app and "pytest" not in app  # .exe chi chua thu vien can chay
+    # 1.3.0: Pillow LA thu vien can chay (anh CAPTCHA cua Titulky.com la JPEG, Tk khong tu doc duoc) -> phai co mat va
+    # khong con nam trong danh sach loai tru cua ban dong goi
+    spec = (ROOT / "MuxStudio.spec").read_text(encoding="utf-8")
+    assert "pillow" in app and '"PIL"' not in spec.split("excludes = ")[1].split("]")[0]
 
 
 def test_gitignore_build_outputs():

@@ -27,7 +27,7 @@ Bản `.exe` chạy **không cần cài Python**. Chỉ máy dùng để **tạo
 5. **Chép CẢ thư mục `dist\MuxStudio`** tới nơi bạn muốn (vd `C:\Users\fenha\Desktop\MuxStudio`).
    Đừng chép riêng file `MuxStudio.exe` — nó cần thư mục `_internal` nằm cạnh.
 6. Tạo lối tắt: chuột phải `MuxStudio.exe` › *Send to* (*Gửi tới*) › *Desktop (create shortcut)*.
-7. Bấm đúp `MuxStudio.exe` để chạy. Số phiên bản hiện trên thanh tiêu đề (vd **MuxStudio 1.2.0**) và ở dòng đầu
+7. Bấm đúp `MuxStudio.exe` để chạy. Số phiên bản hiện trên thanh tiêu đề (vd **MuxStudio 1.3.0**) và ở dòng đầu
    khung Nhật ký.
 
 **Cập nhật bản mới:** tải mã nguồn mới → bấm đúp `build.bat` lần nữa → chép đè thư mục `dist\MuxStudio` lên thư mục
@@ -82,8 +82,8 @@ Các nút nhỏ màu xám (Xem lệnh, Xuất CSV…, Bỏ qua…) là việc ph
 Nhật ký, và "Hoàn tác…" vẫn dùng được cho lượt cũ.
 
 **① Tải phụ đề** (thay SubFetch)
-1. Tick ngôn ngữ cần tải, bật/tắt nguồn (SubSource, OpenSubtitles — kho `srt_pool` đã bỏ từ bản 1.2.0; muốn dùng phụ
-   đề tự có thì bỏ vào `srt_can_sync`); **Kiểm tra nguồn** để xem key /
+1. Tick ngôn ngữ cần tải, bật/tắt nguồn (SubSource, **Titulky.com** — chỉ cho tiếng Séc `cs`, OpenSubtitles; kho
+   `srt_pool` đã bỏ từ bản 1.2.0; muốn dùng phụ đề tự có thì bỏ vào `srt_can_sync`); **Kiểm tra nguồn** để xem key /
    lượt tải còn lại.
 2. **1. Quét thư mục** → **2. Tìm phụ đề**. Ngôn ngữ mà phim **đã có phụ đề** thì dòng đó ghi *"phim đã có … — không
    tìm"* và được bỏ qua; chương trình chỉ tìm ngôn ngữ còn thiếu. "Đã có" = có file `<tên phim>.<mã>.srt` nằm cạnh
@@ -91,6 +91,14 @@ Nhật ký, và "Hoàn tác…" vẫn dùng được cho lượt cũ.
    Muốn vẫn tìm: tắt *"Phim đã có phụ đề ngôn ngữ đó thì không tìm nữa"* trong Cài đặt › ① Tải phụ đề. Dòng màu vàng *"Cần chọn"*: bấm vào dòng, bảng dưới hiện ứng viên
    (cột **Lệch** = độ lệch đo thật / `~` ước tính) → bấm đúp ứng viên (hoặc **Chọn bản này** / **Bỏ qua ngôn ngữ này**).
 3. **3. Tải phụ đề** → phụ đề vào `srt_can_sync\<mã ngôn ngữ>\`. Bước này **không** sửa thời gian phụ đề.
+
+   - **Titulky.com** (từ bản 1.3.0): chương trình hỏi theo thứ tự SubSource → Titulky → OpenSubtitles. Bản của Titulky
+     hiện trong bảng ứng viên với cột Nguồn = *Titulky*; vài bản giống tên nhất có sẵn FPS và độ lệch ước tính (`~`).
+     Lúc tải, nếu trang đòi **mã CAPTCHA** thì một hộp thoại hiện ảnh: gõ đúng các ký tự rồi bấm **Tải** (gõ sai được
+     thử lại 3 lần). Bấm **Bỏ qua bản này** thì trong lượt đó chương trình không hỏi CAPTCHA nữa. Trang bắt chờ vài
+     giây trước mỗi lần tải — chương trình tự chờ. Không cần tài khoản; có tài khoản thì điền ở Cài đặt › API & tài
+     khoản › *Titulky.com — tên đăng nhập / mật khẩu* (theo thông báo của trang, tài khoản Premium tải được 25 phụ
+     đề mỗi ngày). Tắt nguồn này: bỏ tick ô *Titulky.com (cs)* hoặc Cài đặt › ① Tải phụ đề › *Dùng Titulky.com*.
 
 **② Chuẩn bị phụ đề** (thay SubPrep) — trước tiên chọn **Mốc đồng bộ** (*Phụ đề gốc trong 'srt_goc'* hoặc *Audio
 của file phim*) và **Ngôn ngữ**, rồi theo thanh các bước:
@@ -136,7 +144,7 @@ của file phim*) và **Ngôn ngữ**, rồi theo thanh các bước:
 ## 6. Báo lỗi
 
 Gửi cho người hỗ trợ:
-1. **Số phiên bản** (thanh tiêu đề, vd *MuxStudio 1.2.0*; dòng thứ hai của khung Nhật ký ghi rõ bản `.exe`, Python, Windows).
+1. **Số phiên bản** (thanh tiêu đề, vd *MuxStudio 1.3.0*; dòng thứ hai của khung Nhật ký ghi rõ bản `.exe`, Python, Windows).
 2. **Log**: khung Nhật ký › **Lưu log…** (key, mật khẩu đã được che).
 3. **Ảnh chụp màn hình** chỗ bị lỗi.
 4. **Không mở được chương trình**: file `%APPDATA%\MuxStudio\loi_khoi_dong.txt` (gõ `%APPDATA%\MuxStudio` vào thanh
@@ -161,4 +169,7 @@ Gửi cho người hỗ trợ:
 - **Chạy toàn bộ test** (kiểm tra chương trình trên máy bạn, cần Python): bấm đúp `run_tests.bat` → cuối cùng có dòng
   `… passed`. Trên máy bạn chạy được cả test alass thật.
 - **Dò API với key thật**: bấm đúp `chay_do_api.bat` → gửi file `ket_qua_do_api.txt` (key đã được che).
+- **Dò Titulky.com với tài khoản thật**: bấm đúp `chay_do_titulky.bat` → gõ tên đăng nhập / mật khẩu khi được hỏi (Enter =
+  dò kiểu khách) → script tải thử MỘT phụ đề (tốn 1 lượt tải trong ngày; gặp CAPTCHA thì ảnh tự mở, gõ mã vào cửa sổ
+  đen) → gửi file `ket_qua_do_titulky.txt`. Tên đăng nhập, mật khẩu, cookie không được ghi vào file.
 - Thư mục `build\`, `dist\`, `.venv-build\` do `build.bat` tạo ra — xoá được, lần build sau tự tạo lại.
