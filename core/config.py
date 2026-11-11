@@ -120,6 +120,12 @@ FIELDS: tuple[Field, ...] = (
     Field("ExcludeSdh", True, "fetch", "Không lấy bản SDH / Hearing Impaired", ""),
     Field("ExcludeForced", True, "fetch", "Không lấy bản Forced / foreignParts", ""),
     Field("MaxPages", 10, "fetch", "Số trang tối đa (SubSource)", "Một mục có thể có 150+ bản, đừng đặt quá thấp."),
+    Field("UseTitulky", True, "fetch", "Dùng Titulky.com (chỉ tiếng Séc)", "Chỉ được hỏi khi ngôn ngữ cần tải có 'cs'. Thứ tự "
+          "nguồn: SubSource → Titulky → OpenSubtitles. Không cần tài khoản (khi đó hay phải gõ mã CAPTCHA lúc tải); điền "
+          "tài khoản ở nhóm 'API & tài khoản'."),
+    Field("TitulkyProbeTop", 3, "fetch", "Số bản Titulky được xem kỹ trước", "Với ngần này bản giống tên nhất, chương trình "
+          "mở thêm trang chi tiết (lấy FPS) và bản xem trước (ước tính độ lệch) — mỗi bản thêm 2 lượt gọi. 0 = không xem.",
+          advanced=True),
     Field("UseOpenSubtitles", True, "fetch", "Dùng OpenSubtitles", "Nguồn dự phòng (tốn quota nên để sau cùng)."),
     Field("OsWarnRemaining", 50, "fetch", "Cảnh báo khi còn ≤ lượt tải", ""),
     Field("OsStopRemaining", 5, "fetch", "Ngừng tải khi còn ≤ lượt tải", ""),

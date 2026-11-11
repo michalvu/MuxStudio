@@ -10,7 +10,7 @@ from typing import Any, Iterable
 
 SERVICE = "MuxStudio"
 
-#: 7 bí mật (docs/SPEC.md mục 2.4)
+#: 9 bí mật (docs/SPEC.md mục 2.4): 7 của ba file .bat + tài khoản Titulky.com (bản 1.3.0, TĐ-40)
 SECRET_KEYS: tuple[str, ...] = (
     "SubSourceApiKey",
     "TmdbApiKey",
@@ -19,6 +19,8 @@ SECRET_KEYS: tuple[str, ...] = (
     "OsApiKey",
     "OsUsername",
     "OsPassword",
+    "TitulkyUsername",
+    "TitulkyPassword",
 )
 
 

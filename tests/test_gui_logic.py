@@ -281,7 +281,7 @@ def test_fetch_item_status_texts(tmp_path):
     assert FV.candidate_tag(Candidate("SubSource", 2, "?", 0.5, "x", "", None)) == ""
     assert FV.candidate_tag(Candidate("SubSource", 1, "đo: khớp", 0.5, "x", "", None, Offset(0.1, 30, -1))) == "good"
     assert FV.candidate_tag(Candidate("OpenSub", 3, "25", 0.5, "x", "", None)) == "bad"
-    assert [k for k, _ in FV.SOURCES] == ["subsource", "opensubtitles"]  # TD-38: het nguon "kho noi bo"
+    assert "pool" not in [k for k, _ in FV.SOURCES]  # TD-38: het nguon "kho noi bo"
     assert FV.lang_label("vi") == "vi — Vietnamese"
     rep = FetchReport(ok=3, used_existing=1, missing=1, os_remaining=48, os_allowed=100, stopped=True)
     assert FV.summary_text(rep).startswith("Tải được: 3  |  Dùng file có sẵn: 1")
@@ -761,3 +761,81 @@ def test_about_page_author_and_third_party_credits():
     assert text.startswith("MuxStudio 9.9.9\nTác giả: Vũ Hoàng Anh\n© 2026 Vũ Hoàng Anh")
     assert "bản quyền của chúng thuộc về tác giả / tổ chức tương ứng" in text
     assert "This product uses the TMDB API but is not endorsed or certified by TMDB." in text and "TheTVDB" in text
+
+
+# ==========================================================================
+#  1.3.0: Titulky.com — hoi luong giao dien tu luong phu (CAPTCHA), anh JPEG -> PNG
+# ==========================================================================
+
+
+def test_runner_ask_runs_on_gui_thread_and_returns_to_worker():
+    rec = _Rec()
+    r = rec.runner()
+    main = threading.get_ident()
+    where: list = []
+    got: list = []
+
+    def question():
+        where.append(threading.get_ident())
+        return "k9x2"
+
+    def work(job):
+        where.append(threading.get_ident())
+        return r.ask(question)  # luong phu nho luong giao dien mo hop thoai, cho ket qua
+
+    r.start("tải", work, got.append)
+    r.wait(10)
+    assert got == ["k9x2"]
+    assert where[0] != main and where[1] == main  # cau hoi chay o luong goi poll() = luong giao dien
+
+    # loi trong ham hoi duoc tra ve luong phu; bam "Dung ngay" trong luc cho -> Cancelled
+    def boom():
+        raise RuntimeError("hỏng hộp thoại")
+
+    r.start("tải 2", lambda job: r.ask(boom))
+    r.wait(10)
+    assert "hỏng hộp thoại" in rec.text()
+    started = threading.Event()
+
+    def waiting(job):
+        started.set()
+        return r.ask(lambda: "không bao giờ tới")
+
+    r.start("tải 3", waiting, got.append)
+    assert started.wait(5)
+    r.job.cancel_now()  # chua poll -> luong phu van dang cho
+    for _ in range(100):
+        if r._thread is None or not r._thread.is_alive():
+            break
+        time.sleep(0.05)
+    r.wait(10)
+    assert got == ["k9x2"] and "Đã dừng ngay: tải 3" in rec.text()
+
+
+def test_image_png_converts_jpeg_and_passes_png_through():
+    pil = pytest.importorskip("PIL.Image")
+    import io
+
+    buf = io.BytesIO()
+    pil.new("RGB", (400, 100), (30, 120, 200)).save(buf, format="JPEG")
+    jpeg = buf.getvalue()
+    assert jpeg[:2] == b"\xff\xd8"
+    png = W.image_png(jpeg)
+    assert png is not None and png[:8] == b"\x89PNG\r\n\x1a\n"
+    back = pil.open(io.BytesIO(png))
+    assert back.size == (400, 100)
+    assert W.image_png(png) is png  # PNG san: tra nguyen
+    assert W.image_png(b"GIF89a....") == b"GIF89a...."
+    assert W.image_png(b"") is None and W.image_png(b"khong phai anh") is None and W.image_png(b"\xff\xd8" + b"0" * 50) is None
+
+
+def test_about_lists_titulky_and_pillow_and_source_order():
+    from gui import about_view as AV
+
+    names = {c.name: c for c in AV.CREDITS}
+    assert names["Titulky.com"].kind == AV.SERVICE and names["Pillow"].kind == AV.BUNDLED and names["Pillow"].license == "MIT-CMU"
+    assert [k for k, _ in FV.SOURCES] == ["subsource", "titulky", "opensubtitles"]  # thu tu nguon nguoi dung da chot
+    assert SV.SECRET_INFO["TitulkyUsername"][2] == "titulky" and SV.CHECK_NAMES["titulky"] == "Titulky"
+    from core import secrets as S
+
+    assert S.SECRET_KEYS[-2:] == ("TitulkyUsername", "TitulkyPassword") and len(S.SECRET_KEYS) == 9

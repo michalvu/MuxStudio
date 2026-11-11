@@ -17,7 +17,7 @@ from core.tmdb import ConnStatus
 from . import widgets as W
 
 RESET_TEXT = "↺ Làm lại từ đầu"
-SOURCES = (("subsource", "SubSource"), ("opensubtitles", "OpenSubtitles"))
+SOURCES = (("subsource", "SubSource"), ("titulky", "Titulky.com (cs)"), ("opensubtitles", "OpenSubtitles"))
 
 
 # ==========================================================================
@@ -267,6 +267,7 @@ class FetchView:
         self.lang_extra.delete(0, "end")
         self.lang_extra.insert(0, extra)
         self.src_vars["opensubtitles"].set(bool(cfg["UseOpenSubtitles"]))
+        self.src_vars["titulky"].set(bool(cfg["UseTitulky"]))
         self.remember.set(bool(cfg["RememberChoice"]))
         if self.session is not None:
             self.reset("Cài đặt đã đổi → bấm \"Quét thư mục\" lại để áp dụng.")
@@ -350,11 +351,14 @@ class FetchView:
                                 else ConnStatus(None, "chưa điền key"))
             out["opensubtitles"] = (check_connection("opensubtitles", vals, cfg, job) if vals.get("OsApiKey")
                                     else ConnStatus(None, "chưa điền key"))
+            # Titulky khong bat buoc tai khoan: chua dien thi khong goi mang, chi ghi "kieu khach"
+            out["titulky"] = (check_connection("titulky", vals, cfg, job) if vals.get("TitulkyUsername")
+                              else ConnStatus(None, "kiểu khách (chưa điền tài khoản)"))
             return out
 
         def done(res: dict[str, ConnStatus]) -> None:
             for k, stt in res.items():
-                txt = stt.text.split(": ", 1)[1] if stt.text.startswith(("SubSource:", "OpenSubtitles:")) else stt.text
+                txt = stt.text.split(": ", 1)[1] if stt.text.startswith(("SubSource:", "OpenSubtitles:", "Titulky:")) else stt.text
                 self.src_status[k].configure(text=txt, text_color=status_color(stt))
 
         self.app.runner.start("Kiểm tra nguồn phụ đề", work, done, when_free=True)
@@ -373,6 +377,7 @@ class FetchView:
 
         def work(job: tools.Job) -> FetchSession:
             s = FetchSession(folder, cfg, secrets, job, languages=langs, sources=srcs)
+            s.captcha = self.app.ask_captcha  # Titulky doi CAPTCHA luc tai -> hop thoai de ban go ma
             try:
                 s.scan()
             except BaseException:

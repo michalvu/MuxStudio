@@ -628,6 +628,14 @@ class Runner:
                 self.log(item[1], item[2])
             elif kind == "prog":
                 last_prog = item[1:]
+            elif kind == "ask":  # luong phu nho luong giao dien lam mot viec (mo hop thoai) va dang cho ket qua
+                _fn, box, done = item[1:]
+                try:
+                    box["value"] = _fn()
+                except Exception as e:  # noqa: BLE001 - tra loi ve luong phu, khong lam chet vong poll
+                    box["error"] = e
+                finally:
+                    done.set()
             elif kind == "end":
                 if last_prog and self.progress:
                     self.progress(*last_prog)
@@ -667,6 +675,21 @@ class Runner:
             nxt = self._waiting.pop(0)
             self.start(*nxt)
 
+    def ask(self, fn: Callable[[], Any]) -> Any:
+        """Gọi từ LUỒNG PHỤ: nhờ luồng giao diện chạy ``fn()`` (vd mở hộp thoại nhập mã CAPTCHA) rồi chờ lấy kết quả.
+        Tk không cho luồng phụ đụng vào cửa sổ, nên mọi câu hỏi giữa chừng phải đi đường này. Bấm "Dừng ngay" trong lúc
+        chờ → ``Cancelled``."""
+        box: dict[str, Any] = {}
+        done = threading.Event()
+        job = self.job
+        self.q.put(("ask", fn, box, done))
+        while not done.wait(0.1):
+            if job is not None:
+                job.check()
+        if "error" in box:
+            raise box["error"]
+        return box.get("value")
+
     def stop_after_current(self) -> None:
         if self.job:
             self.job.stop_after_current.set()
@@ -687,7 +710,7 @@ class Runner:
         while time.monotonic() < end:
             th = self._thread
             if th is not None:
-                th.join(max(0.0, end - time.monotonic()))
+                th.join(0.02)  # ngan: luong phu co the dang CHO luong nay tra loi (``ask``) -> phai poll xen ke
             self.poll()
             if not self.busy and self.q.empty():
                 return
@@ -1601,6 +1624,86 @@ class Dialog:
             self.win.grab_set()
         except Exception:  # pragma: no cover - cua so chua hien
             pass
+
+
+def image_png(data: bytes) -> bytes | None:
+    """Ảnh (vd CAPTCHA của Titulky.com là JPEG) → PNG để ``tk.PhotoImage`` hiện được — Tk không tự đọc JPEG nên cần
+    Pillow cho bước đổi này. PNG / GIF sẵn thì trả nguyên. ``None`` = không đổi được (thiếu Pillow / ảnh hỏng)."""
+    if not data or len(data) > 4_000_000:
+        return None
+    if data[:8] == b"\x89PNG\r\n\x1a\n" or data[:6] in (b"GIF87a", b"GIF89a"):
+        return data
+    try:
+        import io  # noqa: PLC0415
+
+        from PIL import Image  # noqa: PLC0415
+
+        im = Image.open(io.BytesIO(data), formats=["JPEG", "PNG", "GIF", "BMP", "WEBP"])
+        im.load()
+        if im.width * im.height > 4_000_000:
+            return None
+        buf = io.BytesIO()
+        im.convert("RGB").save(buf, format="PNG")
+        return buf.getvalue()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+class CaptchaDialog:
+    """Hộp thoại nhập mã CAPTCHA (Titulky.com): hiện ảnh, BẠN gõ mã. ``run()`` → mã, hoặc ``None`` nếu bỏ qua.
+    Không hiện được ảnh (thiếu Pillow) → nút mở ảnh bằng trình xem ảnh của máy."""
+
+    def __init__(self, parent: Any, image: bytes, note: str = "", site: str = "Titulky.com"):
+        import base64  # noqa: PLC0415
+
+        self.image = image
+        self.d = Dialog(parent, f"Mã CAPTCHA của {site}", 560, 380)
+        ctk.CTkLabel(self.d.body, text=f"{site} yêu cầu gõ mã trong ảnh trước khi cho tải (giới hạn tải của trang). Gõ đúng "
+                     "các ký tự trong ảnh rồi bấm Tải.", anchor="w", justify="left", wraplength=self.d.wrap).pack(fill="x")
+        if note:
+            ctk.CTkLabel(self.d.body, text=note, anchor="w", justify="left", wraplength=self.d.wrap,
+                         text_color=LEVEL_COLORS["dim"]).pack(fill="x", pady=(2, 0))
+        self.png = image_png(image)
+        self.photo: Any = None
+        if self.png is not None:
+            try:
+                self.photo = tk.PhotoImage(master=self.d.win, data=base64.b64encode(self.png))
+            except tk.TclError:
+                self.photo = None
+        if self.photo is not None:
+            self.picture = tk.Label(self.d.body, image=self.photo, borderwidth=1, relief="solid", background="#ffffff")
+            self.picture.pack(pady=10)
+        else:
+            self.picture = None
+            ctk.CTkLabel(self.d.body, text="Không hiện được ảnh trong cửa sổ này (thiếu thư viện Pillow).", anchor="w",
+                         text_color=LEVEL_COLORS["warn"]).pack(fill="x", pady=(10, 2))
+            ctk.CTkButton(self.d.body, text="Mở ảnh bằng trình xem ảnh", width=220, command=self.open_image).pack(pady=(0, 8))
+        row = ctk.CTkFrame(self.d.body, fg_color="transparent")
+        row.pack()
+        ctk.CTkLabel(row, text="Mã trong ảnh:", font=ctk.CTkFont(weight="bold")).pack(side="left", padx=(0, 8))
+        self.entry = ctk.CTkEntry(row, width=200, font=ctk.CTkFont(size=16))
+        self.entry.pack(side="left")
+        self.entry.bind("<Return>", lambda _e: self.submit())
+        self.d.button("Tải", self.submit, primary=True)
+        self.d.button("Bỏ qua bản này", lambda: self.d.close(None))
+        self.d.win.after(150, self.entry.focus_set)
+
+    def submit(self) -> None:
+        code = self.entry.get().strip()
+        if code:
+            self.d.close(code)
+
+    def open_image(self) -> None:
+        import tempfile  # noqa: PLC0415
+
+        ext = ".png" if self.image[:4] == b"\x89PNG" else ".gif" if self.image[:3] == b"GIF" else ".jpg"
+        fd, path = tempfile.mkstemp(prefix="muxstudio_captcha_", suffix=ext)
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(self.image)
+        open_path(path)
+
+    def run(self) -> str | None:
+        return self.d.run()
 
 
 def text_box(master: Any, text: str = "", height: int = 12, wrap: str = "none", mono: bool = True) -> Any:

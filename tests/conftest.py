@@ -54,6 +54,23 @@ def config_dir(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_real_network(monkeypatch):
+    """Test KHÔNG BAO GIỜ được gọi mạng thật (PROMPT §8). Từ bản 1.3.0 nguồn Titulky chạy được cả khi không có tài khoản,
+    nên quên truyền máy chủ giả là gọi thẳng titulky.com → chặn tại ``requests`` để test hỏng ngay và nói rõ địa chỉ."""
+    try:
+        import requests
+    except Exception:  # pragma: no cover
+        yield
+        return
+
+    def blocked(self, method, url, *a, **k):  # noqa: ANN001
+        raise AssertionError(f"test gọi mạng THẬT: {method} {url} — phải truyền máy chủ giả (tests/fakehttp.py)")
+
+    monkeypatch.setattr(requests.sessions.Session, "request", blocked)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def vietnamese_ui():
     """Mọi test chạy với giao diện tiếng Việt (ngôn ngữ gốc); test nào đổi sang English thì tự trả lại ở đây."""
     from core import i18n

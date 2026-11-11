@@ -8,7 +8,8 @@ Hai bước (§4 "Lập kế hoạch rồi mới thực thi"):
 2. **Thực thi** (``FetchSession.execute``): tải/chép đúng kế hoạch, ghi nhật ký hoàn tác
    ``_subfetch_logs\\actions_*.csv`` và báo cáo ``fetch_*.csv``.
 
-Nguồn theo thứ tự: file có sẵn trong ``srt_can_sync`` → SubSource → OpenSubtitles (kho ``srt_pool`` đã bỏ ở bản
+Nguồn theo thứ tự: file có sẵn trong ``srt_can_sync`` → SubSource → Titulky.com (chỉ tiếng Séc, bản 1.3.0 — TĐ-40) →
+OpenSubtitles (kho ``srt_pool`` đã bỏ ở bản
 1.2.0 — TĐ-38; thư mục ``srt_pool`` cũ vẫn bị loại khi quét).
 Bước ① KHÔNG sửa thời gian phụ đề — chỉ đo và báo (việc nắn thời gian là của bước ②).
 Phụ đề ASS giữ nguyên là ASS (Q7): đích là ``<tên phim>.<mã>.ass``.
@@ -27,7 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
-from . import episodes, naming, opensubs, pgs, probe, srt, subsource, timing, tools, undo
+from . import episodes, naming, opensubs, pgs, probe, srt, subsource, timing, titulky, tools, undo
 from .tmdb import TmdbClient
 
 SUB_EXTS = (".srt", ".ass", ".ssa")
@@ -48,7 +49,7 @@ class Offset:
 
 @dataclass
 class Candidate:
-    """``New-Cand``. ``src`` ∈ ``SubSource`` | ``OpenSub``."""
+    """``New-Cand``. ``src`` ∈ ``SubSource`` | ``Titulky`` | ``OpenSub``."""
 
     src: str
     tier: int  # 1 = FPS khop video, 2 = khong khai bao, 3 = lech
@@ -422,7 +423,7 @@ class FetchSession:
         self.languages = [c.strip().lower() for c in (languages if languages is not None else cfg["Languages"]) if c.strip()]
         for c in self.languages:
             naming.register_language(c)
-        src = {"subsource": True, "opensubtitles": bool(cfg["UseOpenSubtitles"])}
+        src = {"subsource": True, "titulky": bool(cfg["UseTitulky"]), "opensubtitles": bool(cfg["UseOpenSubtitles"])}
         src.update(sources or {})
         self.sources = src
         self.temp = Path(tempfile.mkdtemp(prefix="muxstudio_fetch_"))
@@ -448,6 +449,13 @@ class FetchSession:
                 secrets.get("OsApiKey", ""), secrets.get("OsUsername", ""), secrets.get("OsPassword", ""),
                 cfg["OsUserAgent"], cfg["ApiPauseMs"], cfg["OsWarnRemaining"], cfg["OsStopRemaining"], http, sleep,
                 self.job, self.temp / "os")
+        # Titulky.com: chi tieng Sec; tai khoan khong bat buoc (khach van tim / tai duoc, hay phai go CAPTCHA)
+        self.tt: titulky.TitulkyClient | None = None
+        if src["titulky"] and titulky.LANG in self.languages:
+            self.tt = titulky.TitulkyClient(secrets.get("TitulkyUsername", ""), secrets.get("TitulkyPassword", ""),
+                                            cfg["ApiPauseMs"], http, sleep, self.job, self.temp / "titulky")
+        #: Hàm hỏi mã CAPTCHA của Titulky ``(ảnh, ghi chú) -> mã`` — giao diện gán vào; ``None`` = không hỏi được
+        self.captcha: titulky.CaptchaFn | None = None
         self._missing_key_ss = src["subsource"] and not key
         self.items: list[FetchItem] = []
         self.videos: list[VideoInfo] = []
@@ -458,7 +466,7 @@ class FetchSession:
         self.job = job
         self.memory.job = job
         self.refs.job = job
-        for cl in (self.ss, self.tmdb, self.os):
+        for cl in (self.ss, self.tmdb, self.os, self.tt):
             if cl is not None:
                 cl.job = job
 
@@ -498,6 +506,11 @@ class FetchSession:
             self.job.dim("[i] Chưa có TMDB key → tìm theo tên thay vì IMDb ID.")
         if self.os:
             self.os.login()
+        if self.tt:
+            if self.tt.has_account:
+                self.tt.login()
+            else:
+                self.job.dim("[i] Titulky: dùng kiểu khách (chưa điền tài khoản) — lúc tải có thể phải gõ mã CAPTCHA.")
 
     # ------------------------------------------------------------------ 1. quet
     def scan(self) -> list[FetchItem]:
@@ -672,7 +685,7 @@ class FetchSession:
         return f
 
     def online_candidates(self, it: FetchItem) -> list[Candidate]:
-        """``Get-OnlineCandidates``: SubSource rồi OpenSubtitles (chạm mạng; OpenSubtitles tìm không tốn quota)."""
+        """``Get-OnlineCandidates``: SubSource → Titulky (chỉ ``cs``) → OpenSubtitles (chạm mạng; tìm không tốn lượt tải)."""
         c = self.cfg
         v = it.video
         out: list[Candidate] = []
@@ -711,6 +724,8 @@ class FetchSession:
                 note = f"{s.get('files')} file, {s.get('downloads')} tải" + (" (gói season)" if is_pack else "")
                 out.append(Candidate("SubSource", fps_tier(s.get("framerate"), v.fps), str(s.get("framerate") or ""),
                                      sc, rel, note, s, off, False, is_pack))
+        if self.tt and not self.tt.disabled and it.lang == titulky.LANG:
+            out += self._titulky_candidates(it)
         if self.os and not self.os.disabled:
             season, epn = self._os_episode(v)
             for o in self.os.search(v.imdb, season, epn, it.lang, v.title, v.year):
@@ -722,6 +737,77 @@ class FetchSession:
                 info = ("dịch máy, " if mt else "") + f"{a.get('download_count')} tải"
                 out.append(Candidate("OpenSub", fps_tier(a.get("fps"), v.fps), str(a.get("fps") or ""),
                                      naming.title_score(v.tokens, naming.title_tokens(rel)), rel, info, o, None, mt))
+        return out
+
+    def _titulky_rows(self, v: VideoInfo) -> list[titulky.SearchRow]:
+        """Tìm trên Titulky rồi lọc: chỉ tiếng Séc (``CZ``), đúng phim (tên + năm) / đúng tập."""
+        assert self.tt is not None
+        season = epn = None
+        if v.ep is not None:
+            if v.mapped:
+                season, epn = v.mapped
+            elif v.ep.has_season:
+                season, epn = v.ep.season, v.ep.episode
+        rows = self.tt.search(titulky.search_query(v.title, season, epn))
+        want = naming.title_tokens(v.title)
+        keep: list[titulky.SearchRow] = []
+        for r in rows:
+            if r.lang != "CZ":
+                continue
+            name = r.title if not r.series or r.series in r.title.upper() else f"{r.title} {r.series}"
+            rep = episodes.parse_episode(name)
+            if v.ep is None:
+                if rep is not None or r.series:
+                    continue  # mot tap cua phim bo trung ten
+                if v.year and r.year and abs(v.year - r.year) > 1:
+                    continue
+                ok = naming.title_score(want, naming.title_tokens(r.title)) >= 0.6 or (
+                    bool(r.release) and naming.title_score(v.tokens, naming.title_tokens(r.release)) >= 0.5)
+            else:
+                if rep is None:
+                    continue
+                same = ((rep.season, rep.episode) == (season, epn) and rep.has_season) if season is not None else \
+                    episodes.same_episode(v.ep, rep)
+                ok = same and naming.title_score(want, naming.title_tokens(rep.series or r.title)) >= 0.6
+            if ok:
+                keep.append(r)
+        if v.ep is None and v.year and any(r.year for r in keep):
+            keep = [r for r in keep if r.year]  # da co ban ghi dung nam -> bo ban KHONG ghi nam (co the la phim khac)
+        if len(rows) - len(keep):
+            self.job.dim(f"    [i] Titulky: {len(rows)} kết quả, giữ {len(keep)} bản tiếng Séc đúng phim / đúng tập.")
+        return keep
+
+    def _titulky_candidates(self, it: FetchItem) -> list[Candidate]:
+        """Ứng viên từ Titulky.com (tiếng Séc). Với ``TitulkyProbeTop`` bản giống tên nhất: xem trang chi tiết (FPS)
+        và bản xem trước (ước tính độ lệch, không tốn lượt tải)."""
+        assert self.tt is not None
+        c, v, tt = self.cfg, it.video, self.tt
+        ref = v.ref.times if v.ref else None
+        rows = self._titulky_rows(v)
+        rows.sort(key=lambda r: (-naming.title_score(v.tokens, naming.title_tokens(r.release or r.title)), -r.downloads))
+        top = max(0, int(c["TitulkyProbeTop"]))
+        out: list[Candidate] = []
+        seen: set[str] = set()
+        for i, r in enumerate(rows[: int(c["MaxShowCandidates"])]):
+            if i < top:
+                tt.fill_detail(r)
+            if r.cds > 1 or (r.kind and r.kind not in ("srt", "ass", "ssa")):
+                continue  # phu de chia nhieu CD / loai file MuxStudio khong dung duoc (vd .sub)
+            off: Offset | None = None
+            if i < top and ref:
+                pv = srt.preview_times(tt.preview(r))
+                # dong dau cua nhieu ban la quang cao "www.titulky.com" (khong co trong phim) -> thu bo 1, 2 dong dau
+                for skip in (0, 1, 2):
+                    q = timing.quick_offset(ref, pv[skip:skip + 8])
+                    if q:
+                        off = Offset(q.offset, q.votes, q.total)
+                        break
+            rel = r.release or r.title
+            if rel in seen:
+                rel = f"{rel} #{r.id}"
+            seen.add(rel)
+            out.append(Candidate("Titulky", fps_tier(r.fps, v.fps), r.fps, naming.title_score(v.tokens, naming.title_tokens(rel)),
+                                 rel, f"{r.downloads} tải", r, off))
         return out
 
     def gather(self, it: FetchItem) -> list[Candidate]:
@@ -835,6 +921,22 @@ class FetchSession:
             d = self.ss.download_pack(int(cd.payload.get("subtitleId")))
             if d is None:
                 return None
+            f = self._pack_file(it.video, d)
+            if f is None:
+                self.job.warn("      (gói này không có tập cần tìm)")
+            return f
+        if cd.src == "Titulky":
+            if not self.tt:
+                return None
+            d = self.tt.download(cd.payload, self.captcha)
+            if d is None:
+                return None
+            files = self.tt.subtitle_files(d)
+            if not files:
+                self.job.warn("      (file Titulky tải về không phải .srt / .ass / .ssa — MuxStudio không dùng được loại này)")
+                return None
+            if len(files) == 1:
+                return files[0]
             f = self._pack_file(it.video, d)
             if f is None:
                 self.job.warn("      (gói này không có tập cần tìm)")

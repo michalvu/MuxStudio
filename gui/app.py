@@ -452,6 +452,18 @@ class App:
         except Exception as e:  # noqa: BLE001
             self.log("dim", f"(không tô lại được màu: {e})")
 
+    def ask_captcha(self, image: bytes, note: str = "") -> str | None:
+        """Lõi (luồng phụ) gặp CAPTCHA của Titulky → mở hộp thoại ở luồng giao diện, chờ BẠN gõ mã. ``None`` = bỏ qua."""
+        def show() -> str | None:
+            try:
+                self.root.deiconify()
+                self.root.lift()
+            except Exception:  # noqa: BLE001
+                pass
+            return W.CaptchaDialog(self.root, image, note).run()
+
+        return self.runner.ask(show)
+
     def on_config_changed(self, secrets_changed: bool = False) -> None:
         self.redactor.update(self.secrets().values())
         if not self._forced_appearance:
@@ -630,7 +642,7 @@ class UndoDialog:
 # ==========================================================================
 
 SELF_CHECK_ARGS = ("--kiem-tra", "--self-check")
-CORE_MODULES = ("i18n", "i18n_en", "config", "secrets", "tools", "probe", "episodes", "naming", "timing", "pgs", "srt", "encoding", "undo",
+CORE_MODULES = ("i18n", "i18n_en", "titulky", "config", "secrets", "tools", "probe", "episodes", "naming", "timing", "pgs", "srt", "encoding", "undo",
                 "subsource", "opensubs", "tmdb", "tvdb", "subfetch", "subprep", "mux", "donor")
 GUI_MODULES = ("widgets", "log_panel", "fetch_view", "subprep_view", "mux_view", "settings_view", "about_view")
 CHECK_TAG = {"ok": "[OK]   ", "warn": "[!]    ", "fail": "[LỖI]  "}
@@ -776,6 +788,24 @@ def _chk_icon() -> Any:
     return W.resource_path(*W.ICON_ICO)
 
 
+def _chk_captcha_image() -> Any:
+    """Ảnh CAPTCHA của Titulky.com là JPEG: thử tự tạo một ảnh JPEG nhỏ rồi đổi sang PNG (cả hai bộ mã phải có mặt
+    trong bản đóng gói)."""
+    try:
+        import io  # noqa: PLC0415
+
+        import PIL  # noqa: PLC0415
+        from PIL import Image  # noqa: PLC0415
+    except Exception as e:  # noqa: BLE001
+        return "warn", f"thiếu Pillow ({e}) — ảnh CAPTCHA của Titulky sẽ mở bằng trình xem ảnh của máy"
+    buf = io.BytesIO()
+    Image.new("RGB", (40, 10), (200, 30, 30)).save(buf, format="JPEG")
+    png = W.image_png(buf.getvalue())
+    if not png or png[:4] != b"\x89PNG":
+        return "warn", "Pillow không đổi được JPEG → PNG"
+    return f"Pillow {PIL.__version__} (JPEG → PNG được)"
+
+
 def _chk_window(items: list[CheckItem]) -> None:
     """Dựng thử cửa sổ chính (ẩn, cấu hình tạm — không đụng cấu hình của bạn), đủ 4 thẻ, phông tiếng Việt, rồi đóng."""
     old = os.environ.get("MUXSTUDIO_CONFIG_DIR")
@@ -836,6 +866,7 @@ def self_check_items(with_window: bool = True) -> list[CheckItem]:
     _run_check(items, "Chạy công cụ ngoài", _chk_subprocess)
     _run_check(items, "Mở thư mục / Desktop", _chk_shell, critical=False)
     _run_check(items, "File icon", _chk_icon, critical=False)
+    _run_check(items, "Ảnh CAPTCHA (Pillow)", _chk_captcha_image, critical=False)
     _run_check(items, "Công cụ ngoài (theo Cài đặt hiện tại)", _chk_tools, critical=False)
     if with_window:
         if W.ctk is None:

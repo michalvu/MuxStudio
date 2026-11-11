@@ -32,8 +32,9 @@ if IS_WIN:
     # Thung rac: send2trash.win.modern can pywin32 (khong co) -> dung ban legacy (ctypes)
     hiddenimports += ["send2trash.win", "send2trash.win.legacy"]
 
-# Thu vien chi dung khi test / khong dung (customtkinter thu nap PIL neu co san trong may build)
-excludes = ["pytest", "_pytest", "pluggy", "PIL", "numpy", "IPython", "matplotlib"]
+# Thu vien chi dung khi test / khong dung. PIL (Pillow) KHONG con bi loai tu ban 1.3.0: can de hien anh CAPTCHA (JPEG)
+# cua Titulky.com - Tk khong tu doc duoc JPEG.
+excludes = ["pytest", "_pytest", "pluggy", "numpy", "IPython", "matplotlib"]
 
 
 def version_file() -> str:

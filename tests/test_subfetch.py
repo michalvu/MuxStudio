@@ -397,3 +397,140 @@ def test_scan_all_languages_present_skips_ref_and_switch_off(lib):
                                tool_paths={"mkvmerge": None, "mkvextract": None}, video_probe=lambda p: HAS_SUBS_JSON)
     s2.scan()
     assert all(it.already is None for it in s2.items) and all(v.ref is not None for v in s2.videos)
+
+
+# ---------------------------------------------------------------- TD-40: nguon Titulky.com (chi tieng Sec)
+
+from pathlib import Path as _Path  # noqa: E402
+
+TT_DATA = _Path(__file__).resolve().parent / "data" / "titulky"
+BB = "Breaking.Bad.S01E05.720p.BRRip.x264.AC3"
+DUNE21 = "Dune.2021.1080p.WEBRip.x264"
+
+
+def _tt_page(name):
+    return (TT_DATA / name).read_text(encoding="utf-8")
+
+
+def _tt_preview(times, ad=True):
+    """Trang xem trước như trang thật: dòng đầu là quảng cáo 'www.titulky.com' (không có trong phim)."""
+    cues = ([(0.042, "www.titulky.com")] if ad else []) + [(t, "x") for t in times]
+    body = "".join(f"{i}<br />{srt.format_stamp(t)} --&gt; {srt.format_stamp(t + 1)}<br />{txt}<br /><br />"
+                   for i, (t, txt) in enumerate(cues, 1))
+    return f'<html><body><div id="nahled_zdroj" style="x">\n{body}</div></body></html>'
+
+
+def _tt_lib(root, stems):
+    refs = {}
+    for n, stem in enumerate(stems):
+        (root / f"{stem}.mkv").write_bytes(b"\x1a\x45\xdf\xa3")
+        refs[stem] = make_ref_times(600, seed=40 + n)
+        p = root / "srt_goc" / f"{stem}.srt"
+        p.parent.mkdir(exist_ok=True)
+        p.write_text(srt_text(refs[stem]), encoding="utf-8", newline="")
+    return refs
+
+
+def _tt_session(root, http, cfg=None, secrets=None, **kw):
+    job = tools.Job()
+    s = subfetch.FetchSession(root, C.Config({"Languages": ["cs", "vi"], "UseOpenSubtitles": False, **(cfg or {})}),
+                              secrets or {}, job, http, Sleeper(), tool_paths={"mkvmerge": None, "mkvextract": None},
+                              video_probe=lambda p: FPS_JSON, **kw)
+    return s, job
+
+
+def test_titulky_series_candidates_probe_download_with_captcha(movie_dir):
+    refs = _tt_lib(movie_dir, [BB])
+    sub_cs = srt_text(transform_times(refs[BB], 1.0, 2.5, seed=3)).encode("utf-8")  # ban Sec lech +2,5 s
+    http = FakeHTTP()
+    http.add("GET", r"idown\.php\?id=tok", FakeResponse(200, content=zip_bytes({"Breaking.Bad.S01E05.cz.srt": sub_cs})))
+    http.add("GET", r"captcha/captcha\.php", FakeResponse(200, content=b"\xff\xd8JPEG"))
+    http.add("POST", r"titulky\.com/idown\.php$", FakeResponse(
+        200, text='<html><body><a id="downlink" href="idown.php?id=tok">x</a><script>CountDown(3)</script></body></html>'))
+    http.add("GET", r"titulky\.com/idown\.php$", FakeResponse(200, text=_tt_page("idown_captcha.html")))
+    # ban xem truoc: ban 232758 khop phim (lech +2,5 s), cac ban khac la phim khac
+    http.add("GET", r"titulky\.com/nahled\.php", lambda call: FakeResponse(200, text=_tt_preview(
+        [t + 2.5 for t in refs[BB][:12]] if call.params["Titulky"] == 232758 else make_ref_times(12, seed=99))))
+    http.add("GET", r"titulky\.com/Breaking-Bad-S01E05-\d+\.htm", FakeResponse(200, text=_tt_page("detail_breaking_bad_s01e05.html")))
+    http.add("GET", r"titulky\.com/$", lambda call: FakeResponse(200, text=_tt_page("search_breaking_bad_s01e05.html")))
+    s, job = _tt_session(movie_dir, http)
+    assert s.tt is not None and s.sources["titulky"] and s.tt.has_account is False
+    s.scan()
+    assert any("Titulky: dùng kiểu khách" in m for _, m in job.lines)
+    cs, vi = item(s, BB, "cs"), item(s, BB, "vi")
+    cands = s.gather(cs)
+    assert http.calls_to(r"titulky\.com/$")[0].params == {"Fulltext": "Breaking Bad S01E05"}  # tim dung kieu trang ghi tap
+    assert len(cands) == 4 and {c.src for c in cands} == {"Titulky"}
+    best = cands[0]  # FPS khop + da uoc tinh do lech (tu ban xem truoc) -> dung dau
+    assert best.payload.id == 232758 and best.release == "Breaking.Bad.S01E05.Gray.Matter.720p.BRRip.x264.AC3"
+    assert (best.tier, best.fps) == (1, "23.976") and best.fps_label == "23.976 KHỚP"
+    assert best.off is not None and abs(best.off.offset + 2.5) <= 0.25 and best.offset_label.endswith("~")  # da bo qua dong quang cao dau file
+    assert sum(1 for c in cands if c.tier == 1) == 3 and sum(1 for c in cands if c.off) == 1  # chi 3 ban dau duoc xem ky
+    assert len(http.calls_to(r"-\d+\.htm$")) == 3 and len(http.calls_to(r"nahled\.php")) == 3
+    # tieng Viet: KHONG hoi Titulky
+    n = len(http.calls)
+    assert s.gather(vi) == [] and len(http.calls) == n
+    # tai: gap CAPTCHA -> hoi ban; cho du thoi gian; luu NGUYEN byte vao srt_can_sync\cs\
+    asked = []
+    s.captcha = lambda img, note: asked.append((img, note)) or "k9x2"
+    s.choose(cs, best)
+    rep = s.execute()
+    dest = movie_dir / "srt_can_sync" / "cs" / f"{BB}.cs.srt"
+    assert rep.ok == 1 and dest.read_bytes() == sub_cs and cs.result == dest and cs.result_src == "Titulky"
+    assert asked == [(b"\xff\xd8JPEG", "Breaking.Bad.S01E05.Gray.Matter.720p.BRRip.x264.AC3")]
+    assert http.calls_to(r"idown\.php$", "POST")[0].data["downkod"] == "k9x2"
+    assert "Khớp thời gian" in cs.timing_note and any("Titulky yêu cầu chờ" in m for _, m in job.lines)
+    runs = undo.list_runs(movie_dir, "_subfetch_logs", "subfetch")
+    assert runs and runs[0].counts.get("Create") == 1
+
+
+def test_titulky_movie_filters_language_year_title_and_source_order(movie_dir):
+    _tt_lib(movie_dir, [DUNE21])
+    http = FakeHTTP()
+    http.add("GET", r"titulky\.com/Dune-\d+\.htm|titulky\.com/Duna-\d+\.htm", FakeResponse(200, text="<html>FPS:</span> 25 </html>"))
+    http.add("GET", r"titulky\.com/$", FakeResponse(200, text=_tt_page("search_dune.html")))
+    # OpenSubtitles gia co 1 ban tieng Sec -> phai dung SAU Titulky
+    http.add("POST", r"opensubtitles\.com/api/v1/login", FakeResponse(200, {"token": "t", "base_url": "api.opensubtitles.com",
+                                                                            "user": {"allowed_downloads": 20, "vip": False}}))
+    http.add("GET", r"opensubtitles\.com/api/v1/infos/user", FakeResponse(200, {"data": {"remaining_downloads": 20, "allowed_downloads": 20}}))
+    http.add("GET", r"opensubtitles\.com/api/v1/subtitles", FakeResponse(200, {"data": [
+        {"id": "o1", "attributes": {"release": "Dune.2021.1080p.WEBRip", "fps": 23.976, "download_count": 3, "files": [{"file_id": 9}]}}]}))
+    s, job = _tt_session(movie_dir, http, {"Languages": ["cs"], "UseOpenSubtitles": True, "TitulkyProbeTop": 1},
+                         {"OsApiKey": "demo-os", "OsUsername": "u", "OsPassword": "p"})
+    s.scan()
+    it = item(s, DUNE21, "cs")
+    out = s.online_candidates(it)
+    assert [c.src for c in out][-1] == "OpenSub" and {c.src for c in out[:-1]} == {"Titulky"}  # thu tu nguon
+    tt = [c for c in out if c.src == "Titulky"]
+    rows = [c.payload for c in tt]
+    assert rows and all(r.lang == "CZ" and r.year == 2021 and r.title == "Dune" for r in rows)  # bo SK, bo 1984 / 2000, bo "Duna"
+    assert len({c.ident for c in tt}) == len(tt)  # hai ban trung ten release van phan biet duoc (them #id)
+    assert any(re.search(r" #\d+$", c.release) for c in tt)
+    assert len(http.calls_to(r"-\d+\.htm$")) == 1  # TitulkyProbeTop = 1
+    probed = next(c for c in tt if c.fps)
+    assert (probed.fps, probed.tier) == ("25", 3)  # khai bao 25 fps, video 23,976 -> LECH
+    cands = s.gather(it)
+    assert all(c.tier != 3 for c in cands)  # StrictFpsMatch loai ban lech framerate
+    assert any("Titulky: 13 kết quả, giữ" in m for _, m in job.lines)
+
+
+def test_titulky_only_for_czech_and_can_be_switched_off(movie_dir):
+    _tt_lib(movie_dir, [DUNE21])
+    s, _ = _tt_session(movie_dir, FakeHTTP(), {"Languages": ["vi", "en"]})
+    assert s.tt is None  # khong co 'cs' trong ngon ngu can tai -> khong tao nguon
+    s2, _ = _tt_session(movie_dir, FakeHTTP(), {"UseTitulky": False})
+    assert s2.tt is None and s2.sources["titulky"] is False
+    s3, _ = _tt_session(movie_dir, FakeHTTP(), sources={"titulky": False})
+    assert s3.tt is None
+    # co tai khoan: dang nhap luc ket noi, mat khau khong lot vao nhat ky
+    http = FakeHTTP()
+    http.add("POST", r"titulky\.com/$", FakeResponse(200, text="<html><a>Odhlásit</a></html>"))
+    http.add("GET", r"titulky\.com/$", FakeResponse(200, text="<html><table class='soupis'></table></html>"))
+    s4, job = _tt_session(movie_dir, http, secrets={"TitulkyUsername": "anh", "TitulkyPassword": "demo-pass"})
+    s4.scan()
+    assert s4.tt.logged_in is True and any("Titulky: đã đăng nhập" in m for _, m in job.lines)
+    assert http.calls_to(r"titulky\.com/$", "POST")[0].data["Login"] == "anh"
+    assert not any("demo-pass" in m for _, m in job.lines)
+    j2 = tools.Job()
+    s4.set_job(j2)
+    assert s4.tt.job is j2

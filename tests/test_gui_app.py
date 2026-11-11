@@ -362,7 +362,8 @@ def test_fetch_tab_choose_and_download(movie_dir, ui, monkeypatch):
     v = a.fetch
     a.goto("① Tải phụ đề")
     pump(a)
-    assert set(v.src_vars) == set(v.src_status) == {"subsource", "opensubtitles"}  # het o "Kho noi bo"
+    assert set(v.src_vars) == set(v.src_status) == {"subsource", "titulky", "opensubtitles"}  # het o "Kho noi bo"
+    assert v.src_status["titulky"].cget("text") == "kiểu khách (chưa điền tài khoản)"  # khong goi mang khi chua co tai khoan
     for c, var in v.lang_vars.items():
         var.set(c == "vi")
     v.src_vars["subsource"].set(False)
@@ -863,3 +864,102 @@ def test_light_dark_switch_about_tab_and_green_percent_progress(movie_dir, ui):
     # nen mo Windows 11: may nay khong phai Windows 11 -> bo qua, khong loi
     assert a.backdrop is False and not W.backdrop_supported("mica", 19045) and W.backdrop_supported("mica", 22631)
     assert not W.backdrop_supported("none", 26100) and W.backdrop_supported("Acrylic", 26100)
+
+
+# ---------------------------------------------------------------- 1.3.0: Titulky.com + hop thoai CAPTCHA
+def test_titulky_source_in_fetch_tab_asks_captcha_through_the_gui_thread(movie_dir, ui, monkeypatch):
+    """Thẻ ①: nguồn Titulky (tiếng Séc) — tìm, chọn, tải; gặp CAPTCHA thì LUỒNG PHỤ nhờ luồng giao diện mở hộp thoại."""
+    import io
+    import threading
+
+    from core import subfetch
+    from fakehttp import FakeHTTP, FakeResponse, Sleeper, zip_bytes
+    from gui import fetch_view as FV
+    from gui import widgets as W
+
+    pil = pytest.importorskip("PIL.Image")
+    buf = io.BytesIO()
+    pil.new("RGB", (400, 100), (240, 240, 240)).save(buf, format="JPEG")
+    jpeg = buf.getvalue()
+    data = Path(__file__).resolve().parent / "data" / "titulky"
+    stem = "Breaking.Bad.S01E05.720p.BRRip.x264.AC3"
+    tiny_mkv(movie_dir / f"{stem}.mkv")
+    ref = make_ref_times(400, seed=31)
+    (movie_dir / "srt_goc").mkdir()
+    (movie_dir / "srt_goc" / f"{stem}.srt").write_text(srt_text(ref), encoding="utf-8", newline="")
+    sub = srt_text(transform_times(ref, 1.0, 1.5, seed=4)).encode("utf-8")
+    http = FakeHTTP()
+    http.add("GET", r"idown\.php\?id=tok", FakeResponse(200, content=zip_bytes({"Breaking.Bad.S01E05.srt": sub})))
+    http.add("GET", r"captcha/captcha\.php", FakeResponse(200, content=jpeg))
+    http.add("POST", r"titulky\.com/idown\.php$", FakeResponse(
+        200, text='<html><body><a id="downlink" href="idown.php?id=tok">x</a><script>CountDown(2)</script></body></html>'))
+    http.add("GET", r"titulky\.com/idown\.php$", FakeResponse(200, text=(data / "idown_captcha.html").read_text(encoding="utf-8")))
+    http.add("GET", r"titulky\.com/nahled\.php", FakeResponse(200, text="<html></html>"))
+    http.add("GET", r"titulky\.com/Breaking-Bad-S01E05-\d+\.htm",
+             FakeResponse(200, text=(data / "detail_breaking_bad_s01e05.html").read_text(encoding="utf-8")))
+    http.add("GET", r"titulky\.com/$", FakeResponse(200, text=(data / "search_breaking_bad_s01e05.html").read_text(encoding="utf-8")))
+    monkeypatch.setattr(FV, "FetchSession", lambda folder, cfg, secrets, job, languages=None, sources=None:
+                        subfetch.FetchSession(folder, cfg, {}, job, http, Sleeper(), languages=languages, sources=sources))
+    shown: list = []
+    main = threading.get_ident()
+
+    class FakeCaptcha:  # hop thoai that se chan test; van dung anh that de kiem tra duong di
+        def __init__(self, parent, image, note="", site="Titulky.com"):
+            shown.append((threading.get_ident(), image, note, W.image_png(image)[:4]))
+
+        def run(self):
+            return "k9x2"
+
+    monkeypatch.setattr(W, "CaptchaDialog", FakeCaptcha)
+    a = ui(movie_dir)
+    v = a.fetch
+    a.goto("① Tải phụ đề")
+    pump(a)
+    for c, var in v.lang_vars.items():
+        var.set(c == "cs")
+    v.src_vars["subsource"].set(False)
+    v.src_vars["opensubtitles"].set(False)
+    v.scan()
+    pump(a)
+    assert v.session.captcha == a.ask_captcha and v.session.tt is not None
+    v.gather()
+    pump(a)
+    it = v.items[0]
+    assert it.lang == "cs" and len(it.candidates) == 4 and it.needs_choice
+    rows = [v.cands.tv.item(i, "values") for i in v.cands.ids()]
+    assert {r[1] for r in rows} == {"Titulky"} and rows[0][2] == "23.976 KHỚP"
+    v.choose("c0")
+    pump(a)
+    v.execute()
+    pump(a)
+    dest = movie_dir / "srt_can_sync" / "cs" / f"{stem}.cs.srt"
+    assert dest.read_bytes() == sub and "đã tải (Titulky)" in v.tree.tv.item("i0", "values")[3]
+    assert len(shown) == 1 and shown[0][0] == main  # hop thoai mo o LUONG GIAO DIEN du loi goi tu luong phu
+    assert shown[0][1] == jpeg and shown[0][3] == b"\x89PNG" and "Breaking.Bad.S01E05" in shown[0][2]
+    assert http.calls_to(r"idown\.php$", "POST")[0].data["downkod"] == "k9x2"
+
+
+def test_captcha_dialog_shows_jpeg_and_returns_typed_code(movie_dir, ui):
+    import io
+
+    from gui import widgets as W
+
+    pil = pytest.importorskip("PIL.Image")
+    buf = io.BytesIO()
+    pil.new("RGB", (400, 100), (250, 250, 250)).save(buf, format="JPEG")
+    a = ui(movie_dir)
+    d = W.CaptchaDialog(a.root, buf.getvalue(), "Breaking.Bad.S01E05.720p")
+    a.root.update()
+    assert d.photo is not None and (d.photo.width(), d.photo.height()) == (400, 100) and d.picture is not None
+    assert d.d.win.title() == "Mã CAPTCHA của Titulky.com"
+    d.submit()  # o trong: khong dong
+    assert d.d.win.winfo_exists()
+    d.entry.insert(0, "  aB3x ")
+    d.submit()
+    assert d.d.result == "aB3x" and not d.d.win.winfo_exists()
+    # anh khong doc duoc -> khong co hinh, co nut mo bang trinh xem anh; "Bo qua" -> None
+    d2 = W.CaptchaDialog(a.root, b"khong phai anh", "")
+    a.root.update()
+    assert d2.photo is None and d2.picture is None
+    d2.d.close(None)
+    assert d2.d.result is None

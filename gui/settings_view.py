@@ -1,7 +1,7 @@
 """Thẻ "Cài đặt" (PROMPT §5.4, SPEC mục 5).
 
 * Mọi khoá của ``config.FIELDS``, chia 5 nhóm, chú thích tiếng Việt; mục "Nâng cao" ẩn tới khi bật.
-* 7 bí mật: ô ``•••`` + "Hiện"; lưu vào Windows Credential Manager (``core.secrets``), KHÔNG vào ``config.json``.
+* 9 bí mật (7 của .bat + tài khoản Titulky.com): ô ``•••`` + "Hiện"; lưu vào Windows Credential Manager (``core.secrets``), KHÔNG vào ``config.json``.
 * "Kiểm tra kết nối" cho SubSource / TMDB / TVDB / OpenSubtitles (dùng giá trị đang gõ, chưa cần lưu).
 * "Tự tìm" công cụ (``tools.find_tool``) + hiện phiên bản ``mkvmerge`` đọc được.
 * "Khôi phục mặc định" (không đụng bí mật), "Nhập từ .bat…" (``config.import_from_bat`` → bảng xem trước → Nhập).
@@ -34,8 +34,13 @@ SECRET_INFO: dict[str, tuple[str, str, str | None]] = {
     "OsApiKey": ("OpenSubtitles API key", "opensubtitles.com › API consumers.", "opensubtitles"),
     "OsUsername": ("OpenSubtitles — tên đăng nhập", "Cần để TẢI phụ đề (không có thì chỉ tìm được).", None),
     "OsPassword": ("OpenSubtitles — mật khẩu", "", None),
+    "TitulkyUsername": ("Titulky.com — tên đăng nhập", "Không bắt buộc (nguồn phụ đề tiếng Séc). Không có tài khoản vẫn tìm "
+                        "và tải được kiểu khách, nhưng hay phải gõ mã CAPTCHA. Theo thông báo của trang: tài khoản "
+                        "Premium tải được 25 phụ đề mỗi ngày, không phụ thuộc địa chỉ IP.", "titulky"),
+    "TitulkyPassword": ("Titulky.com — mật khẩu", "", None),
 }
-CHECK_NAMES = {"subsource": "SubSource", "tmdb": "TMDB", "tvdb": "TVDB", "opensubtitles": "OpenSubtitles"}
+CHECK_NAMES = {"subsource": "SubSource", "tmdb": "TMDB", "tvdb": "TVDB", "opensubtitles": "OpenSubtitles",
+               "titulky": "Titulky"}
 
 
 # ==========================================================================
@@ -145,7 +150,7 @@ def check_connection(which: str, vals: Mapping[str, str], cfg: Mapping[str, Any]
     """Nút "Kiểm tra kết nối" (chạy ở luồng phụ). ``vals``: bí mật đang gõ (chưa cần lưu)."""
     import time  # noqa: PLC0415
 
-    from core import opensubs, subsource  # noqa: PLC0415
+    from core import opensubs, subsource, titulky  # noqa: PLC0415
     from core.tmdb import TmdbClient  # noqa: PLC0415
     from core.tvdb import TvdbClient  # noqa: PLC0415
 
@@ -162,6 +167,9 @@ def check_connection(which: str, vals: Mapping[str, str], cfg: Mapping[str, Any]
         return opensubs.OpenSubtitlesClient(vals.get("OsApiKey", ""), vals.get("OsUsername", ""),
                                             vals.get("OsPassword", ""), cfg["OsUserAgent"], cfg["ApiPauseMs"],
                                             cfg["OsWarnRemaining"], cfg["OsStopRemaining"], http, sl, job).check()
+    if which == "titulky":
+        return titulky.TitulkyClient(vals.get("TitulkyUsername", ""), vals.get("TitulkyPassword", ""), cfg["ApiPauseMs"],
+                                     http, sl, job).check()
     raise ValueError(which)
 
 

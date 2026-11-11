@@ -33,6 +33,7 @@ class Call:
     params: dict
     headers: dict
     json: Any
+    data: Any = None  # than form (POST) - Titulky
 
 
 @dataclass
@@ -54,8 +55,8 @@ class FakeHTTP:
         return self
 
     def request(self, method: str, url: str, params: dict | None = None, headers: dict | None = None,
-                json: Any = None, timeout: Any = None, **_: Any) -> FakeResponse:
-        call = Call(method.upper(), url, dict(params or {}), dict(headers or {}), json)
+                json: Any = None, timeout: Any = None, data: Any = None, **_: Any) -> FakeResponse:
+        call = Call(method.upper(), url, dict(params or {}), dict(headers or {}), json, data)
         self.calls.append(call)
         for r in self.routes:
             if r.method == call.method and r.pattern.search(url):

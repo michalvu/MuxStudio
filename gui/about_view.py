@@ -48,6 +48,8 @@ CREDITS: tuple[Credit, ...] = (
            "Nhận biết Windows đang ở chế độ Sáng hay Tối"),
     Credit("packaging", BUNDLED, "Donald Stufft và các tác giả packaging", "Apache-2.0 hoặc BSD-2-Clause",
            "https://github.com/pypa/packaging", "Thư viện phụ của CustomTkinter"),
+    Credit("Pillow", BUNDLED, "Jeffrey A. Clark và các tác giả Pillow", "MIT-CMU", "https://python-pillow.github.io",
+           "Hiện ảnh mã CAPTCHA (JPEG) của Titulky.com"),
     Credit("Requests", BUNDLED, "Kenneth Reitz và các tác giả Requests", "Apache-2.0", "https://requests.readthedocs.io",
            "Gọi API tải phụ đề và tra tên phim"),
     Credit("urllib3", BUNDLED, "Andrey Petrov và các tác giả urllib3", "MIT", "https://github.com/urllib3/urllib3",
@@ -80,6 +82,8 @@ CREDITS: tuple[Credit, ...] = (
     Credit("OpenSubtitles.com", SERVICE, "OpenSubtitles", "Điều khoản sử dụng API của OpenSubtitles", "https://www.opensubtitles.com",
            "Nguồn phụ đề"),
     Credit("SubSource", SERVICE, "SubSource", "Điều khoản sử dụng API của SubSource", "https://subsource.net", "Nguồn phụ đề"),
+    Credit("Titulky.com", SERVICE, "Titulky.com", "Điều khoản sử dụng của Titulky.com", "https://www.titulky.com",
+           "Nguồn phụ đề tiếng Séc"),
 )
 
 #: Câu ghi nhận mà TMDB và TheTVDB yêu cầu chương trình dùng API của họ phải hiển thị (giữ nguyên tiếng Anh).
