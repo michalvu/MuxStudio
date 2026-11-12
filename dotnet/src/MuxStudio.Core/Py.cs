@@ -65,6 +65,15 @@ internal static partial class Py
         return b > a ? s[a..b] : "";
     }
 
+    /// <summary><c>str.isalnum()</c> cho một ký tự: chữ (L*) hoặc mọi loại số (Nd, Nl, No — vd ①, ²), khác <c>char.IsLetterOrDigit</c>.</summary>
+    public static bool IsAlnum(char c) => char.GetUnicodeCategory(c) switch
+    {
+        UnicodeCategory.UppercaseLetter or UnicodeCategory.LowercaseLetter or UnicodeCategory.TitlecaseLetter
+            or UnicodeCategory.ModifierLetter or UnicodeCategory.OtherLetter
+            or UnicodeCategory.DecimalDigitNumber or UnicodeCategory.LetterNumber or UnicodeCategory.OtherNumber => true,
+        _ => false,
+    };
+
     /// <summary><c>str.strip(chars)</c>.</summary>
     public static string Strip(string s, string chars) => s.Trim(chars.ToCharArray());
 
