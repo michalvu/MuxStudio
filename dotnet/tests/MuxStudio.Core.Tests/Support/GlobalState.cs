@@ -22,6 +22,14 @@ public sealed class TempDir : IDisposable
 
     public string this[params string[] parts] => System.IO.Path.Combine([Path, .. parts]);
 
+    /// <summary>Thư mục phim có ký tự [ ] trong tên (§6.1) — fixture <c>movie_dir</c>.</summary>
+    public string MovieDir()
+    {
+        var d = this["[YTS.MX] Phim Thử (2020)"];
+        Directory.CreateDirectory(d);
+        return d;
+    }
+
     public void Dispose()
     {
         try
