@@ -1,0 +1,2165 @@
+{
+ "groups": [
+  [
+   "chung",
+   "Chung — thư mục & công cụ"
+  ],
+  [
+   "api",
+   "API & tài khoản"
+  ],
+  [
+   "fetch",
+   "① Tải phụ đề"
+  ],
+  [
+   "prep",
+   "② Chuẩn bị phụ đề"
+  ],
+  [
+   "mux",
+   "③ Mux"
+  ]
+ ],
+ "fields": [
+  {
+   "key": "MkvmergePath",
+   "default": "",
+   "type": "str",
+   "group": "chung",
+   "label": "mkvmerge.exe (MKVToolNix)",
+   "help": "BẮT BUỘC cho bước ③ (tạo file MKV). Bước ① ② dùng để đọc FPS, thời lượng, danh sách track. Để trống = tự tìm.",
+   "kind": "file",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "MkvextractPath",
+   "default": "",
+   "type": "str",
+   "group": "chung",
+   "label": "mkvextract.exe (MKVToolNix)",
+   "help": "Trích phụ đề gốc từ MKV (bước ① ②), đo độ lệch audio ghép (bước ③). Thiếu → chỉ dùng được phụ đề gốc bạn tự đặt vào srt_goc. Để trống = tự tìm.",
+   "kind": "file",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "AlassPath",
+   "default": "",
+   "type": "str",
+   "group": "chung",
+   "label": "alass.exe",
+   "help": "BẮT BUỘC để đồng bộ phụ đề (bước ②). Để trống = tự tìm.",
+   "kind": "file",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "FfprobePath",
+   "default": "",
+   "type": "str",
+   "group": "chung",
+   "label": "ffprobe.exe",
+   "help": "Đọc audio track của file mẫu (bước ②), bitrate + HDR / Dolby Vision cho thẻ codec (bước ③). Thiếu → bitrate chỉ là ước lượng. Để trống = tự tìm (cạnh alass.exe trước).",
+   "kind": "file",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "FfmpegPath",
+   "default": "",
+   "type": "str",
+   "group": "chung",
+   "label": "ffmpeg.exe",
+   "help": "Trích audio ra WAV khi đồng bộ theo audio (bước ②), đổi tốc độ audio ghép khác FPS (bước ③). Để trống = tự tìm (cạnh alass.exe trước).",
+   "kind": "file",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "MkvToolNixDir",
+   "default": "C:\\Users\\fenha\\Desktop\\mkvtoolnix",
+   "type": "str",
+   "group": "chung",
+   "label": "Thư mục MKVToolNix (nơi tự tìm)",
+   "help": "Nơi có mkvmerge.exe, mkvextract.exe. Chỉ dùng khi ô mkvmerge / mkvextract ở trên để trống.",
+   "kind": "dir",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "AlassDir",
+   "default": "C:\\Users\\fenha\\Desktop\\alass-windows64\\bin\\alass",
+   "type": "str",
+   "group": "chung",
+   "label": "Thư mục alass (nơi tự tìm)",
+   "help": "Nơi có alass.exe (thường có cả ffmpeg.exe, ffprobe.exe). Chỉ dùng khi ô alass / ffmpeg / ffprobe ở trên để trống.",
+   "kind": "dir",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "ExtraToolDirs",
+   "default": [
+    "C:\\Users\\fenha\\Desktop\\alass-windows64\\bin\\alass"
+   ],
+   "type": "list",
+   "group": "chung",
+   "label": "Thư mục tìm thêm công cụ",
+   "help": "Nơi tìm thêm ffprobe/ffmpeg.",
+   "kind": "list",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "UiScale",
+   "default": "auto",
+   "type": "str",
+   "group": "chung",
+   "label": "Cỡ chữ và giao diện",
+   "help": "'auto' = tự chọn theo màn hình (to hơn 10% trên màn hình 1440p / 4K đặt tỉ lệ 100%); hoặc chọn % (90 = gọn hơn cho màn hình 720p, 125 / 150 = to hơn). Cửa sổ tự vừa màn hình 720p / 1080p / 1440p. Có hiệu lực khi mở lại MuxStudio.",
+   "kind": "choice",
+   "choices": [
+    "auto",
+    "90",
+    "100",
+    "110",
+    "125",
+    "150"
+   ],
+   "advanced": false
+  },
+  {
+   "key": "UiLanguage",
+   "default": "vi",
+   "type": "str",
+   "group": "chung",
+   "label": "Ngôn ngữ giao diện (Language)",
+   "help": "vi = Tiếng Việt, en = English. Có hiệu lực khi mở lại MuxStudio. (Takes effect the next time MuxStudio starts.)",
+   "kind": "choice",
+   "choices": [
+    "vi",
+    "en"
+   ],
+   "advanced": false
+  },
+  {
+   "key": "UiAppearance",
+   "default": "system",
+   "type": "str",
+   "group": "chung",
+   "label": "Chế độ Sáng / Tối",
+   "help": "system = theo Windows, light = Sáng, dark = Tối. Đổi ngay khi bấm Lưu cài đặt.",
+   "kind": "choice",
+   "choices": [
+    "system",
+    "light",
+    "dark"
+   ],
+   "advanced": false
+  },
+  {
+   "key": "UiBackdrop",
+   "default": "none",
+   "type": "str",
+   "group": "chung",
+   "label": "Nền mờ của Windows 11",
+   "help": "none = tắt; mica / acrylic = nền cửa sổ mờ nhìn xuyên kiểu kính của Windows 11 (cần Windows 11; máy khác tự bỏ qua). Nếu chữ bị viền lạ hoặc cửa sổ hiện sai thì chọn lại none. Có hiệu lực khi mở lại MuxStudio.",
+   "kind": "choice",
+   "choices": [
+    "none",
+    "mica",
+    "acrylic"
+   ],
+   "advanced": false
+  },
+  {
+   "key": "ScanSubFolders",
+   "default": true,
+   "type": "bool",
+   "group": "chung",
+   "label": "Quét cả thư mục con",
+   "help": "Nhiều season một lượt.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "VideoExts",
+   "default": [
+    ".mkv",
+    ".mp4",
+    ".avi",
+    ".m4v",
+    ".ts",
+    ".mov"
+   ],
+   "type": "list",
+   "group": "chung",
+   "label": "Đuôi file phim",
+   "help": "",
+   "kind": "list",
+   "choices": [],
+   "advanced": true
+  },
+  {
+   "key": "SubFolderName",
+   "default": "srt_can_sync",
+   "type": "str",
+   "group": "chung",
+   "label": "Thư mục phụ đề cần sync",
+   "help": "Nơi hạ phụ đề tải về (bước ② xử lý tiếp).",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "ExtractFolder",
+   "default": "srt_goc",
+   "type": "str",
+   "group": "chung",
+   "label": "Thư mục phụ đề gốc",
+   "help": "Phụ đề trích từ MKV làm mốc thời gian (không để trống).",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "DonorFolder",
+   "default": "audio_nguon",
+   "type": "str",
+   "group": "chung",
+   "label": "Thư mục file nguồn audio",
+   "help": "File phim khác để lấy audio ghép vào.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "MinVerifyVotes",
+   "default": 20,
+   "type": "int",
+   "group": "chung",
+   "label": "Số mốc khớp tối thiểu",
+   "help": "Khớp ĐÚNG thường 25–35 phiếu; khớp SAI chỉ 5–15. Đặt 8 từng làm ghép nhầm tập. Tối thiểu nên là 20.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "FpsSampleRef",
+   "default": 400,
+   "type": "int",
+   "group": "chung",
+   "label": "Số mốc lấy mẫu bên phụ đề gốc",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": true
+  },
+  {
+   "key": "FpsSampleTgt",
+   "default": 100,
+   "type": "int",
+   "group": "chung",
+   "label": "Số mốc lấy mẫu bên phụ đề cần đo",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": true
+  },
+  {
+   "key": "PgsTimingFallback",
+   "default": true,
+   "type": "bool",
+   "group": "chung",
+   "label": "Đọc mốc từ phụ đề PGS",
+   "help": "MKV chỉ có phụ đề dạng ảnh (PGS .sup)? Đọc thẳng mốc thời gian, không cần OCR.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "PgsTimingText",
+   "default": "*",
+   "type": "str",
+   "group": "chung",
+   "label": "Chữ giữ chỗ cho dòng PGS",
+   "help": "Chỉ là chỗ giữ chỗ, không ai đọc.",
+   "kind": "",
+   "choices": [],
+   "advanced": true
+  },
+  {
+   "key": "KeepUndoRuns",
+   "default": 20,
+   "type": "int",
+   "group": "chung",
+   "label": "Số lần chạy giữ để hoàn tác",
+   "help": "Áp dụng cả ba bước.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "DeleteToRecycleBin",
+   "default": true,
+   "type": "bool",
+   "group": "chung",
+   "label": "Xoá vào Thùng rác",
+   "help": "Khôi phục được, thay vì xoá hẳn.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "SubFetchLogDir",
+   "default": "_subfetch_logs",
+   "type": "str",
+   "group": "chung",
+   "label": "Thư mục nhật ký bước ①",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": true
+  },
+  {
+   "key": "SubPrepLogDir",
+   "default": "_subprep_logs",
+   "type": "str",
+   "group": "chung",
+   "label": "Thư mục nhật ký bước ②",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": true
+  },
+  {
+   "key": "MuxLogDir",
+   "default": "_muxtool_logs",
+   "type": "str",
+   "group": "chung",
+   "label": "Thư mục nhật ký bước ③",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": true
+  },
+  {
+   "key": "OsUserAgent",
+   "default": "MyApp v1.0.0",
+   "type": "str",
+   "group": "api",
+   "label": "User-Agent OpenSubtitles",
+   "help": "BẮT BUỘC dạng \"TênỨngDụng vX.Y.Z\". Tên riêng chỉ chạy khi đã đăng ký API Consumer trên opensubtitles.com (nếu không: lỗi 403 kong-user-agent-block).",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "SubSourceApiBase",
+   "default": "https://api.subsource.net/api/v1",
+   "type": "str",
+   "group": "api",
+   "label": "Địa chỉ API SubSource",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": true
+  },
+  {
+   "key": "ApiPauseMs",
+   "default": 1100,
+   "type": "int",
+   "group": "api",
+   "label": "Nghỉ giữa các lượt gọi (ms)",
+   "help": "Trần SubSource 60 lượt/phút.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "TmdbRetry",
+   "default": 3,
+   "type": "int",
+   "group": "api",
+   "label": "Số lần thử lại khi lỗi mạng",
+   "help": "Dùng cho TMDB và TVDB.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "TmdbLang",
+   "default": "en-US",
+   "type": "str",
+   "group": "api",
+   "label": "Ngôn ngữ TMDB",
+   "help": "'vi-VN' nếu muốn lấy tên tiếng Việt.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "TvdbLang",
+   "default": "eng",
+   "type": "str",
+   "group": "api",
+   "label": "Ngôn ngữ TVDB",
+   "help": "Mã 3 chữ: 'eng', 'vie', 'jpn'…",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "TvdbSeasonType",
+   "default": "default",
+   "type": "str",
+   "group": "api",
+   "label": "Kiểu đánh số season TVDB",
+   "help": "'default' (theo phát sóng) | 'dvd' | 'official'.",
+   "kind": "choice",
+   "choices": [
+    "default",
+    "dvd",
+    "official"
+   ],
+   "advanced": false
+  },
+  {
+   "key": "Languages",
+   "default": [
+    "vi",
+    "en",
+    "cs"
+   ],
+   "type": "list",
+   "group": "fetch",
+   "label": "Ngôn ngữ cần tải",
+   "help": "Thứ tự ở đây cũng là thứ tự xử lý.",
+   "kind": "langs",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "UseLangSubFolders",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Tách thư mục con theo ngôn ngữ",
+   "help": "srt_can_sync\\vi\\, \\cs\\, \\en\\ (bước ② đọc tên thư mục để biết ngôn ngữ).",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "MaxShowCandidates",
+   "default": 12,
+   "type": "int",
+   "group": "fetch",
+   "label": "Số dòng tối đa trong bảng chọn",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "VerifyTiming",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Đối chiếu mốc thời gian",
+   "help": "Đo với phụ đề gốc trong MKV trước khi chấp nhận. Bước ① KHÔNG sửa thời gian — việc đó của bước ②.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "Interactive",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Tự chọn trong bảng ứng viên",
+   "help": "Tắt = tự lấy bản đứng đầu bảng.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "RememberChoice",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Nhớ lựa chọn cho các tập sau",
+   "help": "Đã chọn cho season + ngôn ngữ nào thì dùng lại cho các tập sau.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "AutoPickWhenSingle",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Chỉ 1 ứng viên thì lấy luôn",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "UseExistingSubs",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Dùng phụ đề bạn tự bỏ vào srt_can_sync",
+   "help": "Có file sẵn → đổi tên cho khớp phim và bỏ qua tải.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "ExistingMinScore",
+   "default": 0.35,
+   "type": "float",
+   "group": "fetch",
+   "label": "Độ giống tên tối thiểu (file có sẵn)",
+   "help": "Chỉ dùng khi không đo được thời gian.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "ExistingRenameMode",
+   "default": "copy",
+   "type": "str",
+   "group": "fetch",
+   "label": "Cách đưa file có sẵn về đúng tên",
+   "help": "'copy' = giữ nguyên file gốc (an toàn, khuyên dùng); 'move' = đổi tên hẳn file gốc.",
+   "kind": "choice",
+   "choices": [
+    "copy",
+    "move"
+   ],
+   "advanced": false
+  },
+  {
+   "key": "SkipIfExists",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Đã có phụ đề ngôn ngữ đó thì bỏ qua",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "SkipIfVideoHasSub",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Phim đã có phụ đề ngôn ngữ đó thì không tìm nữa",
+   "help": "Track phụ đề chữ nằm TRONG file MKV (kể cả SDH; không tính Forced và phụ đề dạng ảnh) hoặc file <tên phim>.<mã>.srt nằm CẠNH phim → chỉ tìm các ngôn ngữ còn thiếu.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "KeepExtractedRef",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Giữ phụ đề gốc đã trích",
+   "help": "Giữ trong srt_goc: lần sau khỏi trích lại, mở ra xem được.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "StrictFpsMatch",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Loại bản khai báo FPS khác video",
+   "help": "Phụ đề PAL 25fps ghép vào phim 23.976 sẽ trôi dần tới ~5 phút ở cuối.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "AllowUnknownFps",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Cho phép bản không khai báo FPS",
+   "help": "Sẽ đo bằng mốc thời gian sau khi tải.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "KeepPaidDownloads",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Giữ file OpenSubtitles kiểm chứng yếu",
+   "help": "Đã tốn quota thì giữ kèm cảnh báo. Tắt = chuyển vào Thùng rác và thử bản kế tiếp.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "ExcludeSdh",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Không lấy bản SDH / Hearing Impaired",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "ExcludeForced",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Không lấy bản Forced / foreignParts",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "MaxPages",
+   "default": 10,
+   "type": "int",
+   "group": "fetch",
+   "label": "Số trang tối đa (SubSource)",
+   "help": "Một mục có thể có 150+ bản, đừng đặt quá thấp.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "UseTitulky",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Dùng Titulky.com (chỉ tiếng Séc)",
+   "help": "Chỉ được hỏi khi ngôn ngữ cần tải có 'cs'. Thứ tự nguồn: SubSource → Titulky → OpenSubtitles. Không cần tài khoản (khi đó hay phải gõ mã CAPTCHA lúc tải); điền tài khoản ở nhóm 'API & tài khoản'.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "TitulkyProbeTop",
+   "default": 3,
+   "type": "int",
+   "group": "fetch",
+   "label": "Số bản Titulky được xem kỹ trước",
+   "help": "Với ngần này bản giống tên nhất, chương trình mở thêm trang chi tiết (lấy FPS) và bản xem trước (ước tính độ lệch) — mỗi bản thêm 2 lượt gọi. 0 = không xem.",
+   "kind": "",
+   "choices": [],
+   "advanced": true
+  },
+  {
+   "key": "UseOpenSubtitles",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Dùng OpenSubtitles",
+   "help": "Nguồn dự phòng (tốn quota nên để sau cùng).",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "OsWarnRemaining",
+   "default": 50,
+   "type": "int",
+   "group": "fetch",
+   "label": "Cảnh báo khi còn ≤ lượt tải",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "OsStopRemaining",
+   "default": 5,
+   "type": "int",
+   "group": "fetch",
+   "label": "Ngừng tải khi còn ≤ lượt tải",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "OsExcludeMachine",
+   "default": true,
+   "type": "bool",
+   "group": "fetch",
+   "label": "Loại hẳn bản dịch máy / AI",
+   "help": "Tắt = vẫn cho phép nhưng xếp sau bản thường.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "RefFolderName",
+   "default": "",
+   "type": "str",
+   "group": "prep",
+   "label": "Thư mục file mốc",
+   "help": "Để trống = dùng chính thư mục phim.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "OutFolderName",
+   "default": "",
+   "type": "str",
+   "group": "prep",
+   "label": "Thư mục ghi kết quả sync",
+   "help": "Để trống = ghi thẳng cạnh file phim (khuyên dùng). Hoặc 'srt_hoan_thanh'.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "RefExcludeFolders",
+   "default": [
+    "srt_pool",
+    "srt_can_sync",
+    "srt_hoan_thanh",
+    "_subprep_logs",
+    "_subfetch_logs",
+    "_subsource_probe",
+    "Output"
+   ],
+   "type": "list",
+   "group": "prep",
+   "label": "Thư mục loại khỏi việc tìm mốc",
+   "help": "Phụ đề trong srt_pool bị coi là 'mốc' sẽ đổi tên sai hàng loạt. Luôn loại thêm thư mục nguồn audio, kho và srt_can_sync.",
+   "kind": "list",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "RefSubLangs",
+   "default": [
+    "en",
+    "vi",
+    "cs"
+   ],
+   "type": "list",
+   "group": "prep",
+   "label": "Thứ tự ngôn ngữ khi trích phụ đề gốc",
+   "help": "",
+   "kind": "list",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "SkipExistingRef",
+   "default": true,
+   "type": "bool",
+   "group": "prep",
+   "label": "Đã trích rồi thì bỏ qua",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "SubExts",
+   "default": [
+    ".srt",
+    ".ass",
+    ".ssa",
+    ".vtt"
+   ],
+   "type": "list",
+   "group": "prep",
+   "label": "Đuôi file phụ đề",
+   "help": "",
+   "kind": "list",
+   "choices": [],
+   "advanced": true
+  },
+  {
+   "key": "SkipExistingOut",
+   "default": true,
+   "type": "bool",
+   "group": "prep",
+   "label": "Bỏ qua file đã sync rồi",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "AlassExtraArgs",
+   "default": [],
+   "type": "list",
+   "group": "prep",
+   "label": "Tham số thêm cho alass",
+   "help": "Vd: --split-penalty 7",
+   "kind": "list",
+   "choices": [],
+   "advanced": true
+  },
+  {
+   "key": "SyncAudioMode",
+   "default": "ask",
+   "type": "str",
+   "group": "prep",
+   "label": "Chọn audio track làm mốc",
+   "help": "'ask' = hiện bảng để chọn; 'auto' = audio Default của file; 'index' = theo số thứ tự; 'lang' = theo ngôn ngữ.",
+   "kind": "choice",
+   "choices": [
+    "ask",
+    "auto",
+    "index",
+    "lang"
+   ],
+   "advanced": false
+  },
+  {
+   "key": "SyncAudioIndex",
+   "default": 0,
+   "type": "int",
+   "group": "prep",
+   "label": "Số thứ tự audio (đếm từ 0)",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "SyncAudioLang",
+   "default": "en",
+   "type": "str",
+   "group": "prep",
+   "label": "Ngôn ngữ audio làm mốc",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "MaxShiftSeconds",
+   "default": 130,
+   "type": "int",
+   "group": "prep",
+   "label": "Ngưỡng dịch tối đa (giây)",
+   "help": "alass dịch quá ngưỡng này → coi là SAI. Chỉ TỪ CHỐI khi mốc là audio; mốc là phụ đề thì chỉ cảnh báo. 0 = tắt ngưỡng.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "AlassArgsSubMode",
+   "default": [],
+   "type": "list",
+   "group": "prep",
+   "label": "Tham số alass khi mốc là phụ đề",
+   "help": "Để trống = mặc định của alass (được cắt đoạn và sửa framerate).",
+   "kind": "list",
+   "choices": [],
+   "advanced": true
+  },
+  {
+   "key": "AlassArgsAudioMode",
+   "default": [
+    "--no-split",
+    "--disable-fps-guessing"
+   ],
+   "type": "list",
+   "group": "prep",
+   "label": "Tham số alass khi mốc là audio",
+   "help": "VAD dễ đoán nhầm nhạc thành giọng nói nên siết lại.",
+   "kind": "list",
+   "choices": [],
+   "advanced": true
+  },
+  {
+   "key": "NormalizeEncoding",
+   "default": true,
+   "type": "bool",
+   "group": "prep",
+   "label": "Chuyển phụ đề về UTF-8",
+   "help": "Làm trên bản sao, không sửa file nguồn.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "TitleMinScore",
+   "default": 0.5,
+   "type": "float",
+   "group": "prep",
+   "label": "Điểm giống tên tối thiểu",
+   "help": "Để nhận là cùng phim.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "TitleMinMargin",
+   "default": 0.15,
+   "type": "float",
+   "group": "prep",
+   "label": "Khoảng cách tối thiểu với ứng viên nhì",
+   "help": "Chống nhầm.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "TrimLeadingExtra",
+   "default": true,
+   "type": "bool",
+   "group": "prep",
+   "label": "Cắt đoạn recap đầu file",
+   "help": "Đoạn 'tóm tắt tập trước' không có trong phim.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "MaxZeroStartCues",
+   "default": 2,
+   "type": "int",
+   "group": "prep",
+   "label": "Số dòng ở 00:00:00 tối đa",
+   "help": "Trên mức này coi là khối bị dồn về 00:00:00.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "HealthReport",
+   "default": true,
+   "type": "bool",
+   "group": "prep",
+   "label": "Xuất CSV báo cáo sức khoẻ",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "AnalyzeTiming",
+   "default": true,
+   "type": "bool",
+   "group": "prep",
+   "label": "Phân tích FPS / độ lệch trước khi sync",
+   "help": "Tắt nếu thấy chậm.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "FpsAutoAllowGuess",
+   "default": true,
+   "type": "bool",
+   "group": "prep",
+   "label": "Lệch FPS → cho alass tự sửa framerate",
+   "help": "Bỏ --disable-fps-guessing cho file đó.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "AskCleanup",
+   "default": true,
+   "type": "bool",
+   "group": "prep",
+   "label": "Hỏi dọn dẹp file nguồn sau khi xong",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "SkipOnMultipleEnAudio",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "≥ 2 audio tiếng Anh: chờ bạn chọn",
+   "help": "Tắt = tự lấy track bitrate cao nhất làm Default.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "RemoveCommentaryAudio",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Xoá audio bình luận",
+   "help": "Commentary / director / cast…",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "RemoveDescriptiveAudio",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Xoá audio thuyết minh cho người khiếm thị",
+   "help": "Audio description.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "RemoveCommentarySubs",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Xoá phụ đề bình luận",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "RemoveImageSubs",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Xoá phụ đề dạng ảnh (PGS/VobSub)",
+   "help": "Không hiện được trên nhiều client iOS/trình duyệt. Phụ đề văn bản vẫn giữ.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "AskWhichAudio",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Hiện bảng chọn audio cần xoá",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "AskAudioMinTracks",
+   "default": 2,
+   "type": "int",
+   "group": "mux",
+   "label": "Từ bao nhiêu audio thì hiện bảng",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "RememberAudioChoice",
+   "default": "ask",
+   "type": "str",
+   "group": "mux",
+   "label": "Ghi nhớ lựa chọn audio",
+   "help": "'ask' = ô 'Áp dụng cho mọi file còn lại' bật sẵn; 'always' = luôn áp dụng; 'never' = mỗi file chọn lại.",
+   "kind": "choice",
+   "choices": [
+    "ask",
+    "always",
+    "never"
+   ],
+   "advanced": false
+  },
+  {
+   "key": "UseSubPicker",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Bảng chọn phụ đề theo tập",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "SubPickerMinFiles",
+   "default": 1,
+   "type": "int",
+   "group": "mux",
+   "label": "Từ bao nhiêu file thì hiện bảng",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "AddCodecTag",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Gắn thẻ codec vào TÊN FILE",
+   "help": "Jellyfin dùng phần sau ' - ' làm nhãn phiên bản. Không bao giờ gắn vào tên thư mục.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "CodecTagForTv",
+   "default": false,
+   "type": "bool",
+   "group": "mux",
+   "label": "Gắn thẻ codec cho phim bộ",
+   "help": "Mặc định TẮT (Jellyfin xử lý kém ổn định hơn).",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "CodecTagParts",
+   "default": [
+    "res",
+    "hdr",
+    "vcodec",
+    "acodec"
+   ],
+   "type": "list",
+   "group": "mux",
+   "label": "Thành phần thẻ codec",
+   "help": "",
+   "kind": "list",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "WriteRunLog",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Ghi chi tiết vào nhật ký",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "SubKeepLangs",
+   "default": [
+    "vi",
+    "cs",
+    "en"
+   ],
+   "type": "list",
+   "group": "mux",
+   "label": "Ngôn ngữ phụ đề giữ lại",
+   "help": "",
+   "kind": "list",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "SubDefaultPriority",
+   "default": [
+    "vi",
+    "en",
+    "cs"
+   ],
+   "type": "list",
+   "group": "mux",
+   "label": "Thứ tự ưu tiên phụ đề Default",
+   "help": "",
+   "kind": "list",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "RemoveForcedSubs",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Xoá phụ đề Forced",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "SkipOnAmbiguousUnd",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "≥ 2 audio có track 'und' → bỏ qua file",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "DefaultExternalLang",
+   "default": "vi",
+   "type": "str",
+   "group": "mux",
+   "label": "Ngôn ngữ của sub ngoài không có hậu tố",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "ExternalSubOverridesInternal",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Sub ngoài thay sub trong cùng ngôn ngữ",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "SkipIfOutputExists",
+   "default": false,
+   "type": "bool",
+   "group": "mux",
+   "label": "Bỏ qua file đã mux rồi",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "AskTrashSourcesAfterMux",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Mux xong: hỏi đưa file nguồn đã dùng vào Thùng rác",
+   "help": "MKV gốc, phụ đề ngoài, file nguồn audio ghép của các file mux THÀNH CÔNG — tick từng file trước khi xoá.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "UseTrackOrder",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Sắp xếp lại thứ tự track",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "SetTitleFromName",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Đặt title theo tên file",
+   "help": "Xoá title rác.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "SubExtPriority",
+   "default": [
+    ".srt",
+    ".ass",
+    ".ssa",
+    ".sup",
+    ".vtt"
+   ],
+   "type": "list",
+   "group": "mux",
+   "label": "Ưu tiên đuôi sub ngoài",
+   "help": "",
+   "kind": "list",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "TmdbConfirm",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Hỏi lại khi kết quả không chắc",
+   "help": "Áp dụng cả TMDB và TVDB: dòng hiện 'Cần chọn'.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "TmdbCreateFolder",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Mỗi phim lẻ một thư mục riêng",
+   "help": "Chuẩn Jellyfin/Emby.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "TvFetchEpisodeTitle",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Lấy tên tập",
+   "help": "Tra thêm 1 lượt mỗi tập.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "TvSeasonFolder",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Tạo thư mục Season 01\\",
+   "help": "Jellyfin rất nên bật.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "TvAbsoluteToSeason",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Đổi số tập tuyệt đối sang season/tập",
+   "help": "Vd One Piece S16E643 → mã season/tập của TMDB/TVDB.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "NameFallbackOther",
+   "default": false,
+   "type": "bool",
+   "group": "mux",
+   "label": "Không tìm thấy thì thử database còn lại",
+   "help": "Tắt (mặc định) = giữ tên gốc và báo, để thư viện không trộn tmdbid/tvdbid.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "UseDonorAudio",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Ghép audio từ file phim khác",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "DonorLangs",
+   "default": [
+    "cs"
+   ],
+   "type": "list",
+   "group": "mux",
+   "label": "Ngôn ngữ audio cần lấy",
+   "help": "",
+   "kind": "list",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "DonorSkipIfPresent",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Phim đã có audio ngôn ngữ đó thì không lấy thêm",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "DonorSetDefault",
+   "default": false,
+   "type": "bool",
+   "group": "mux",
+   "label": "Đặt audio ghép làm Default",
+   "help": "",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "DonorMinVotes",
+   "default": 20,
+   "type": "int",
+   "group": "mux",
+   "label": "Số mốc phụ đề khớp tối thiểu",
+   "help": "Để tin độ lệch đo được.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "DonorAcceptDurationMatch",
+   "default": true,
+   "type": "bool",
+   "group": "mux",
+   "label": "Không có phụ đề chung nhưng thời lượng khớp → vẫn ghép",
+   "help": "Độ lệch 0.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "DonorMaxDurationDiff",
+   "default": 1.0,
+   "type": "float",
+   "group": "mux",
+   "label": "Chênh thời lượng tối đa (giây)",
+   "help": "Coi là 'khớp'.",
+   "kind": "",
+   "choices": [],
+   "advanced": false
+  },
+  {
+   "key": "DonorOffsetMs",
+   "default": {},
+   "type": "dict",
+   "group": "mux",
+   "label": "Độ lệch chỉnh tay (ms)",
+   "help": "Ghi đè kết quả đo. Khoá: tên file, 'S01E03', 'tap #643' hoặc '643'.",
+   "kind": "dict",
+   "choices": [],
+   "advanced": false
+  }
+ ],
+ "default_config_json": "{\n  \"_version\": 1,\n  \"MkvmergePath\": \"\",\n  \"MkvextractPath\": \"\",\n  \"AlassPath\": \"\",\n  \"FfprobePath\": \"\",\n  \"FfmpegPath\": \"\",\n  \"MkvToolNixDir\": \"C:\\\\Users\\\\fenha\\\\Desktop\\\\mkvtoolnix\",\n  \"AlassDir\": \"C:\\\\Users\\\\fenha\\\\Desktop\\\\alass-windows64\\\\bin\\\\alass\",\n  \"ExtraToolDirs\": [\n    \"C:\\\\Users\\\\fenha\\\\Desktop\\\\alass-windows64\\\\bin\\\\alass\"\n  ],\n  \"UiScale\": \"auto\",\n  \"UiLanguage\": \"vi\",\n  \"UiAppearance\": \"system\",\n  \"UiBackdrop\": \"none\",\n  \"ScanSubFolders\": true,\n  \"VideoExts\": [\n    \".mkv\",\n    \".mp4\",\n    \".avi\",\n    \".m4v\",\n    \".ts\",\n    \".mov\"\n  ],\n  \"SubFolderName\": \"srt_can_sync\",\n  \"ExtractFolder\": \"srt_goc\",\n  \"DonorFolder\": \"audio_nguon\",\n  \"MinVerifyVotes\": 20,\n  \"FpsSampleRef\": 400,\n  \"FpsSampleTgt\": 100,\n  \"PgsTimingFallback\": true,\n  \"PgsTimingText\": \"*\",\n  \"KeepUndoRuns\": 20,\n  \"DeleteToRecycleBin\": true,\n  \"SubFetchLogDir\": \"_subfetch_logs\",\n  \"SubPrepLogDir\": \"_subprep_logs\",\n  \"MuxLogDir\": \"_muxtool_logs\",\n  \"OsUserAgent\": \"MyApp v1.0.0\",\n  \"SubSourceApiBase\": \"https://api.subsource.net/api/v1\",\n  \"ApiPauseMs\": 1100,\n  \"TmdbRetry\": 3,\n  \"TmdbLang\": \"en-US\",\n  \"TvdbLang\": \"eng\",\n  \"TvdbSeasonType\": \"default\",\n  \"Languages\": [\n    \"vi\",\n    \"en\",\n    \"cs\"\n  ],\n  \"UseLangSubFolders\": true,\n  \"MaxShowCandidates\": 12,\n  \"VerifyTiming\": true,\n  \"Interactive\": true,\n  \"RememberChoice\": true,\n  \"AutoPickWhenSingle\": true,\n  \"UseExistingSubs\": true,\n  \"ExistingMinScore\": 0.35,\n  \"ExistingRenameMode\": \"copy\",\n  \"SkipIfExists\": true,\n  \"SkipIfVideoHasSub\": true,\n  \"KeepExtractedRef\": true,\n  \"StrictFpsMatch\": true,\n  \"AllowUnknownFps\": true,\n  \"KeepPaidDownloads\": true,\n  \"ExcludeSdh\": true,\n  \"ExcludeForced\": true,\n  \"MaxPages\": 10,\n  \"UseTitulky\": true,\n  \"TitulkyProbeTop\": 3,\n  \"UseOpenSubtitles\": true,\n  \"OsWarnRemaining\": 50,\n  \"OsStopRemaining\": 5,\n  \"OsExcludeMachine\": true,\n  \"RefFolderName\": \"\",\n  \"OutFolderName\": \"\",\n  \"RefExcludeFolders\": [\n    \"srt_pool\",\n    \"srt_can_sync\",\n    \"srt_hoan_thanh\",\n    \"_subprep_logs\",\n    \"_subfetch_logs\",\n    \"_subsource_probe\",\n    \"Output\"\n  ],\n  \"RefSubLangs\": [\n    \"en\",\n    \"vi\",\n    \"cs\"\n  ],\n  \"SkipExistingRef\": true,\n  \"SubExts\": [\n    \".srt\",\n    \".ass\",\n    \".ssa\",\n    \".vtt\"\n  ],\n  \"SkipExistingOut\": true,\n  \"AlassExtraArgs\": [],\n  \"SyncAudioMode\": \"ask\",\n  \"SyncAudioIndex\": 0,\n  \"SyncAudioLang\": \"en\",\n  \"MaxShiftSeconds\": 130,\n  \"AlassArgsSubMode\": [],\n  \"AlassArgsAudioMode\": [\n    \"--no-split\",\n    \"--disable-fps-guessing\"\n  ],\n  \"NormalizeEncoding\": true,\n  \"TitleMinScore\": 0.5,\n  \"TitleMinMargin\": 0.15,\n  \"TrimLeadingExtra\": true,\n  \"MaxZeroStartCues\": 2,\n  \"HealthReport\": true,\n  \"AnalyzeTiming\": true,\n  \"FpsAutoAllowGuess\": true,\n  \"AskCleanup\": true,\n  \"SkipOnMultipleEnAudio\": true,\n  \"RemoveCommentaryAudio\": true,\n  \"RemoveDescriptiveAudio\": true,\n  \"RemoveCommentarySubs\": true,\n  \"RemoveImageSubs\": true,\n  \"AskWhichAudio\": true,\n  \"AskAudioMinTracks\": 2,\n  \"RememberAudioChoice\": \"ask\",\n  \"UseSubPicker\": true,\n  \"SubPickerMinFiles\": 1,\n  \"AddCodecTag\": true,\n  \"CodecTagForTv\": false,\n  \"CodecTagParts\": [\n    \"res\",\n    \"hdr\",\n    \"vcodec\",\n    \"acodec\"\n  ],\n  \"WriteRunLog\": true,\n  \"SubKeepLangs\": [\n    \"vi\",\n    \"cs\",\n    \"en\"\n  ],\n  \"SubDefaultPriority\": [\n    \"vi\",\n    \"en\",\n    \"cs\"\n  ],\n  \"RemoveForcedSubs\": true,\n  \"SkipOnAmbiguousUnd\": true,\n  \"DefaultExternalLang\": \"vi\",\n  \"ExternalSubOverridesInternal\": true,\n  \"SkipIfOutputExists\": false,\n  \"AskTrashSourcesAfterMux\": true,\n  \"UseTrackOrder\": true,\n  \"SetTitleFromName\": true,\n  \"SubExtPriority\": [\n    \".srt\",\n    \".ass\",\n    \".ssa\",\n    \".sup\",\n    \".vtt\"\n  ],\n  \"TmdbConfirm\": true,\n  \"TmdbCreateFolder\": true,\n  \"TvFetchEpisodeTitle\": true,\n  \"TvSeasonFolder\": true,\n  \"TvAbsoluteToSeason\": true,\n  \"NameFallbackOther\": false,\n  \"UseDonorAudio\": true,\n  \"DonorLangs\": [\n    \"cs\"\n  ],\n  \"DonorSkipIfPresent\": true,\n  \"DonorSetDefault\": false,\n  \"DonorMinVotes\": 20,\n  \"DonorAcceptDurationMatch\": true,\n  \"DonorMaxDurationDiff\": 1.0,\n  \"DonorOffsetMs\": {}\n}",
+ "version": 1,
+ "bat_import_reference": {
+  "kinds": [
+   "subfetch",
+   "subprep",
+   "muxtool"
+  ],
+  "values": {
+   "SubFolderName": {
+    "value": "srt_can_sync",
+    "source": "SubFetch_v30.bat",
+    "line": 72
+   },
+   "UseLangSubFolders": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 75
+   },
+   "MkvToolNixDir": {
+    "value": "C:\\Users\\fenha\\Desktop\\mkvtoolnix",
+    "source": "SubFetch_v30.bat",
+    "line": 76
+   },
+   "ScanSubFolders": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 78
+   },
+   "MaxShowCandidates": {
+    "value": 12,
+    "source": "SubFetch_v30.bat",
+    "line": 79
+   },
+   "VerifyTiming": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 90
+   },
+   "Interactive": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 95
+   },
+   "RememberChoice": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 96
+   },
+   "AutoPickWhenSingle": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 97
+   },
+   "UseExistingSubs": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 106
+   },
+   "ExistingMinScore": {
+    "value": 0.35,
+    "source": "SubFetch_v30.bat",
+    "line": 107
+   },
+   "ExistingRenameMode": {
+    "value": "copy",
+    "source": "SubFetch_v30.bat",
+    "line": 110
+   },
+   "KeepExtractedRef": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 116
+   },
+   "ExtractFolder": {
+    "value": "srt_goc",
+    "source": "SubFetch_v30.bat",
+    "line": 117
+   },
+   "MinVerifyVotes": {
+    "value": 20,
+    "source": "SubFetch_v30.bat",
+    "line": 121
+   },
+   "StrictFpsMatch": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 126
+   },
+   "AllowUnknownFps": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 129
+   },
+   "KeepPaidDownloads": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 132
+   },
+   "SkipIfExists": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 145
+   },
+   "ExcludeSdh": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 146
+   },
+   "ExcludeForced": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 147
+   },
+   "ApiPauseMs": {
+    "value": 1100,
+    "source": "SubFetch_v30.bat",
+    "line": 148
+   },
+   "MaxPages": {
+    "value": 10,
+    "source": "SubFetch_v30.bat",
+    "line": 149
+   },
+   "UseOpenSubtitles": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 152
+   },
+   "OsUserAgent": {
+    "value": "MyApp v1.0.0",
+    "source": "SubFetch_v30.bat",
+    "line": 158
+   },
+   "OsWarnRemaining": {
+    "value": 50,
+    "source": "SubFetch_v30.bat",
+    "line": 159
+   },
+   "OsStopRemaining": {
+    "value": 5,
+    "source": "SubFetch_v30.bat",
+    "line": 160
+   },
+   "OsExcludeMachine": {
+    "value": true,
+    "source": "SubFetch_v30.bat",
+    "line": 163
+   },
+   "SubSourceApiBase": {
+    "value": "https://api.subsource.net/api/v1",
+    "source": "SubFetch_v30.bat",
+    "line": 165
+   },
+   "VideoExts": {
+    "value": [
+     ".mkv",
+     ".mp4",
+     ".avi",
+     ".m4v",
+     ".ts",
+     ".mov"
+    ],
+    "source": "SubFetch_v30.bat + SubPrep_v20.bat",
+    "line": 166
+   },
+   "Languages": {
+    "value": [
+     "vi",
+     "en",
+     "cs"
+    ],
+    "source": "SubFetch_v30.bat",
+    "line": 58
+   },
+   "RefFolderName": {
+    "value": "",
+    "source": "SubPrep_v20.bat",
+    "line": 25
+   },
+   "OutFolderName": {
+    "value": "",
+    "source": "SubPrep_v20.bat",
+    "line": 26
+   },
+   "AlassDir": {
+    "value": "C:\\Users\\fenha\\Desktop\\alass-windows64\\bin\\alass",
+    "source": "SubPrep_v20.bat",
+    "line": 27
+   },
+   "RefExcludeFolders": {
+    "value": [
+     "srt_pool",
+     "srt_can_sync",
+     "srt_hoan_thanh",
+     "_subprep_logs",
+     "_subfetch_logs",
+     "_subsource_probe",
+     "Output"
+    ],
+    "source": "SubPrep_v20.bat",
+    "line": 37
+   },
+   "RefSubLangs": {
+    "value": [
+     "en",
+     "vi",
+     "cs"
+    ],
+    "source": "SubPrep_v20.bat",
+    "line": 39
+   },
+   "SkipExistingRef": {
+    "value": true,
+    "source": "SubPrep_v20.bat",
+    "line": 40
+   },
+   "PgsTimingFallback": {
+    "value": true,
+    "source": "SubPrep_v20.bat",
+    "line": 42
+   },
+   "PgsTimingText": {
+    "value": "*",
+    "source": "SubPrep_v20.bat",
+    "line": 43
+   },
+   "SubExts": {
+    "value": [
+     ".srt",
+     ".ass",
+     ".ssa",
+     ".vtt"
+    ],
+    "source": "SubPrep_v20.bat",
+    "line": 47
+   },
+   "SkipExistingOut": {
+    "value": true,
+    "source": "SubPrep_v20.bat",
+    "line": 52
+   },
+   "AlassExtraArgs": {
+    "value": [],
+    "source": "SubPrep_v20.bat",
+    "line": 53
+   },
+   "SyncAudioMode": {
+    "value": "ask",
+    "source": "SubPrep_v20.bat",
+    "line": 60
+   },
+   "MaxShiftSeconds": {
+    "value": 130,
+    "source": "SubPrep_v20.bat",
+    "line": 64
+   },
+   "AlassArgsSubMode": {
+    "value": [],
+    "source": "SubPrep_v20.bat",
+    "line": 69
+   },
+   "AlassArgsAudioMode": {
+    "value": [
+     "--no-split",
+     "--disable-fps-guessing"
+    ],
+    "source": "SubPrep_v20.bat",
+    "line": 71
+   },
+   "SyncAudioIndex": {
+    "value": 0,
+    "source": "SubPrep_v20.bat",
+    "line": 72
+   },
+   "SyncAudioLang": {
+    "value": "en",
+    "source": "SubPrep_v20.bat",
+    "line": 73
+   },
+   "SubPrepLogDir": {
+    "value": "_subprep_logs",
+    "source": "SubPrep_v20.bat",
+    "line": 74
+   },
+   "NormalizeEncoding": {
+    "value": true,
+    "source": "SubPrep_v20.bat",
+    "line": 75
+   },
+   "KeepUndoRuns": {
+    "value": 20,
+    "source": "SubPrep_v20.bat",
+    "line": 76
+   },
+   "TitleMinScore": {
+    "value": 0.5,
+    "source": "SubPrep_v20.bat",
+    "line": 77
+   },
+   "TitleMinMargin": {
+    "value": 0.15,
+    "source": "SubPrep_v20.bat",
+    "line": 78
+   },
+   "TrimLeadingExtra": {
+    "value": true,
+    "source": "SubPrep_v20.bat",
+    "line": 82
+   },
+   "MaxZeroStartCues": {
+    "value": 2,
+    "source": "SubPrep_v20.bat",
+    "line": 83
+   },
+   "HealthReport": {
+    "value": true,
+    "source": "SubPrep_v20.bat",
+    "line": 84
+   },
+   "AnalyzeTiming": {
+    "value": true,
+    "source": "SubPrep_v20.bat",
+    "line": 87
+   },
+   "FpsSampleTgt": {
+    "value": 100,
+    "source": "SubPrep_v20.bat",
+    "line": 88
+   },
+   "FpsSampleRef": {
+    "value": 400,
+    "source": "SubPrep_v20.bat",
+    "line": 89
+   },
+   "FpsAutoAllowGuess": {
+    "value": true,
+    "source": "SubPrep_v20.bat",
+    "line": 90
+   },
+   "AskCleanup": {
+    "value": true,
+    "source": "SubPrep_v20.bat",
+    "line": 91
+   },
+   "DeleteToRecycleBin": {
+    "value": true,
+    "source": "SubPrep_v20.bat",
+    "line": 92
+   },
+   "SkipOnMultipleEnAudio": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 36
+   },
+   "RemoveCommentaryAudio": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 37
+   },
+   "RemoveDescriptiveAudio": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 38
+   },
+   "RemoveCommentarySubs": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 39
+   },
+   "RemoveImageSubs": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 42
+   },
+   "AskWhichAudio": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 43
+   },
+   "AskAudioMinTracks": {
+    "value": 2,
+    "source": "MuxTool_v17.bat",
+    "line": 44
+   },
+   "RememberAudioChoice": {
+    "value": "ask",
+    "source": "MuxTool_v17.bat",
+    "line": 48
+   },
+   "UseSubPicker": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 54
+   },
+   "SubPickerMinFiles": {
+    "value": 1,
+    "source": "MuxTool_v17.bat",
+    "line": 55
+   },
+   "AddCodecTag": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 64
+   },
+   "CodecTagForTv": {
+    "value": false,
+    "source": "MuxTool_v17.bat",
+    "line": 65
+   },
+   "CodecTagParts": {
+    "value": [
+     "res",
+     "hdr",
+     "vcodec",
+     "acodec"
+    ],
+    "source": "MuxTool_v17.bat",
+    "line": 66
+   },
+   "WriteRunLog": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 68
+   },
+   "MuxLogDir": {
+    "value": "_muxtool_logs",
+    "source": "MuxTool_v17.bat",
+    "line": 69
+   },
+   "TmdbRetry": {
+    "value": 3,
+    "source": "MuxTool_v17.bat",
+    "line": 70
+   },
+   "ExtraToolDirs": {
+    "value": [
+     "C:\\Users\\fenha\\Desktop\\alass-windows64\\bin\\alass"
+    ],
+    "source": "MuxTool_v17.bat",
+    "line": 71
+   },
+   "SubKeepLangs": {
+    "value": [
+     "vi",
+     "cs",
+     "en"
+    ],
+    "source": "MuxTool_v17.bat",
+    "line": 72
+   },
+   "SubDefaultPriority": {
+    "value": [
+     "vi",
+     "en",
+     "cs"
+    ],
+    "source": "MuxTool_v17.bat",
+    "line": 73
+   },
+   "RemoveForcedSubs": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 74
+   },
+   "SkipOnAmbiguousUnd": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 75
+   },
+   "DefaultExternalLang": {
+    "value": "vi",
+    "source": "MuxTool_v17.bat",
+    "line": 76
+   },
+   "ExternalSubOverridesInternal": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 77
+   },
+   "SkipIfOutputExists": {
+    "value": false,
+    "source": "MuxTool_v17.bat",
+    "line": 78
+   },
+   "UseTrackOrder": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 79
+   },
+   "SetTitleFromName": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 80
+   },
+   "SubExtPriority": {
+    "value": [
+     ".srt",
+     ".ass",
+     ".ssa",
+     ".sup",
+     ".vtt"
+    ],
+    "source": "MuxTool_v17.bat",
+    "line": 81
+   },
+   "TmdbLang": {
+    "value": "en-US",
+    "source": "MuxTool_v17.bat",
+    "line": 88
+   },
+   "TmdbConfirm": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 89
+   },
+   "TmdbCreateFolder": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 90
+   },
+   "TvFetchEpisodeTitle": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 92
+   },
+   "TvSeasonFolder": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 93
+   },
+   "TvAbsoluteToSeason": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 96
+   },
+   "NameFallbackOther": {
+    "value": false,
+    "source": "MuxTool_v17.bat",
+    "line": 100
+   },
+   "TvdbLang": {
+    "value": "eng",
+    "source": "MuxTool_v17.bat",
+    "line": 104
+   },
+   "TvdbSeasonType": {
+    "value": "default",
+    "source": "MuxTool_v17.bat",
+    "line": 105
+   },
+   "UseDonorAudio": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 110
+   },
+   "DonorFolder": {
+    "value": "audio_nguon",
+    "source": "MuxTool_v17.bat",
+    "line": 111
+   },
+   "DonorLangs": {
+    "value": [
+     "cs"
+    ],
+    "source": "MuxTool_v17.bat",
+    "line": 112
+   },
+   "DonorSkipIfPresent": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 113
+   },
+   "DonorSetDefault": {
+    "value": false,
+    "source": "MuxTool_v17.bat",
+    "line": 114
+   },
+   "DonorMinVotes": {
+    "value": 20,
+    "source": "MuxTool_v17.bat",
+    "line": 115
+   },
+   "DonorAcceptDurationMatch": {
+    "value": true,
+    "source": "MuxTool_v17.bat",
+    "line": 116
+   },
+   "DonorMaxDurationDiff": {
+    "value": 1.0,
+    "source": "MuxTool_v17.bat",
+    "line": 117
+   },
+   "DonorOffsetMs": {
+    "value": {},
+    "source": "MuxTool_v17.bat",
+    "line": 118
+   }
+  },
+  "conflicts": {},
+  "secrets": [],
+  "ignored": [
+   [
+    "SubFetch_v30.bat",
+    "TableWidth",
+    "phần console — GUI thay hết"
+   ],
+   [
+    "SubFetch_v30.bat",
+    "TableMinWidth",
+    "phần console — GUI thay hết"
+   ],
+   [
+    "SubFetch_v30.bat",
+    "ConsoleCols",
+    "phần console — GUI thay hết"
+   ],
+   [
+    "SubFetch_v30.bat",
+    "ConsoleRows",
+    "phần console — GUI thay hết"
+   ],
+   [
+    "SubFetch_v30.bat",
+    "ConsoleScrollback",
+    "phần console — GUI thay hết"
+   ],
+   [
+    "SubFetch_v30.bat",
+    "UndoLastRun",
+    "thay bằng nút \"Hoàn tác…\""
+   ],
+   [
+    "SubFetch_v30.bat",
+    "UseColors",
+    "phần console — GUI thay hết"
+   ],
+   [
+    "SubFetch_v30.bat",
+    "UseGridView",
+    "phần console — GUI thay hết"
+   ],
+   [
+    "SubFetch_v30.bat",
+    "UsePool",
+    "kho nội bộ srt_pool đã bỏ từ bản 1.2.0"
+   ],
+   [
+    "SubFetch_v30.bat",
+    "PoolFolder",
+    "kho nội bộ srt_pool đã bỏ từ bản 1.2.0"
+   ],
+   [
+    "SubFetch_v30.bat",
+    "PoolTryLimit",
+    "kho nội bộ srt_pool đã bỏ từ bản 1.2.0"
+   ],
+   [
+    "SubFetch_v30.bat",
+    "PoolMinVotes",
+    "kho nội bộ srt_pool đã bỏ từ bản 1.2.0"
+   ],
+   [
+    "SubFetch_v30.bat",
+    "PoolFirst",
+    "kho nội bộ srt_pool đã bỏ từ bản 1.2.0"
+   ],
+   [
+    "SubFetch_v30.bat",
+    "PoolDefaultLang",
+    "kho nội bộ srt_pool đã bỏ từ bản 1.2.0"
+   ],
+   [
+    "SubPrep_v20.bat",
+    "KnownLangTags",
+    "thay bằng bảng ngôn ngữ chung"
+   ],
+   [
+    "SubPrep_v20.bat",
+    "PreviewFirst",
+    "GUI luôn hiện bảng xem trước"
+   ],
+   [
+    "SubPrep_v20.bat",
+    "UseColors",
+    "phần console — GUI thay hết"
+   ],
+   [
+    "MuxTool_v17.bat",
+    "UseColors",
+    "phần console — GUI thay hết"
+   ],
+   [
+    "MuxTool_v17.bat",
+    "UseGridView",
+    "phần console — GUI thay hết"
+   ],
+   [
+    "MuxTool_v17.bat",
+    "ConsoleCols",
+    "phần console — GUI thay hết"
+   ],
+   [
+    "MuxTool_v17.bat",
+    "ConsoleRows",
+    "phần console — GUI thay hết"
+   ],
+   [
+    "MuxTool_v17.bat",
+    "ConsoleScrollback",
+    "phần console — GUI thay hết"
+   ],
+   [
+    "MuxTool_v17.bat",
+    "DryRun",
+    "thay bằng nút \"Xem lệnh\""
+   ]
+  ],
+  "problems": []
+ }
+}

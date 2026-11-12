@@ -6,7 +6,7 @@ namespace MuxStudio.Core;
 /// <summary>
 /// Vài hành vi của thư viện chuẩn Python mà bản port cần giữ y nguyên (khác mặc định của .NET).
 /// </summary>
-internal static class Py
+internal static partial class Py
 {
     /// <summary><c>int(s)</c> cho chuỗi chữ số (khớp <c>\d</c> của regex): đọc được cả chữ số Unicode như Python.</summary>
     public static int Int(string digits)
@@ -20,6 +20,49 @@ internal static class Py
             v = checked(v * 10 + d);
         }
         return checked((int)v);
+    }
+
+    /// <summary><c>int(s)</c> cho <c>-?\d+</c> (chữ số Unicode như Python), kết quả 64 bit.</summary>
+    public static long Long(string s)
+    {
+        var neg = s.StartsWith('-');
+        long v = 0;
+        foreach (var ch in neg ? s[1..] : s)
+        {
+            var d = CharUnicodeInfo.GetDecimalDigitValue(ch);
+            if (d < 0)
+                throw new FormatException($"invalid literal for int(): '{s}'");
+            v = checked(v * 10 + d);
+        }
+        return neg ? -v : v;
+    }
+
+    /// <summary>Đổi chữ số Unicode (khớp <c>\d</c>) về chữ số ASCII để <c>double.Parse</c> đọc được như <c>float()</c>.</summary>
+    public static string AsciiDigits(string s)
+    {
+        StringBuilder? sb = null;
+        for (var i = 0; i < s.Length; i++)
+        {
+            var c = s[i];
+            if (c > 0x7F && CharUnicodeInfo.GetDecimalDigitValue(c) is var d and >= 0)
+            {
+                sb ??= new StringBuilder(s[..i]);
+                sb.Append((char)('0' + d));
+            }
+            else
+            {
+                sb?.Append(c);
+            }
+        }
+        return sb?.ToString() ?? s;
+    }
+
+    /// <summary>Cắt chuỗi kiểu Python <c>s[a:b]</c> (chỉ số không âm, tự kẹp vào độ dài).</summary>
+    public static string Slice(string s, int a, int b)
+    {
+        a = Math.Clamp(a, 0, s.Length);
+        b = Math.Clamp(b, 0, s.Length);
+        return b > a ? s[a..b] : "";
     }
 
     /// <summary><c>str.strip(chars)</c>.</summary>
@@ -73,6 +116,8 @@ internal static class Py
         null => "None",
         string s => s,
         bool b => b ? "True" : "False",
+        double d => FloatRepr(d),
+        float f1 => FloatRepr(f1),
         IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
         _ => x.ToString() ?? "",
     };
