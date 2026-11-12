@@ -8,7 +8,7 @@ Nhánh: `dotnet-port`. Quy ước làm việc: [`dotnet/CLAUDE.md`](../dotnet/CL
 |---|---|---|
 | 0 | Solution `dotnet/` (Core, App WPF-UI, Tests xUnit), `Directory.Build.props`, analyzer locale | ✅ 13/11/2026 |
 | 1 | `timing pgs srt encoding episodes naming config secrets undo i18n` | ✅ 13/11/2026: 343 test C# (Python cùng module: 305) |
-| 2 | `tools` (Process + huỷ) `probe tmdb tvdb subsource opensubs titulky subfetch` + phần còn lại của `naming` | ⏳ tiếp theo |
+| 2 | `tools` (Process + huỷ) `probe tmdb tvdb subsource opensubs titulky subfetch` + phần còn lại của `naming` | ⏳ `tools`, `probe` ✅ 13/11/2026 (386 test C#). Tiếp theo: HTTP (`tmdb tvdb subsource opensubs titulky`) → `naming` DB → `subfetch` |
 | 3 | `subprep` | |
 | 4 | `mux donor` | |
 | 5 | GUI (NavigationView 5 thẻ, Log, Cài đặt, ①②③, Giới thiệu) | |
@@ -36,6 +36,36 @@ Hạ tầng test (`tests/MuxStudio.Core.Tests/Support/`):
 - `TempDir`, kèm `MovieDir()` (thư mục tên có `[ ]`).
 - `GlobalStateCollection`, `Approx` (= `pytest.approx`).
 
+## GĐ2: ánh xạ module (đang làm)
+
+| Python | C# (`src/MuxStudio.Core/`) | Test C# | Python / C# |
+|---|---|---|---|
+| `tools.py` | `Tools.cs` (`Job`, `Cancelled`, `RunResult`, `Tools.*`) | `ToolsTests` | 11 / 20 |
+| `probe.py` | `Probe.cs` | `ProbeTests` | 8 / 15 |
+| (hành vi chuẩn của Python) | `PyStd.cs` (`os.path`, `pathlib`, `shutil.which`, `round(x, n)`, `int()`, `splitlines`, `strip`), `PyDict.cs` (`d.get`, `or {}`…) | `PyStdTests` | – / 8 |
+
+Test Python tương ứng: `tools` = 10 test của `test_tools_probe.py` + `test_unsupported_alass_flags` (phần không cần PrepSession);
+`probe` = 4 test của `test_tools_probe.py` + 3 test probe của `test_mux.py` + `test_probe_ref_sub_tracks_ranking` (`test_donor.py`).
+Ngoài ra **4981 ca đối chiếu** do Python xuất (`Data/python_probe_cases.json`): `tool_info`/`mkvmerge_version` (thay `tools.run`
+bằng kết quả cho sẵn), `alass_supported_flags`, `join_safe`, nhận diện track, codec/kênh/bitrate, độ phân giải, HDR, FPS, chọn
+track phụ đề mốc, `os.path.join`, `pathlib`, `round(x, n)`.
+
+Ánh xạ `Job`:
+- `job.log/info/ok/warn/error/dim/head/progress`, `job.lines` → cùng tên (`Lines` là bản sao `LogLine(Level, Message)`).
+  Hàm tạo nhận `IProgress<LogLine>`, `IProgress<JobProgress>`, `redact`, và `CancellationToken` (huỷ token = bấm "Dừng ngay").
+  Test / chỗ không có giao diện dùng `SyncProgress<T>` (gọi ngay, không qua SynchronizationContext).
+- `stop_after_current.set()` → `StopAfterCurrent()`; `stop_now.is_set()` → `StopNowRequested`; `check()` → `Check()` ném
+  `Cancelled` (kế thừa `OperationCanceledException`); `cancel_now()` → `CancelNow()`: huỷ `Token`, diệt **cả cây** tiến trình con
+  (`Kill(entireProcessTree: true)`), chờ tối đa 3 s.
+- `NULL_JOB` → `Job.Null`. `tool_info` → `Tools.GetToolInfo` (tên `ToolInfo` dành cho kiểu kết quả).
+
+Hạ tầng test mới:
+- `tests/MuxStudio.TestChild`: exe con thay `[sys.executable, "-c", ...]` và `fake_alass.py` (`print`, `args`, `hex`, `stderr`,
+  `exit`, `sleep`, `tree`, `alass --help`, `mkvmerge -J` giả, `ffprobe` giả). Được chép cạnh DLL test; gọi qua `Child.Cmd(...)`.
+  GĐ3 sẽ mở rộng chế độ `alass` thành bản port đầy đủ của `fake_alass.py`.
+- `PyCases.Check(nhóm, hàm)`: chạy hàm C# trên mọi ca Python xuất, báo tối đa 15 ca lệch.
+- `PyData.D/L/J` (dựng JSON kiểu Python), `MkvFake.V/A/S/J` (= `V A S J` của `test_mux.py`, dùng lại ở GĐ4).
+
 ## Đã kiểm chứng giống Python
 
 - `config.json` mặc định do C# ghi **giống từng byte** `json.dumps(..., ensure_ascii=False, indent=2)` của Python.
@@ -44,6 +74,9 @@ Hạ tầng test (`tests/MuxStudio.Core.Tests/Support/`):
 - Bảng mã một byte mà bảng ngôn ngữ dùng (874, 1250, 1251, 1252, 1254, 1256, 1258): đủ 256 byte giống Python.
 - Credential Manager: Python `keyring` ghi → C# đọc được, và C# ghi → Python đọc được. Đã kiểm trên máy thật với service tạm `MuxStudioPortSelfTest`, đã xoá sau khi kiểm.
 - Thùng rác thật (`SHFileOperationW`): đã thử một lần với file tạm `muxstudio-recycle-selftest.txt`.
+- `Tools.GetToolInfo` / `MkvmergeVersion` với mkvmerge, mkvextract, ffmpeg, ffprobe thật trên máy (Desktop\mkvtoolnix,
+  Desktop\alass-windows64): test `Tool_info_with_real_tools_if_installed` chạy thật, không bị bỏ qua.
+- `os.walk` đi vào junction (`mklink /J`), không đi vào symlink: C# làm y vậy (`Py.IsLink` đọc thẻ reparse).
 
 ## Khác biệt đã biết (cố ý hoặc chưa làm)
 
@@ -54,19 +87,30 @@ Hạ tầng test (`tests/MuxStudio.Core.Tests/Support/`):
 - `PyJson.Loads` không nhận `NaN`/`Infinity` (Python có nhận); số nguyên vượt 64 bit → `double`.
 - `Coerce` số thực → số nguyên chỉ nhận |x| < 9.2e18; `float("1_000")` của Python có nhận dấu gạch dưới, C# thì không.
 - `Secrets.Mask` đếm độ dài theo đơn vị UTF-16 (key thực tế là ASCII nên không ảnh hưởng).
+- `Probe`: `\b` trong regex (Forced/SDH/commentary/HDR) dùng ngữ nghĩa .NET như `Episodes`/`Naming` (xem trên).
+- `Tools.Run`: diệt cả cây tiến trình khi quá thời gian / "Dừng ngay" (Python chỉ diệt tiến trình con trực tiếp). Huỷ đúng lúc
+  vừa mở tiến trình thì tiến trình bị diệt ngay (Python để nó chạy hết rồi mới ném `Cancelled`). Kết quả trả về vẫn như Python.
+- `Tools.WalkFiles`: symlink thư mục **hỏng** vẫn coi là thư mục (Python coi là file). JSON lạ (gốc không phải bảng, phần tử
+  `tracks` không phải bảng) bị bỏ qua thay vì ném lỗi như Python.
+- `tests/test_probe_tools.py` là test của script dò API trong `tools/` (`probe_*.py`, `nhap_tu_bat.py`) — công cụ phát triển,
+  không thuộc `core/`, nên không port.
 
 ## Làm lại dữ liệu đối chiếu
 
 ```powershell
 .venv\Scripts\python.exe tools\gen_dotnet_config_fields.py   # ConfigFields.cs + Data/python_config.json
 .venv\Scripts\python.exe tools\gen_dotnet_i18n.py            # Resources/i18n_en.json + Data/python_i18n_cases.json
+.venv\Scripts\python.exe tools\gen_dotnet_probe.py           # Data/python_probe_cases.json (tools, probe, os.path, round…)
 ```
 `Data/python_codepages.json` được sinh một lần bằng lệnh sau:
 `bytes(range(256)).decode(f"cp{cp}", errors="muxstudio_c1")` cho cp ∈ {874, 1250…1258}, lưu dạng `{cp: [mã ký tự…]}`.
 
-## Gợi ý cho GĐ2
+## Gợi ý cho phần còn lại của GĐ2
 
-1. `tools.py`: `Process` + `ArgumentList`, `CreateNoWindow`, UTF-8. Thay `Job` bằng `CancellationToken` + `IProgress<T>`. Huỷ bằng `Kill(entireProcessTree: true)`. Đọc `tests/test_probe_tools.py` và `tests/test_tools_probe.py` trước.
-2. HTTP: dùng chung một `HttpClient` và inject `HttpMessageHandler`. Port `tests/fakehttp.py` thành handler giả. Test **không bao giờ** gọi mạng thật (xem fixture `no_real_network` trong `conftest.py`).
+1. ~~`tools.py`, `probe.py`~~ ✅.
+2. HTTP: dùng chung một `HttpClient` và inject `HttpMessageHandler`. Port `tests/fakehttp.py` thành handler giả. Test **không bao giờ** gọi mạng thật (xem fixture `no_real_network` trong `conftest.py`). Các client nhận `Job` (log + `Job.Token` cho `HttpClient`). Kết quả JSON đọc bằng `PyJson.Loads` + `PyDict` (`r.Get("x")`, `r.GetDict("x")`, `r.GetStr("x")`).
 3. Phần còn lại của `naming` (xem trên) + `test_naming_db.py`.
 4. Dữ liệu mẫu `tests/data/titulky/*.html` đọc thẳng từ thư mục `tests/` của repo (`RepoPaths.Root`).
+5. Test Python hay `monkeypatch.setattr(tools, "run" | "mkvmerge_version", ...)` (test_mux, test_subprep). Bản C# chưa có chỗ
+   thay `Tools.Run`; khi cần (GĐ3/GĐ4) nên thêm chỗ thay theo luồng (`AsyncLocal`) hoặc truyền runner vào phiên, **không** dùng
+   biến tĩnh toàn cục (test chạy song song). Phần đọc kết quả đã tách sẵn: `Tools.ToolInfoOf`, `Tools.MkvmergeVersionOf`.

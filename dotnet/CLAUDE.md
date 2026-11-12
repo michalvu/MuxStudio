@@ -19,7 +19,7 @@ Baseline Python (so sánh hành vi): `.venv\Scripts\python.exe -m pytest tests -
 2. Mỗi module: port code → port test của nó (`tests/test_x.py` → `XTests.cs`) → `dotnet test` xanh → commit riêng.
 3. Ở chỗ hành vi khó đoán, thêm **test đối chiếu với dữ liệu do Python xuất** (`tests/MuxStudio.Core.Tests/Data/python_*.json`, sinh bằng `tools/gen_dotnet_*.py`). Đừng đoán kết quả của Python: chạy Python để lấy.
 4. Test **không bao giờ** chạm Credential Manager thật, Thùng rác thật hay mạng thật. Dùng `MemorySecretBackend`, `FakeCredentialTable`, `Undo.SendToRecycleBin` giả và (từ GĐ2) `HttpMessageHandler` giả.
-5. Test đụng state tĩnh dùng chung (bảng ngôn ngữ, ngôn ngữ giao diện, biến môi trường, `Undo.SendToRecycleBin`) phải gắn `[Collection(GlobalStateCollection.Name)]` và trả state về như cũ.
+5. Test đụng state tĩnh dùng chung (bảng ngôn ngữ — kể cả chỉ đọc qua `Naming.LangMatch`/`Probe`, ngôn ngữ giao diện, biến môi trường như `PATH`, `Undo.SendToRecycleBin`) phải gắn `[Collection(GlobalStateCollection.Name)]` và trả state về như cũ.
 6. `MuxStudio.Core` **không** tham chiếu WPF.
 
 ## Bẫy Python → C# đã gặp (giữ đúng)
@@ -45,9 +45,22 @@ Baseline Python (so sánh hành vi): `.venv\Scripts\python.exe -m pytest tests -
 | `send2trash` | `Undo.Trash` → `SHFileOperationW` |
 | bảng mã cũ | `TextEncoding` (đã `RegisterProvider`; byte vùng riêng của Windows → mã byte như Python) |
 | static field giữa 2 file partial | không có thứ tự bảo đảm → dùng `Lazy<T>` |
+| `os.path.join` | `Py.Join` (**không** `Path.Combine`: `Combine("C:", "x")` = `C:\x`, Python ra `C:x`) |
+| `str(Path(...))`, `Path(a) / b` | `Py.PurePath`, `Py.PathJoin` (`/` → `\`, bỏ `.` và dấu tách cuối) |
+| `os.path.abspath` / `normcase` / `islink` | `Py.AbsPath` / `Py.NormCase` / `Py.IsLink` (junction không phải link) |
+| `round(x, n)` | `Py.Round(x, n)` (**không** `Math.Round(x, n)`: lệch ở ca đúng giữa trên giá trị nhị phân, vd 0.0625) |
+| `int(x)` | `Py.ToInt` (cắt phần lẻ, NaN → lỗi) |
+| `str.strip()` / `str.splitlines()` | `Py.StripWs` (Python coi `\x1c–\x1f` là khoảng trắng) / `Py.SplitLines` |
+| `d.get(k)`, `(d.get(k) or {})`, `(… or [])`, `str(d.get(k) or "")` | `PyDict`: `d.Get(k)`, `d.GetDict(k)`, `d.GetList(k)`, `d.GetStr(k)` |
+| `x is True` (cờ JSON) | `x is true` (1 không phải True) |
+| `subprocess` + `returncode` | `Tools.Run` → `RunResult.Code` là `long` **không âm** như Python (0xC0000135 = 3221225781, không phải số âm) |
+| `shutil.copyfile` / `shutil.which` | `Tools.CopyFile` (chỉ chép nội dung; `File.Copy` giữ cả thời gian sửa) / `Py.Which` |
+| `tools.Job`, `Cancelled`, `cancel_now` | `Job` (`Token`, `CancelNow` diệt cả cây tiến trình), `Cancelled : OperationCanceledException` |
+| test: `[sys.executable, "-c", …]`, `fake_alass.py` | `Child.Cmd(...)` (exe `tests/MuxStudio.TestChild`) |
 
 ## File sinh tự động (đừng sửa tay)
 
 - `src/MuxStudio.Core/ConfigFields.cs` ← `python tools/gen_dotnet_config_fields.py` (sau khi sửa `FIELDS` trong `core/config.py`)
 - `src/MuxStudio.Core/Resources/i18n_en.json` ← `python tools/gen_dotnet_i18n.py` (sau khi chạy `tools/i18n_build.py`)
-- `tests/MuxStudio.Core.Tests/Data/python_*.json` ← hai script trên. Riêng `python_codepages.json` sinh một lần, bằng lệnh ghi trong HANDOFF_DOTNET.md.
+- `tests/MuxStudio.Core.Tests/Data/python_probe_cases.json` ← `python tools/gen_dotnet_probe.py` (sau khi sửa `core/tools.py` / `core/probe.py`)
+- `tests/MuxStudio.Core.Tests/Data/python_*.json` còn lại ← hai script đầu. Riêng `python_codepages.json` sinh một lần, bằng lệnh ghi trong HANDOFF_DOTNET.md.
