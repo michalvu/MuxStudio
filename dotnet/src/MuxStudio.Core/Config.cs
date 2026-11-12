@@ -24,7 +24,7 @@ public static partial class ConfigSchema
 
     // Lazy: thứ tự khởi tạo trường tĩnh giữa hai file của partial class (ConfigFields.cs) không được bảo đảm.
     private static readonly Lazy<IReadOnlyDictionary<string, Field>> FieldByKeyLazy =
-        new(() => Fields.ToDictionary(f => f.Key, StringComparer.Ordinal));
+        new(() => Fields!.ToDictionary(f => f.Key, StringComparer.Ordinal)); // Lazy chạy sau khi lớp đã khởi tạo xong
 
     private static readonly Lazy<OrderedDictionary<string, object?>> DefaultsLazy = new(BuildDefaults);
 
