@@ -22,6 +22,17 @@ Baseline Python (so sánh hành vi): `.venv\Scripts\python.exe -m pytest tests -
 5. Test đụng state tĩnh dùng chung (bảng ngôn ngữ — kể cả chỉ đọc qua `Naming.LangMatch`/`Probe`, ngôn ngữ giao diện, biến môi trường như `PATH`, `Undo.SendToRecycleBin`) phải gắn `[Collection(GlobalStateCollection.Name)]` và trả state về như cũ.
 6. `MuxStudio.Core` **không** tham chiếu WPF.
 
+## Hiệu năng: nhẹ, gọn, mượt (yêu cầu của người dùng — không được đổi kết quả hay bỏ tính năng)
+
+1. **Không chặn luồng giao diện.** Mọi việc của lõi (tiến trình con, đọc/ghi file, HTTP) chạy ở luồng phụ; lõi không biết tới Dispatcher. Log / tiến độ đi qua `IProgress<T>`; GĐ5 gom 50–100 ms một lần. Dịch log (`I18n.Tr`, đo được 60–130 µs/dòng) làm ở luồng phụ, trước khi đẩy sang giao diện.
+2. **Regex:** luôn `[GeneratedRegex]`; không `new Regex(...)` lúc chạy (mẫu động thì dựng một lần rồi giữ lại).
+3. **Không làm lại việc đắt:** giữ đủ bộ nhớ đệm của bản Python (`mkvmerge -J`, ffprobe, WAV, mốc thời gian…); không gọi lại tiến trình con / đọc lại file trong vòng lặp.
+4. **Bảng tĩnh lớn:** `Lazy<T>` — dựng khi cần lần đầu, không dựng lúc mở app.
+5. **Duyệt thư mục:** dùng thông tin `FileSystemInfo` đã có (thuộc tính, kích thước) trước khi gọi thêm API hệ thống cho từng mục.
+6. **Tiến trình con:** đọc output bất đồng bộ (không kẹt), huỷ được qua `Job.Token`, diệt cả cây tiến trình.
+7. **Không thêm gói NuGet** khi thư viện chuẩn làm được (bản phát hành nhỏ, khởi động nhanh).
+8. **Đo trước khi tối ưu** (bản Release). Tối ưu xong, test đối chiếu Python phải vẫn xanh.
+
 ## Bẫy Python → C# đã gặp (giữ đúng)
 
 | Python | C# |

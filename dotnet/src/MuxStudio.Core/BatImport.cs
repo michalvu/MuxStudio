@@ -130,10 +130,15 @@ internal sealed partial class PsScanner(string text, int lineOffset, IEnumerable
     /// <summary><c>@'</c> hoặc <c>@"</c> rồi xuống dòng = mở here-string.</summary>
     private bool IsHereStart(int i) => HereStartRe().IsMatch(_s, i);
 
+    [GeneratedRegex("^'@", RegexOptions.Multiline)]
+    private static partial Regex HereEndSingleRe();
+
+    [GeneratedRegex("^\"@", RegexOptions.Multiline)]
+    private static partial Regex HereEndDoubleRe();
+
     private int SkipHere(int i) // i tại '@'
     {
-        var q = _s[i + 1];
-        var m = new Regex("^" + Regex.Escape(q.ToString()) + "@", RegexOptions.Multiline).Match(_s, Math.Min(i + 2, _n));
+        var m = (_s[i + 1] == '\'' ? HereEndSingleRe() : HereEndDoubleRe()).Match(_s, Math.Min(i + 2, _n));
         return m.Success ? m.Index + m.Length : _n;
     }
 

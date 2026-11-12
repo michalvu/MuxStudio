@@ -404,7 +404,7 @@ public static partial class Tools
                     if ((e.Attributes & FileAttributes.Directory) != 0)
                     {
                         var sub = Py.Join(dirpath, e.Name);
-                        if (!Skipped(sub) && !Py.IsLink(sub))
+                        if (!Skipped(sub) && ((e.Attributes & FileAttributes.ReparsePoint) == 0 || !Py.IsLink(sub)))
                             stack.Push(sub);
                     }
                     else if (Wanted(e.Name))

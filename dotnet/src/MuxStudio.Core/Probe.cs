@@ -266,21 +266,60 @@ public static partial class Probe
     ];
 
     /// <summary><c>_codec_from_text</c>: (mẫu, tên) theo đúng thứ tự thử của Python.</summary>
+    [GeneratedRegex("TrueHD", I)]
+    private static partial Regex CTrueHdRe();
+
+    [GeneratedRegex("DTS-HD Master", I)]
+    private static partial Regex CDtsHdMaRe();
+
+    [GeneratedRegex("DTS-HD High", I)]
+    private static partial Regex CDtsHdHraRe();
+
+    [GeneratedRegex("DTS-ES", I)]
+    private static partial Regex CDtsEsRe();
+
+    [GeneratedRegex("^DTS", I)]
+    private static partial Regex CDtsRe();
+
+    [GeneratedRegex("E-AC-3|EAC3", I)]
+    private static partial Regex CEac3Re();
+
+    [GeneratedRegex("AC-3|AC3", I)]
+    private static partial Regex CAc3Re();
+
+    [GeneratedRegex("AAC", I)]
+    private static partial Regex CAacRe();
+
+    [GeneratedRegex("FLAC", I)]
+    private static partial Regex CFlacRe();
+
+    [GeneratedRegex("Opus", I)]
+    private static partial Regex COpusRe();
+
+    [GeneratedRegex("Vorbis", I)]
+    private static partial Regex CVorbisRe();
+
+    [GeneratedRegex("MP3|MPEG-1 Audio layer", I)]
+    private static partial Regex CMp3Re();
+
+    [GeneratedRegex("PCM", I)]
+    private static partial Regex CPcmRe();
+
     private static readonly (Regex Re, string Name)[] CodecFromTextRules =
     [
-        (new Regex("TrueHD", I), "TrueHD"),
-        (new Regex("DTS-HD Master", I), "DTS-HD MA"),
-        (new Regex("DTS-HD High", I), "DTS-HD HRA"),
-        (new Regex("DTS-ES", I), "DTS-ES"),
-        (new Regex("^DTS", I), "DTS"),
-        (new Regex("E-AC-3|EAC3", I), "E-AC-3"),
-        (new Regex("AC-3|AC3", I), "Dolby Digital"),
-        (new Regex("AAC", I), "AAC"),
-        (new Regex("FLAC", I), "FLAC"),
-        (new Regex("Opus", I), "Opus"),
-        (new Regex("Vorbis", I), "Vorbis"),
-        (new Regex("MP3|MPEG-1 Audio layer", I), "MP3"),
-        (new Regex("PCM", I), "PCM"),
+        (CTrueHdRe(), "TrueHD"),
+        (CDtsHdMaRe(), "DTS-HD MA"),
+        (CDtsHdHraRe(), "DTS-HD HRA"),
+        (CDtsEsRe(), "DTS-ES"),
+        (CDtsRe(), "DTS"),
+        (CEac3Re(), "E-AC-3"),
+        (CAc3Re(), "Dolby Digital"),
+        (CAacRe(), "AAC"),
+        (CFlacRe(), "FLAC"),
+        (COpusRe(), "Opus"),
+        (CVorbisRe(), "Vorbis"),
+        (CMp3Re(), "MP3"),
+        (CPcmRe(), "PCM"),
     ];
 
     private static string? CodecFromText(string c)
