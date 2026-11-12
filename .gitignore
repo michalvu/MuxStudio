@@ -27,3 +27,10 @@ ket_qua_do_api.txt
 ket_qua_do_titulky.txt
 captcha_titulky.jpg
 _titulky_probe_tmp/
+
+# .NET (dotnet/)
+bin/
+obj/
+.vs/
+TestResults/
+*.user

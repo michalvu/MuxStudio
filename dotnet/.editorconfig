@@ -1,0 +1,18 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+
+[*.{csproj,props,targets,slnx,xml,xaml,json}]
+indent_size = 2
+
+[*.cs]
+# Máy dùng locale tiếng Séc (dấu phẩy thập phân): mọi chuyển số <-> chuỗi phải nêu rõ culture.
+dotnet_diagnostic.CA1305.severity = error   # IFormatProvider
+dotnet_diagnostic.CA1304.severity = error   # CultureInfo
+dotnet_diagnostic.CA1309.severity = warning # StringComparison.Ordinal
+dotnet_diagnostic.CA1310.severity = error   # so sánh chuỗi phải nêu StringComparison

@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MuxStudio.App/MuxStudio.App.csproj" />
+    <Project Path="src/MuxStudio.Core/MuxStudio.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MuxStudio.Core.Tests/MuxStudio.Core.Tests.csproj" />
+  </Folder>
+</Solution>
