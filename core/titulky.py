@@ -237,6 +237,36 @@ def search_query(title: str, season: int | None = None, episode: int | None = No
     return t
 
 
+def title_fragments(title: str, limit: int = 4) -> list[str]:
+    """Các MẢNH của tên phim nên thử khi tìm nguyên tên không ra.
+
+    Ô tìm của Titulky so khớp NGUYÊN VĂN từng ký tự (đã thử trang thật 2026-11-12: không có ký tự đại diện, không tìm
+    được theo IMDb). Tên rút từ tên file mất dấu câu — ``The Lord of the Rings The Return of the King`` không khớp
+    ``The Lord of the Rings: The Return of the King`` (0 kết quả, lỗi người dùng gặp ở bản 1.3.2). Cắt đôi tên: nửa nào
+    không vắt qua chỗ có dấu câu thì khớp; cắt tiếp mỗi nửa cho trường hợp có hai dấu câu. Mảnh dài thử trước; bỏ mảnh
+    quá chung chung (dưới 6 chữ cái). Kết quả của một mảnh phải được LỌC lại theo tên + năm (việc của nơi gọi)."""
+    words = _WS.sub(" ", title or "").strip().split(" ")
+    if len(words) < 2:
+        return []
+
+    def halves(ws: list[str]) -> list[list[str]]:
+        mid = (len(ws) + 1) // 2
+        return [ws[:mid], ws[mid:]] if len(ws) >= 2 else []
+
+    level1 = halves(words)
+    level2 = [h for part in level1 for h in halves(part)]
+    out: list[str] = []
+    for group in (level1, level2):
+        for ws in sorted(group, key=lambda x: -len(" ".join(x))):
+            frag = " ".join(ws)
+            if len(re.sub(r"[^A-Za-z0-9]", "", frag)) >= 6 and frag.lower() not in (x.lower() for x in out):
+                out.append(frag)
+    return out[:max(0, limit)]
+
+
+PAGE_SIZE = 50  # so dong mot trang ket qua cua Titulky (trang that: tham so ZaznamuStrana=50 & ActualRecord=<vi tri>)
+
+
 # ======================================================================
 #  Client
 # ======================================================================
@@ -263,7 +293,7 @@ class TitulkyClient:
         self.captcha_declined = False  # ban da bo qua mot lan -> khong hoi nua trong luot nay
         self.last_status = 0
         self._last_call: float | None = None
-        self._search_cache: dict[str, list[SearchRow]] = {}
+        self._search_cache: dict[str, tuple[int, list[SearchRow]]] = {}  # cau tim -> (so trang da xem, cac dong)
         self._detail_done: set[int] = set()
         self._preview_cache: dict[int, str] = {}
         self._down_cache: dict[int, Path | None] = {}
@@ -349,18 +379,33 @@ class TitulkyClient:
         return "Không gửi được đăng nhập tới Titulky (lỗi mạng)."
 
     # ------------------------------------------------------------------ tim
-    def search(self, query: str) -> list[SearchRow]:
-        """Tìm theo chữ (một trang, tối đa 50 dòng). Có nhớ đệm trong lượt chạy."""
+    def search(self, query: str, pages: int = 1) -> list[SearchRow]:
+        """Tìm theo chữ (so khớp nguyên văn). Mỗi trang 50 dòng; ``pages`` = số trang tối đa được xem (trang sau chỉ gọi
+        khi trang trước đầy). Có nhớ đệm trong lượt chạy."""
         q = _WS.sub(" ", query or "").strip()
         if not q:
             return []
         key = q.lower()
-        if key in self._search_cache:
-            return self._search_cache[key]
-        r = self._request("GET", BASE, params={"Fulltext": q})
-        rows = parse_search(r.text) if r is not None else []
-        if r is not None:
-            self._search_cache[key] = rows
+        pages = max(1, int(pages))
+        seen, rows = self._search_cache.get(key, (0, []))
+        if seen >= pages or (seen and len(rows) < seen * PAGE_SIZE):
+            return rows
+        rows = list(rows)
+        ids = {r.id for r in rows}
+        while seen < pages:
+            params: dict[str, Any] = {"Fulltext": q}
+            if seen:
+                params.update({"ZaznamuStrana": PAGE_SIZE, "ActualRecord": seen * PAGE_SIZE})
+            r = self._request("GET", BASE, params=params)
+            if r is None:
+                return rows
+            got = parse_search(r.text)
+            seen += 1
+            rows += [x for x in got if x.id not in ids]
+            ids |= {x.id for x in got}
+            self._search_cache[key] = (seen, rows)
+            if len(got) < PAGE_SIZE:
+                break
         return rows
 
     def fill_detail(self, row: SearchRow) -> SearchRow:

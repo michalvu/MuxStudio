@@ -3,7 +3,7 @@
 Phần mềm Windows (Python + CustomTkinter) thay cho ba công cụ dòng lệnh `SubFetch`, `SubPrep` và `MuxTool`:
 tải phụ đề → đồng bộ phụ đề → dọn track và mux MKV, đặt tên chuẩn Jellyfin.
 
-**Trạng thái:** **hoàn thành — đã duyệt cả 7 giai đoạn (0–6)**. Phiên bản **1.3.2**: bản `MuxStudio.exe` (không cần cài
+**Trạng thái:** **hoàn thành — đã duyệt cả 7 giai đoạn (0–6)**. Phiên bản **1.3.3**: bản `MuxStudio.exe` (không cần cài
 Python) tạo bằng `build.bat`; giao diện 5 thẻ ① Tải phụ đề → ② Chuẩn bị phụ đề → ③ Mux → Cài đặt → Giới thiệu, hai ngôn ngữ (Tiếng Việt / English),
 bộ màu kiểu kính Sáng / Tối, khung log màu, nút Dừng, màn hình Hoàn tác.
 

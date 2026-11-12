@@ -120,6 +120,30 @@ def test_imdb_movie_exact_title_and_year():
     assert c.imdb_id("Dune", 2021, False) == "tt1160419" and len(http.calls) == n  # bo nho dem trong luot
 
 
+def test_official_title_keeps_punctuation_and_reuses_cached_search():
+    """Tên rút từ tên file mất dấu hai chấm; TMDB trả tên chính thức có đủ dấu câu (để hỏi Titulky — so khớp nguyên văn)."""
+    http = FakeHTTP()
+    http.add("GET", r"/search/movie", FakeResponse(200, {"results": [
+        {"id": 122, "title": "The Lord of the Rings: The Return of the King", "original_title": "The Lord of the Rings: The Return of the King",
+         "release_date": "2003-12-17"},
+        {"id": 123, "title": "The Lord of the Rings", "original_title": "The Lord of the Rings", "release_date": "1978-11-15"}]}))
+    http.add("GET", r"/movie/122/external_ids", FakeResponse(200, {"imdb_id": "tt0167260"}))
+    http.add("GET", r"/search/tv", FakeResponse(200, {"results": [
+        {"id": 7, "name": "Marvel's Agents of S.H.I.E.L.D.", "original_name": "Marvel's Agents of S.H.I.E.L.D.", "first_air_date": "2013-09-24"}]}))
+    http.add("GET", r"/tv/7$", FakeResponse(200, {"seasons": [{"season_number": 1, "episode_count": 22}]}))
+    c, _ = client(http)
+    assert c.imdb_id("The Lord of the Rings The Return of the King", 2003, False) == "tt0167260"
+    n = len(http.calls)
+    assert c.official_title("The Lord of the Rings The Return of the King", 2003, False) == "The Lord of the Rings: The Return of the King"
+    assert len(http.calls) == n  # dung lai ket qua tim da nho dem: khong ton them luot goi
+    assert c.official_title("Marvels Agents of S H I E L D", 2013, True, 1, 5) == "Marvel's Agents of S.H.I.E.L.D."
+    assert c.official_title("", 2003, False) is None
+    empty = FakeHTTP()
+    empty.add("GET", r"/search/movie", FakeResponse(200, {"results": []}))
+    c2, _ = client(empty)
+    assert c2.official_title("Phim Khong Co", None, False) is None
+
+
 def test_no_key():
     c = tmdb.TmdbClient("", http=FakeHTTP())
-    assert c.check().ok is None and c.imdb_id("x", None, False) is None
+    assert c.check().ok is None and c.imdb_id("x", None, False) is None and c.official_title("x", None, False) is None

@@ -252,6 +252,21 @@ class TmdbClient:
 
         return self._cached(("imdb", title, year, is_tv, season, episode), do)
 
+    def official_title(self, title: str, year: int | None, is_tv: bool, season: int | None = None,
+                       episode: int | None = None) -> str | None:
+        """Tên CHÍNH THỨC của phim / series (có đủ dấu câu: ``The Lord of the Rings: The Return of the King``) — tên rút
+        từ tên file thì mất dấu hai chấm, dấu nháy… Dùng cùng kết quả tìm (đã nhớ đệm) với ``imdb_id`` nên không tốn
+        thêm lượt gọi. ``None`` = không có key / không tìm thấy."""
+        if not self.usable or not title:
+            return None
+        if is_tv:
+            pick = self.find_show(title, year, season, episode)
+        else:
+            res = self.search("movie", title, year)
+            pick = self.pick_exact(res, title, year, "title", "original_title", "release_date") or (res[0] if res else None)
+        name = (pick or {}).get("name" if is_tv else "title")
+        return str(name).strip() or None if name else None
+
     # ------------------------------------------------------------------ kiem tra ket noi
     def check(self) -> ConnStatus:
         if not self.api_key:

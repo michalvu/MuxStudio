@@ -146,6 +146,7 @@ class VideoInfo:
     imdb: str | None = None
     mapped: tuple[int, int] | None = None  # so tap tuyet doi -> (season, tap) theo TMDB
     lang_reported: bool = False
+    official: str = ""  # ten chinh thuc theo TMDB (du dau cau) - de hoi cac nguon so khop nguyen van (Titulky)
     has_subs: dict[str, tuple[Path, str]] = field(default_factory=dict)  # ngon ngu -> (file, "trong MKV"/"cạnh phim")
 
     @property
@@ -651,6 +652,8 @@ class FetchSession:
                 v.imdb = self.tmdb.imdb_id(v.title, v.year, False)
             if v.imdb:
                 self.job.dim(f"    IMDb: {v.imdb}")
+            v.official = self.tmdb.official_title(v.title, v.year, is_tv, ep.season if ep is not None and ep.has_season
+                                                  else None, ep.episode if ep is not None else None) or ""
         if is_tv and ep is not None:
             season = ep.season if ep.has_season else (v.mapped[0] if v.mapped else None)
         if not self.ss:
@@ -739,17 +742,15 @@ class FetchSession:
                                      naming.title_score(v.tokens, naming.title_tokens(rel)), rel, info, o, None, mt))
         return out
 
-    def _titulky_rows(self, v: VideoInfo) -> list[titulky.SearchRow]:
-        """Tìm trên Titulky rồi lọc: chỉ tiếng Séc (``CZ``), đúng phim (tên + năm) / đúng tập."""
-        assert self.tt is not None
-        season = epn = None
-        if v.ep is not None:
-            if v.mapped:
-                season, epn = v.mapped
-            elif v.ep.has_season:
-                season, epn = v.ep.season, v.ep.episode
-        rows = self.tt.search(titulky.search_query(v.title, season, epn))
-        want = naming.title_tokens(v.title)
+    def _titulky_keep(self, v: VideoInfo, rows: list[titulky.SearchRow], season: int | None,
+                      epn: int | None) -> list[titulky.SearchRow]:
+        """Lọc kết quả Titulky: chỉ tiếng Séc (``CZ``), đúng phim (tên + năm) / đúng tập."""
+        wants = [naming.title_tokens(t) for t in dict.fromkeys([v.title, v.official]) if t]
+
+        def same_title(name: str) -> bool:
+            got = naming.title_tokens(name)
+            return any(naming.title_score(w, got) >= 0.6 for w in wants)
+
         keep: list[titulky.SearchRow] = []
         for r in rows:
             if r.lang != "CZ":
@@ -761,21 +762,51 @@ class FetchSession:
                     continue  # mot tap cua phim bo trung ten
                 if v.year and r.year and abs(v.year - r.year) > 1:
                     continue
-                ok = naming.title_score(want, naming.title_tokens(r.title)) >= 0.6 or (
+                ok = same_title(r.title) or (
                     bool(r.release) and naming.title_score(v.tokens, naming.title_tokens(r.release)) >= 0.5)
             else:
                 if rep is None:
                     continue
                 same = ((rep.season, rep.episode) == (season, epn) and rep.has_season) if season is not None else \
                     episodes.same_episode(v.ep, rep)
-                ok = same and naming.title_score(want, naming.title_tokens(rep.series or r.title)) >= 0.6
+                ok = same and same_title(rep.series or r.title)
             if ok:
                 keep.append(r)
         if v.ep is None and v.year and any(r.year for r in keep):
             keep = [r for r in keep if r.year]  # da co ban ghi dung nam -> bo ban KHONG ghi nam (co the la phim khac)
-        if len(rows) - len(keep):
-            self.job.dim(f"    [i] Titulky: {len(rows)} kết quả, giữ {len(keep)} bản tiếng Séc đúng phim / đúng tập.")
         return keep
+
+    def _titulky_rows(self, v: VideoInfo) -> list[titulky.SearchRow]:
+        """Tìm trên Titulky rồi lọc. Trang so khớp NGUYÊN VĂN tên phim, mà tên rút từ tên file mất dấu câu ⇒ hỏi lần lượt:
+        tên chính thức theo TMDB (đủ dấu câu) → tên từ tên file → (nếu vẫn 0 kết quả) từng MẢNH của tên rồi lọc lại."""
+        assert self.tt is not None
+        tt = self.tt
+        season = epn = None
+        if v.ep is not None:
+            if v.mapped:
+                season, epn = v.mapped
+            elif v.ep.has_season:
+                season, epn = v.ep.season, v.ep.episode
+        titles = [t for t in dict.fromkeys([v.official, v.title]) if t]
+        asked = 0
+        for t in titles:
+            q = titulky.search_query(t, season, epn)
+            rows = tt.search(q, pages=3)
+            keep = self._titulky_keep(v, rows, season, epn)
+            asked += len(rows)
+            self.job.dim(f"    [i] Titulky: tìm '{q}' → {len(rows)} kết quả, giữ {len(keep)} bản tiếng Séc đúng phim / đúng tập.")
+            if keep:
+                return keep
+        if asked:
+            return []  # ten co tren trang nhung khong co ban tieng Sec dung phim -> khong hoi them
+        for frag in titulky.title_fragments(titles[0]) if titles else []:
+            q = titulky.search_query(frag, season, epn)
+            rows = tt.search(q, pages=4)
+            keep = self._titulky_keep(v, rows, season, epn)
+            self.job.dim(f"    [i] Titulky: thử một phần tên '{q}' → {len(rows)} kết quả, giữ {len(keep)}.")
+            if keep:
+                return keep
+        return []
 
     def _titulky_candidates(self, it: FetchItem) -> list[Candidate]:
         """Ứng viên từ Titulky.com (tiếng Séc). Với ``TitulkyProbeTop`` bản giống tên nhất: xem trang chi tiết (FPS)

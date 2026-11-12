@@ -511,7 +511,7 @@ def test_titulky_movie_filters_language_year_title_and_source_order(movie_dir):
     assert (probed.fps, probed.tier) == ("25", 3)  # khai bao 25 fps, video 23,976 -> LECH
     cands = s.gather(it)
     assert all(c.tier != 3 for c in cands)  # StrictFpsMatch loai ban lech framerate
-    assert any("Titulky: 13 kết quả, giữ" in m for _, m in job.lines)
+    assert any("Titulky: tìm 'Dune' → 13 kết quả, giữ" in m for _, m in job.lines)
 
 
 def test_titulky_only_for_czech_and_can_be_switched_off(movie_dir):
@@ -534,3 +534,79 @@ def test_titulky_only_for_czech_and_can_be_switched_off(movie_dir):
     j2 = tools.Job()
     s4.set_job(j2)
     assert s4.tt.job is j2
+
+
+LOTR = "The Lord of the Rings The Return of the King (2003) Extended 1080p BluRay HEVC x265 5.1 BONE"
+
+
+def _lotr_site(http, queries):
+    """Trang Titulky giả: so khớp NGUYÊN VĂN như trang thật — chỉ câu tìm là một phần của tên thật mới ra kết quả."""
+    real_title = "The Lord of the Rings: The Return of the King"
+
+    def search(call):
+        q = call.params["Fulltext"]
+        queries.append(q)
+        hit = q.lower() in real_title.lower()
+        return FakeResponse(200, text=_tt_page("search_the_return_of_the_king.html") if hit else "<html><table class='soupis'></table></html>")
+
+    http.add("GET", r"titulky\.com/$", search)
+
+
+def test_titulky_title_without_colon_falls_back_to_title_fragments(movie_dir):
+    """Lỗi người dùng báo ở bản 1.3.2: tên file không có dấu hai chấm → Titulky trả 0 kết quả → "không nguồn nào có".
+    Không có key TMDB: hỏi tên từ tên file (0 kết quả) rồi thử nửa tên "The Return of the King" (mẫu thật) và lọc lại."""
+    _tt_lib(movie_dir, [LOTR])
+    http, queries = FakeHTTP(), []
+    _lotr_site(http, queries)
+    s, job = _tt_session(movie_dir, http, {"Languages": ["cs"], "TitulkyProbeTop": 0})
+    s.scan()
+    it = item(s, LOTR, "cs")
+    cands = s.gather(it)
+    assert queries == ["The Lord of the Rings The Return of the King", "The Return of the King"]
+    titles = sorted({c.payload.title for c in cands})
+    assert titles == ["Lord of the Rings: The Return of the King", "The Lord of the Rings - The Return of the King HDRE",
+                      "The Lord of the Rings: The Return of the King", "The Lord of the Rings: The Return of the King [EXTENDED]"]
+    assert len(cands) == 6 and all(c.src == "Titulky" for c in cands)  # bo: tap phim bo "King of Boys", ban nam 1980
+    assert it.status != "không nguồn nào có"
+    log = "\n".join(m for _, m in job.lines)
+    assert "Titulky: tìm 'The Lord of the Rings The Return of the King' → 0 kết quả" in log
+    assert "Titulky: thử một phần tên 'The Return of the King' → 8 kết quả, giữ 6." in log
+
+
+def test_titulky_asks_with_official_tmdb_title_first(movie_dir):
+    """Có key TMDB: hỏi Titulky bằng tên CHÍNH THỨC (đủ dấu câu) trước → ra ngay, không phải thử từng mảnh."""
+    _tt_lib(movie_dir, [LOTR])
+    http, queries = FakeHTTP(), []
+    _lotr_site(http, queries)
+    http.add("GET", r"themoviedb\.org/3/search/movie", FakeResponse(200, {"results": [
+        {"id": 122, "title": "The Lord of the Rings: The Return of the King",
+         "original_title": "The Lord of the Rings: The Return of the King", "release_date": "2003-12-17"}]}))
+    http.add("GET", r"themoviedb\.org/3/movie/122/external_ids", FakeResponse(200, {"imdb_id": "tt0167260"}))
+    s, job = _tt_session(movie_dir, http, {"Languages": ["cs"], "TitulkyProbeTop": 0}, {"TmdbApiKey": "0123456789abcdef0123456789abcdef"})
+    s.scan()
+    it = item(s, LOTR, "cs")
+    cands = s.gather(it)
+    assert it.video.official == "The Lord of the Rings: The Return of the King" and it.video.imdb == "tt0167260"
+    assert queries == ["The Lord of the Rings: The Return of the King"] and len(cands) == 6
+
+
+def test_titulky_stops_after_a_few_queries_when_nothing_matches(movie_dir):
+    """Phim không có trên Titulky: số lượt hỏi có giới hạn (tên + tối đa 4 mảnh); tên CÓ trên trang nhưng không có bản tiếng
+    Séc đúng phim thì không thử mảnh nào."""
+    stem = "Mot Bo Phim Viet Nam Khong Co Tren Trang (2019) 1080p"
+    _tt_lib(movie_dir, [stem, DUNE21])
+    http, queries = FakeHTTP(), []
+
+    def search(call):
+        queries.append(call.params["Fulltext"])
+        if call.params["Fulltext"] == "Dune":  # co ket qua, nhung chi tieng Slovak / phim nam khac
+            return FakeResponse(200, text=_tt_page("search_dune.html").replace('alt="CZ"', 'alt="SK"'))
+        return FakeResponse(200, text="<html><table class='soupis'></table></html>")
+
+    http.add("GET", r"titulky\.com/$", search)
+    s, job = _tt_session(movie_dir, http, {"Languages": ["cs"], "TitulkyProbeTop": 0})
+    s.scan()
+    assert s.gather(item(s, stem, "cs")) == [] and item(s, stem, "cs").status == "không nguồn nào có"
+    assert queries[0] == "Mot Bo Phim Viet Nam Khong Co Tren Trang" and len(queries) == 5
+    queries.clear()
+    assert s.gather(item(s, DUNE21, "cs")) == [] and queries == ["Dune"]

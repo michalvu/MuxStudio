@@ -1,7 +1,7 @@
 # Bàn giao giữa các phiên làm việc (đọc file này TRƯỚC)
 
-Cập nhật: 2026-11-12, **Giai đoạn 0–6 ĐÃ DUYỆT (1.0.0); 1.1.0 (mục 12) ĐÃ DUYỆT; 1.2.0 (mục 13) và 1.3.2 (mục 14, nguồn
-Titulky.com + sửa sập khi đóng cửa sổ trên Windows) — CHỜ duyệt.**
+Cập nhật: 2026-11-12, **Giai đoạn 0–6 ĐÃ DUYỆT (1.0.0); 1.1.0 (mục 12) ĐÃ DUYỆT; 1.2.0 (mục 13) và 1.3.3 (mục 14, nguồn
+Titulky.com + sửa sập khi đóng cửa sổ trên Windows + sửa cách tìm trên Titulky) — CHỜ duyệt.**
 **Máy người dùng: Windows 11 trên ARM, Python 3.14 bản ARM64** (`py -3` trong các file .bat chọn bản Python mới nhất) —
 không còn là Python 3.11 như ghi ở các mục cũ. Phải chạy test cả trên 3.14 (mục 6).
 Repo `michalvu/MuxStudio`. Phiên sau (nếu có): bảo trì — sửa lỗi người dùng báo, yêu cầu mới (xem "Việc kế tiếp").
@@ -69,7 +69,7 @@ core/   timing pgs srt encoding episodes naming config secrets undo   (GĐ1)
         + set_job (3 phiên), naming.search_candidates, MuxSession.search_name (GĐ5)
 gui/    app widgets log_panel settings_view fetch_view subprep_view mux_view (GĐ5)
         + build_info / self_check (--kiem-tra) / write_startup_error trong app; resource_path / set_window_icon (GĐ6)
-tests/  pytest — 707 test (2 test alass thật tự bỏ qua nếu không có alass; 18 test test_gui_app.py + 1 test_packaging
+tests/  pytest — 714 test (2 test alass thật tự bỏ qua nếu không có alass; 18 test test_gui_app.py + 1 test_packaging
         tự bỏ qua nếu không có tkinter/màn hình); test_packaging.py (GĐ6); test_gui_logic.py (logic giao diện, không cần Tk); fakehttp.py (API giả),
         synth.py (phụ đề/PGS giả), fake_alass.py (alass GIẢ: ghi lại từng lần gọi, dịch phụ đề theo cấu hình),
         test_golden_powershell.py + test_golden_subprep.py + test_golden_mux.py + golden/ps_harness.ps1 (chạy HÀM GỐC
@@ -163,12 +163,12 @@ uv venv -p 3.11 /tmp/v311 && uv pip install -p /tmp/v311/bin/python keyring send
 /usr/bin/python3.12 -m venv /tmp/v312 && /tmp/v312/bin/pip install -q customtkinter keyring send2trash requests pytest pillow
 # Python 3.14 (bản người dùng đang chạy; uv cho Tk 9):
 uv python install 3.14 && uv venv -p 3.14 /tmp/v314 && uv pip install -p /tmp/v314/bin/python -r requirements-dev.txt
-xvfb-run -a /tmp/v314/bin/python -m pytest -q -p no:cacheprovider   # 705 passed, 2 skipped
-.venv/bin/python -m pytest -q              # không có Tk: 686 passed, 21 skipped (19 test cần Tk + 2 alass thật)
-xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 705 passed, 2 skipped
-xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 705 passed, 2 skipped
+xvfb-run -a /tmp/v314/bin/python -m pytest -q -p no:cacheprovider   # 712 passed, 2 skipped
+.venv/bin/python -m pytest -q              # không có Tk: 693 passed, 21 skipped (19 test cần Tk + 2 alass thật)
+xvfb-run -a /tmp/v311/bin/python -m pytest -q -p no:cacheprovider   # 712 passed, 2 skipped
+xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider   # 712 passed, 2 skipped
 # Giả lập Windows (ghi file chữ \n→\r\n, Python con in cp1250) — phải qua hết:
-PYTHONPATH=tools xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider -p winemu   # 705 passed, 2 skipped
+PYTHONPATH=tools xvfb-run -a /tmp/v312/bin/python -m pytest -q -p no:cacheprovider -p winemu   # 712 passed, 2 skipped
 # Thử đóng gói (GĐ6) — PyInstaller trên Python 3.12 của Ubuntu (Tk 8.6), kết quả để ngoài repo:
 /usr/bin/python3.12 -m venv /tmp/vbuild && /tmp/vbuild/bin/pip install -q -r requirements-build.txt
 /tmp/vbuild/bin/python -m PyInstaller --noconfirm --clean --distpath /tmp/pyi/dist --workpath /tmp/pyi/build MuxStudio.spec
@@ -454,3 +454,23 @@ Titulky → OpenSubtitles. SPEC 7.F: **TĐ-40**.
   - Sập khi đóng cửa sổ: xem bài học mới ở mục 5 + `W.detach_configure` / `W.safe_destroy`; `App.destroy` gọi lại lần hai
     không sao. Đã chạy cả bộ test trên Python 3.14 (Linux, Tk 9): không có lỗi nào khác riêng cho 3.14; Pillow có bản
     `cp314-win_arm64`. CHƯA chạy lại được trên Windows ARM64 thật — chờ người dùng chạy `run_tests.bat`.
+- **Người dùng báo: tìm qua Titulky ra "không nguồn nào có" → bản 1.3.3** (ảnh thẻ ①, phim *The Lord of the Rings The
+  Return of the King … BONE.mkv*, dòng `cs`; đăng nhập Titulky vẫn được):
+  - NGUYÊN NHÂN (thử trang thật 2026-11-12): ô tìm `?Fulltext=` so khớp **nguyên văn từng ký tự** tên phim (chuỗi con).
+    Trang ghi `The Lord of the Rings: The Return of the King`; tên rút từ tên file không có dấu `:` ⇒ **0 kết quả**. Đã
+    thử: không có ký tự đại diện (`%`, `*`, `_` đều 0 kết quả), không tìm được bằng số IMDb trên `www` (chỉ bản
+    `premium.` có tìm nâng cao — không dùng), thứ tự từ cũng phải đúng. Phim nào tên có `:` `'` `,` `&` `-` … đều dính.
+  - SỬA (`SubFetcher._titulky_rows`): hỏi lần lượt (1) tên chính thức theo TMDB — `TmdbClient.official_title`, dùng lại
+    kết quả tìm đã nhớ nên không tốn lượt gọi (`VideoInfo.official`, điền ở `_ensure_entry`); (2) tên từ tên file; (3) cả
+    hai đều 0 kết quả → `titulky.title_fragments`: cắt đôi tên rồi cắt đôi mỗi nửa (nửa nào không vắt qua chỗ có dấu câu
+    thì khớp), mảnh dài trước, bỏ mảnh < 6 chữ cái, tối đa 4 mảnh, dừng ở mảnh đầu có bản giữ được. Nếu (1)/(2) CÓ kết
+    quả nhưng lọc xong không còn gì thì KHÔNG thử mảnh (tên có trên trang, chỉ là không có bản tiếng Séc đúng phim).
+  - Lọc tách ra `_titulky_keep` (như cũ + so tên với cả tên TMDB; đã có dòng ghi năm thì bỏ dòng không ghi năm — mảnh
+    tên kéo về cả phim khác). `TitulkyClient.search(query, pages)`: trang sau = `ZaznamuStrana=50&ActualRecord=<vị trí>`
+    (50 dòng / trang — xác nhận trên trang thật), dừng khi trang < 50 dòng, bỏ id trùng, nhớ theo câu hỏi.
+  - Nhật ký ghi từng câu hỏi: `Titulky: tìm '…' → N kết quả, giữ M …` / `Titulky: thử một phần tên '…' → …` — lần sau
+    người dùng báo "không nguồn nào có" thì xin file "Lưu log…" và đọc các dòng này trước.
+  - Chạy thật (khách, không key TMDB) với đúng tên file của người dùng: nguyên tên → 0; mảnh "The Return of the King" →
+    47 kết quả, giữ 38, bảng ứng viên 12 bản. Mẫu thật: `tests/data/titulky/search_the_return_of_the_king.html` (8 dòng).
+  - Giới hạn còn lại: tên chỉ MỘT từ, hoặc dấu câu nằm giữa mọi mảnh (hiếm) mà không có key TMDB → vẫn có thể 0 kết
+    quả; có key TMDB thì câu hỏi (1) đã đủ dấu câu.

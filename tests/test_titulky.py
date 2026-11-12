@@ -128,6 +128,55 @@ def test_search_query_and_html_sniffing():
     assert not titulky.looks_like_html(b"[Script Info]") and not titulky.looks_like_html(b"\xef\xbb\xbf1\n00:00")
 
 
+def test_title_fragments_for_names_that_lost_punctuation():
+    """Lỗi thật bản 1.3.2: "The Lord of the Rings The Return of the King" (tên file, không dấu hai chấm) → 0 kết quả, vì
+    trang so khớp nguyên văn với "The Lord of the Rings: The Return of the King". Cắt đôi tên: nửa không vắt qua dấu câu sẽ khớp."""
+    assert titulky.title_fragments("The Lord of the Rings The Return of the King") == [
+        "The Return of the King", "The Lord of the Rings", "The Return of", "The Lord of"]
+    # hai dau cau ("Star Wars: Episode IV - A New Hope"): nua sau khong vat qua dau cau nao
+    f = titulky.title_fragments("Star Wars Episode IV A New Hope")
+    assert f[:2] == ["Star Wars Episode IV", "A New Hope"] and "Episode IV" in f
+    assert titulky.title_fragments("Schindlers List") == ["Schindlers"]  # "List" qua chung chung (< 6 chu cai) -> bo
+    assert titulky.title_fragments("Dune") == [] and titulky.title_fragments("") == [] and titulky.title_fragments("Up It") == []
+    assert titulky.title_fragments("The Lord of the Rings The Return of the King", limit=1) == ["The Return of the King"]
+    assert len(titulky.title_fragments("a b c d e f g h i j k l m n o p q r s t")) <= 4
+
+
+def test_real_fragment_results_page_of_the_return_of_the_king():
+    rows = titulky.parse_search(page("search_the_return_of_the_king.html"))
+    titles = [r.title for r in rows]
+    assert titles.count("The Lord of the Rings: The Return of the King") == 3  # ten that tren trang CO dau hai cham
+    assert "King of Boys: The Return of the King S01E01" in titles and "The Lord of the Rings: The Return of the King [EXTENDED]" in titles
+    assert {r.year for r in rows} >= {2003, 1980, 2021}
+
+
+def _rows_html(start: int, n: int, title: str = "Film X") -> str:
+    head = ('<tr><td class="detailh ucase">Název</td><td class="detailh ucase">V.</td><td class="detailh ucase">Seriál</td>'
+            '<td class="detailh ucase">Rok</td><td class="detailh ucase">Staž.</td><td class="detailh ucase">Jazyk</td>'
+            '<td class="detailh ucase">Uložil</td></tr>')
+    rows = "".join(f'<tr class="r"><td><a href="Film-X-{i}.htm" >{title}</a></td><td></td><td>&nbsp;</td><td>2020</td>'
+                   f'<td align="right">{i}</td><td><img alt="CZ" src="x.gif" /></td><td>u</td></tr>' for i in range(start, start + n))
+    return f'<html><table class="soupis">{head}{rows}</table></html>'
+
+
+def test_search_pages_use_real_paging_parameters_and_cache(tmp_path):
+    """Trang thật: 50 dòng một trang; trang sau = ``ZaznamuStrana=50&ActualRecord=<vị trí>`` (xem link phân trang 2026-11-12)."""
+    http = FakeHTTP()
+    http.add("GET", r"titulky\.com/$", lambda call: FakeResponse(200, text=_rows_html(
+        1 + int(call.params.get("ActualRecord", 0)), {0: 50, 50: 50, 100: 20}.get(int(call.params.get("ActualRecord", 0)), 0))))
+    c, _, _ = client(http, tmp_path)
+    assert len(c.search("Film")) == 50 and len(http.calls) == 1  # mac dinh chi mot trang
+    rows = c.search("Film", pages=4)
+    assert len(rows) == 120 and len({r.id for r in rows}) == 120  # trang 3 chua day -> dung, khong goi trang 4
+    assert [c2.params for c2 in http.calls] == [{"Fulltext": "Film"}, {"Fulltext": "Film", "ZaznamuStrana": 50, "ActualRecord": 50},
+                                              {"Fulltext": "Film", "ZaznamuStrana": 50, "ActualRecord": 100}]
+    assert c.search("film", pages=4) is not None and len(http.calls) == 3 and len(c.search("FILM")) == 120  # nho dem
+    http2 = FakeHTTP()
+    http2.add("GET", r"titulky\.com/$", lambda call: FakeResponse(200, text=_rows_html(1 + int(call.params.get("ActualRecord", 0)), 50)))
+    c3, _, _ = client(http2, tmp_path)
+    assert len(c3.search("Nhieu", pages=2)) == 100 and len(http2.calls) == 2  # ton trong gioi han so trang
+
+
 # ---------------------------------------------------------------- client voi may chu gia
 
 def test_search_detail_preview_use_real_urls_cache_and_pause(tmp_path):

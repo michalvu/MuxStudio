@@ -1287,6 +1287,8 @@ EN: dict[str, str] = {
     "Đã gửi đăng nhập Titulky nhưng trang chủ vẫn hiện ô đăng nhập — chưa đăng nhập được.": "The Titulky login was sent but the home page still shows the login box — not logged in.",
     "Không gửi được đăng nhập tới Titulky (lỗi mạng).": "Could not send the login to Titulky (network error).",
     "Titulky: đăng nhập lỗi — ": "Titulky: login error — ",
+    "    [i] Titulky: tìm '{}' → {} kết quả, giữ {} bản tiếng Séc đúng phim / đúng tập.": "    [i] Titulky: searched '{}' → {} results, kept {} Czech releases for the right video / episode.",
+    "    [i] Titulky: thử một phần tên '{}' → {} kết quả, giữ {}.": "    [i] Titulky: tried part of the title '{}' → {} results, kept {}.",
 }
 
 #: Chuỗi có chữ tiếng Việt nhưng CỐ Ý không dịch (không hiển thị, hoặc chỉ nằm trong báo cáo tự kiểm tra).
