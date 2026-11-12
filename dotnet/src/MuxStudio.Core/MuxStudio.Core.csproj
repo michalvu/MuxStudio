@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <RootNamespace>MuxStudio.Core</RootNamespace>
+    <!-- LibraryImport (P/Invoke Credential Manager) sinh mã unsafe -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
