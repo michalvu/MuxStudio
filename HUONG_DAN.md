@@ -10,7 +10,11 @@ Mục lục: [1. Tạo MuxStudio.exe](#1-tạo-muxstudioexe-một-lần) · [2. 
 
 ---
 
-## 1. Tạo MuxStudio.exe (một lần)
+## 1. Chạy MuxStudio
+
+> **Nhánh `dotnet-port`:** phần tạo bản `.exe` bằng PyInstaller (`build.bat`) đã bỏ khỏi nhánh này — bản `.exe` mới sẽ do
+> bản C# tạo (`dotnet publish`, xem `docs/PORT_DOTNET.md`). Các bước 1–7 dưới đây chỉ dùng được ở nhánh
+> `claude/new-session-eckanp`. Ở nhánh này, chạy bản Python từ mã nguồn: bấm đúp `chay_muxstudio.bat`.
 
 Bản `.exe` chạy **không cần cài Python**. Chỉ máy dùng để **tạo** (build) bản `.exe` mới cần Python.
 
@@ -174,8 +178,5 @@ Gửi cho người hỗ trợ:
 
 - **Chạy toàn bộ test** (kiểm tra chương trình trên máy bạn, cần Python): bấm đúp `run_tests.bat` → cuối cùng có dòng
   `… passed`. Trên máy bạn chạy được cả test alass thật.
-- **Dò API với key thật**: bấm đúp `chay_do_api.bat` → gửi file `ket_qua_do_api.txt` (key đã được che).
-- **Dò Titulky.com với tài khoản thật**: bấm đúp `chay_do_titulky.bat` → gõ tên đăng nhập / mật khẩu khi được hỏi (Enter =
-  dò kiểu khách) → script tải thử MỘT phụ đề (tốn 1 lượt tải trong ngày; gặp CAPTCHA thì ảnh tự mở, gõ mã vào cửa sổ
-  đen) → gửi file `ket_qua_do_titulky.txt`. Tên đăng nhập, mật khẩu, cookie không được ghi vào file.
-- Thư mục `build\`, `dist\`, `.venv-build\` do `build.bat` tạo ra — xoá được, lần build sau tự tạo lại.
+- Script dò API / Titulky với tài khoản thật (`chay_do_api.bat`, `chay_do_titulky.bat`) đã bỏ khỏi nhánh `dotnet-port`
+  (vẫn còn ở nhánh `claude/new-session-eckanp`).

@@ -3,15 +3,12 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
-.venv-build/
 venv/
 *.egg-info/
 
-# PyInstaller (build.bat)
+# Thu muc build / dist (cu: PyInstaller)
 build/
 dist/
-*.spec.bak
-kiem_tra_exe.txt
 
 # Ban goc .bat co key that - KHONG dua len repo
 *_v[0-9]*.bat
@@ -21,12 +18,6 @@ kiem_tra_exe.txt
 _subfetch_logs/
 _subprep_logs/
 _muxtool_logs/
-
-# Ket qua do API cua ban (da che bi mat, nhung la thong tin ca nhan)
-ket_qua_do_api.txt
-ket_qua_do_titulky.txt
-captcha_titulky.jpg
-_titulky_probe_tmp/
 
 # .NET (dotnet/)
 bin/

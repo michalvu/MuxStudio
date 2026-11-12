@@ -5,7 +5,7 @@ rem ==========================================================
 rem  Chay MuxStudio tu ma nguon (khong can build).
 rem  Can Python 3.11+ (python.org, tick "Add python.exe to PATH").
 rem  Lan dau se tao thu muc .venv va tai thu vien (vai phut).
-rem  Ban .exe (khong can Python): bam dup build.bat, xem HUONG_DAN.md.
+rem  Ban .exe moi: do ban C# (thu muc dotnet\) tao, xem docs\PORT_DOTNET.md.
 rem ==========================================================
 set "PY=python"
 where py >nul 2>nul && set "PY=py -3"

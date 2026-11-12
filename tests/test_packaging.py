@@ -1,5 +1,5 @@
 """Giai đoạn 6 — đóng gói: số phiên bản, điểm vào ``MuxStudio.pyw``, chế độ tự kiểm tra ``--kiem-tra``, đường dẫn
-file dữ liệu khi chạy bản ``.exe`` (``sys.frozen`` / ``sys._MEIPASS``), icon, ``MuxStudio.spec``, ``build.bat``,
+file dữ liệu khi chạy bản ``.exe`` (``sys.frozen`` / ``sys._MEIPASS``),
 keyring dự phòng cho bản ``.exe``.
 
 Không cần tkinter (trừ ca tự kiểm tra có dựng cửa sổ — tự bỏ qua nếu không có màn hình). Không chạm Windows
@@ -10,10 +10,8 @@ from __future__ import annotations
 import ast
 import os
 import re
-import struct
 import subprocess
 import sys
-import zlib
 from pathlib import Path
 
 import pytest
@@ -25,8 +23,6 @@ from gui import app as A
 from gui import widgets as W
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "tools"))
-import make_icon  # noqa: E402
 
 try:
     import tkinter
@@ -50,7 +46,6 @@ def test_version_same_everywhere():
     py = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert re.search(r'^version = "([^"]+)"', py, re.M).group(1) == core.__version__
     assert A.APP_TITLE == f"MuxStudio {core.__version__}"
-    assert "from core import __version__ as VERSION" in (ROOT / "MuxStudio.spec").read_text(encoding="utf-8")
 
 
 def test_build_info_source_vs_exe(monkeypatch, tmp_path):
@@ -212,135 +207,18 @@ def test_self_check_builds_window(tmp_path, config_dir):
 # ==========================================================================
 
 
-def _ico_entries(data: bytes) -> list[tuple[int, int, bytes]]:
-    res, typ, n = struct.unpack("<HHH", data[:6])
-    assert (res, typ) == (0, 1)
-    out = []
-    for i in range(n):
-        w, h, _cc, _r, planes, bpp, size, off = struct.unpack("<BBBBHHII", data[6 + 16 * i:22 + 16 * i])
-        assert (planes, bpp) == (1, 32) and w == h
-        out.append((w or 256, bpp, data[off:off + size]))
-    return out
-
-
-def _png_pixels(blob: bytes) -> tuple[int, int, list[tuple[int, int, int, int]]]:
-    assert blob[:8] == b"\x89PNG\r\n\x1a\n"
-    pos, idat, w, h = 8, b"", 0, 0
-    while pos < len(blob):
-        ln, tag = struct.unpack(">I4s", blob[pos:pos + 8])
-        body = blob[pos + 8:pos + 8 + ln]
-        assert zlib.crc32(tag + body) & 0xFFFFFFFF == struct.unpack(">I", blob[pos + 8 + ln:pos + 12 + ln])[0]
-        if tag == b"IHDR":
-            w, h, depth, ctype = struct.unpack(">IIBB", body[:10])
-            assert (depth, ctype) == (8, 6)  # RGBA 8 bit
-        elif tag == b"IDAT":
-            idat += body
-        pos += 12 + ln
-    raw = zlib.decompress(idat)
-    px = []
-    for j in range(h):
-        row = raw[j * (w * 4 + 1):(j + 1) * (w * 4 + 1)]
-        assert row[0] == 0  # khong loc
-        px += [tuple(row[1 + 4 * i:5 + 4 * i]) for i in range(w)]
-    return w, h, px
-
-
-def _bmp_pixels(blob: bytes, size: int) -> list[tuple[int, int, int, int]]:
-    hdr = struct.unpack("<IiiHHIIiiII", blob[:40])
-    assert hdr[:5] == (40, size, size * 2, 1, 32)
-    xor = blob[40:40 + size * size * 4]
-    rows = [xor[r * size * 4:(r + 1) * size * 4] for r in range(size)][::-1]  # BMP luu tu duoi len
-    stride = ((size + 31) // 32) * 4
-    assert len(blob) == 40 + size * size * 4 + stride * size and hdr[6] == len(blob) - 40
-    return [(r[4 * i + 2], r[4 * i + 1], r[4 * i], r[4 * i + 3]) for r in rows for i in range(size)]
-
-
-def test_icon_files_match_generator():
-    """``assets/muxstudio.ico``: đủ 16–256 px (BMP 32 bit, 256 = PNG) và ĐÚNG ảnh do ``tools/make_icon.py`` vẽ."""
-    ents = _ico_entries((ROOT / "assets" / "muxstudio.ico").read_bytes())
-    assert sorted(s for s, _b, _d in ents) == list(make_icon.SIZES)
-    for size, _bpp, blob in ents:
-        flat = [px for row in make_icon.render(size) for px in row]
-        if size == 256:
-            w, h, px = _png_pixels(blob)
-            assert (w, h) == (256, 256)
-        else:
-            px = _bmp_pixels(blob, size)
-        assert px == flat, f"icon {size} px khác bản vẽ — chạy lại: python tools/make_icon.py"
-    w, h, px = _png_pixels((ROOT / "assets" / "muxstudio.png").read_bytes())
-    assert (w, h) == (256, 256) and px == [p for row in make_icon.render(256) for p in row]
-    assert px[0][3] == 0 and px[128 * 256 + 128][3] == 255  # goc trong suot, giua dac
-
-
-def test_icon_small_sizes_use_simple_design():
-    assert len(make_icon.design(16)[2]) == 1 and len(make_icon.design(48)[2]) == 2
-
 
 # ==========================================================================
 #  MuxStudio.spec, build.bat, requirements-build.txt
 # ==========================================================================
 
 
-def test_spec_file():
-    t = (ROOT / "MuxStudio.spec").read_text(encoding="utf-8")
-    compile(t, "MuxStudio.spec", "exec")
-    for need in ('MuxStudio.pyw', 'console=False', 'upx=False', 'collect_data_files("customtkinter")',
-                 'copy_metadata("keyring")', 'collect_submodules("keyring.backends")', '"keyring.backends.Windows"',
-                 '"win32ctypes.core"', 'name="MuxStudio"', 'exclude_binaries=True', 'COLLECT(',
-                 '"assets", "muxstudio.ico"', '"pytest"'):
-        assert need in t, need
-    assert "onefile" not in t.lower().replace("--onefile", "")  # chi nhac --onefile trong chu thich "KHONG dung"
-    for bad in ("tests", "reference"):
-        assert not re.search(rf"\(\s*os\.path\.join\(ROOT,\s*\"{bad}\"", t)  # khong dong goi thu muc test / .bat goc
-
-
-def test_build_bat():
-    b = (ROOT / "build.bat").read_bytes()
-    assert b.count(b"\n") == b.count(b"\r\n") > 20  # CRLF
-    t = b.decode("ascii")  # chu khong dau (cmd.exe)
-    for need in ('"%VPY%" -m PyInstaller --noconfirm --clean MuxStudio.spec', "requirements-build.txt",
-                 'start "" /wait "%EXE%" --kiem-tra "%BAOCAO%"', "dist\\MuxStudio\\MuxStudio.exe", ".venv-build",
-                 "sys.version_info >= (3, 11)", ":loi_kiemtra", ":loi_dangmo", "pause"):
-        assert need in t, need
-    assert "--onefile" not in t
-    labels = set(re.findall(r"^:(\w+)", t, re.M))
-    assert set(re.findall(r"goto :(\w+)", t)) <= labels  # moi goto deu co nhan
-
-
-def test_self_check_bat_next_to_exe():
-    """``kiem_tra_MuxStudio.bat`` (đặt cạnh MuxStudio.exe): bấm đúp → tự kiểm tra + mở báo cáo bằng Notepad."""
-    b = (ROOT / "assets" / "kiem_tra_MuxStudio.bat").read_bytes()
-    assert b.count(b"\n") == b.count(b"\r\n") > 10
-    t = b.decode("ascii")
-    assert 'start "" /wait "%~dp0MuxStudio.exe" --kiem-tra "%BAOCAO%"' in t and 'notepad "%BAOCAO%"' in t
-    assert set(re.findall(r"goto :(\w+)", t)) <= set(re.findall(r"^:(\w+)", t, re.M))
-    spec = (ROOT / "MuxStudio.spec").read_text(encoding="utf-8")
-    assert '"kiem_tra_MuxStudio.bat"),\n             os.path.join(DISTPATH, "MuxStudio"' in spec
-
-
-def test_requirements_files():
-    build = (ROOT / "requirements-build.txt").read_text().split()
-    assert "-r" in build and "requirements.txt" in build and any(x.startswith("pyinstaller") for x in build)
-    app = (ROOT / "requirements.txt").read_text().lower()
-    assert "pyinstaller" not in app and "pytest" not in app  # .exe chi chua thu vien can chay
-    # 1.3.0: Pillow LA thu vien can chay (anh CAPTCHA cua Titulky.com la JPEG, Tk khong tu doc duoc) -> phai co mat va
-    # khong con nam trong danh sach loai tru cua ban dong goi
-    spec = (ROOT / "MuxStudio.spec").read_text(encoding="utf-8")
-    assert "pillow" in app and '"PIL"' not in spec.split("excludes = ")[1].split("]")[0]
-
-
-def test_gitignore_build_outputs():
-    g = (ROOT / ".gitignore").read_text().split()
-    for need in ("build/", "dist/", ".venv-build/", "kiem_tra_exe.txt"):
-        assert need in g
-
 
 def test_bat_files_remove_stale_files_of_older_versions():
     """Người dùng chép đè mã mới lên thư mục cũ: file đã xoá khỏi repo (kho srt_pool, 1.2.0) vẫn nằm lại và làm hỏng
-    test (đã xảy ra: 4 test hỏng trên Windows) → run_tests.bat / build.bat tự dọn. Các file đó không được có trong repo."""
-    for name in ("run_tests.bat", "build.bat"):
+    test (đã xảy ra: 4 test hỏng trên Windows) → run_tests.bat tự dọn. Các file đó không được có trong repo."""
+    for name in ("run_tests.bat",):
         raw = (ROOT / name).read_bytes()
         assert b'for %%F in ("core\\pool.py" "tests\\test_pool.py") do if exist "%%~F" (' in raw, name
         assert b"\n" not in raw.replace(b"\r\n", b"") and raw.isascii(), name  # CRLF + ASCII
-    assert raw.index(b"core\\pool.py") < raw.index(b"[1/4]")
     assert not (ROOT / "core" / "pool.py").exists() and not (ROOT / "tests" / "test_pool.py").exists()

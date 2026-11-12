@@ -11,7 +11,7 @@ Nguồn đã đọc toàn bộ:
 | `SubPrep_v20.bat`  | 2.003 | 55 | dòng 21–92 |
 | `MuxTool_v17.bat`  | 2.862 | 78 | dòng 32–121 (+ 3 biến ẩn ở dòng 1901–1903) |
 
-Yêu cầu gốc: [`docs/PROMPT_MuxStudio.md`](PROMPT_MuxStudio.md). Số mục kiểu "§6.4" bên dưới là số mục trong file yêu cầu đó.
+Yêu cầu gốc: `docs/PROMPT_MuxStudio.md` (đã bỏ khỏi nhánh `dotnet-port`, còn ở nhánh `claude/new-session-eckanp` và trong lịch sử git). Số mục kiểu "§6.4" bên dưới (và trong chú thích mã) là số mục trong file yêu cầu đó.
 
 ---
 

@@ -92,8 +92,8 @@ Hạ tầng test mới:
   vừa mở tiến trình thì tiến trình bị diệt ngay (Python để nó chạy hết rồi mới ném `Cancelled`). Kết quả trả về vẫn như Python.
 - `Tools.WalkFiles`: symlink thư mục **hỏng** vẫn coi là thư mục (Python coi là file). JSON lạ (gốc không phải bảng, phần tử
   `tracks` không phải bảng) bị bỏ qua thay vì ném lỗi như Python.
-- `tests/test_probe_tools.py` là test của script dò API trong `tools/` (`probe_*.py`, `nhap_tu_bat.py`) — công cụ phát triển,
-  không thuộc `core/`, nên không port.
+- Script dò API (`tools/probe_*.py`, `nhap_tu_bat.py`, `chay_do_*.bat`) và test của chúng (`test_probe_tools.py`) đã bỏ khỏi
+  nhánh này (công cụ phát triển, không thuộc `core/`), cùng phần đóng gói PyInstaller — vẫn còn ở nhánh `claude/new-session-eckanp`.
 
 ## Làm lại dữ liệu đối chiếu
 

@@ -1,6 +1,7 @@
 """Điểm vào của MuxStudio.
 
-* Bản đóng gói: PyInstaller dựng ``MuxStudio.exe`` từ file này (xem ``MuxStudio.spec`` / ``build.bat``).
+* Bản đóng gói: PyInstaller dựng ``MuxStudio.exe`` từ file này (nhánh ``dotnet-port`` đã bỏ phần đóng gói — bản .exe
+  mới do bản C# trong ``dotnet/`` tạo).
 * Từ mã nguồn: bấm đúp file này (Windows mở bằng ``pythonw``, không có cửa sổ đen) hoặc ``python -m gui.app``.
 * ``MuxStudio.exe --kiem-tra [báo cáo.txt]``: tự kiểm tra bản đóng gói rồi thoát (mã 0 = đạt).
 """
