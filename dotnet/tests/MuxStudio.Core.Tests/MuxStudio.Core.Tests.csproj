@@ -23,6 +23,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\MuxStudio.Core\MuxStudio.Core.csproj" />
+    <!-- exe con cho test tiến trình (Tools.Run, hủy, alass giả): chép vào thư mục đầu ra của test -->
+    <ProjectReference Include="..\MuxStudio.TestChild\MuxStudio.TestChild.csproj" />
   </ItemGroup>
 
 </Project>

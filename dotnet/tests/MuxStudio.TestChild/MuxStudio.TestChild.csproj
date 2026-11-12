@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tiến trình con cho test (thay "python -c ..." / tests/fake_alass.py của bộ test Python). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1305;CA1304;CA1309;CA1310</NoWarn>
+  </PropertyGroup>
+
+</Project>
