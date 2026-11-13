@@ -101,6 +101,14 @@ src\MuxStudio.App\bin\Debug\net10.0-windows\MuxStudio.exe --kiem-tra x.txt   # t
 - Trình bày kiểu bản thiết kế: nhãn màu trong ô = `Col(Badge: true)` + giá trị `"~khoá"` (loại màu `good need bad info accent dim`); nút trên
   dòng = `Table.AddActionColumn` (giá trị `act` / `~act`); ô tick dạng nhãn = kiểu `Pill*`; nhãn / ô thống kê rời = `Chips.Make/Fill/Tile`.
   Dữ liệu hiển thị lấy từ `Core/Ui/WorkbenchUi.cs` — KHÔNG hiện số liệu giả (yêu cầu người dùng).
+- **Màu chữ phải đọc được trên nền Acrylic / Mica (yêu cầu người dùng 13/11/2026):** chữ màu dùng `{DynamicResource Amber|Cyan|Emerald|Rose|
+  Indigo|DimTextBrush}` (Light.xaml: sắc đậm ≥ 6:1 trên nền trắng; Dark.xaml: sắc sáng). `*AccentBrush` / `*SoftBgBrush` (Workbench.xaml,
+  giống nhau ở hai chế độ) CHỈ làm nền / viền / chấm tròn — chữ trên nền nhấn đặc dùng `BadgeTextBrush`. Code: `Chips.TextKey(loại)` +
+  `SetResourceReference` (tự đổi khi đổi Sáng / Tối); converter (`KindBrushConverter.Accent`) lấy màu lúc gắn → nơi dùng phải gắn lại khi
+  `ThemeService.Changed`. Chữ phụ: `TextFillColorSecondaryBrush`, KHÔNG dùng `Opacity`. Khi bật kính, vùng nội dung nằm trên `ContentLayer`
+  (`ContentLayerBrush`, 85% đục) — đừng đặt bảng / chữ thẳng lên nền kính.
+- Thẻ "WORKBENCH STATE" theo lựa chọn HIỆN TẠI của các thẻ (`WorkbenchUi.State`): thẻ nào đổi lựa chọn thì gọi `_app.UpdateState()`; số file
+  đếm lại sau MỖI việc của `Runner` (`PrepView.RefreshCounts`, việc tự động `quiet: true` = không đè dòng trạng thái "Xong: …").
 
 ## Đóng gói (GĐ6)
 

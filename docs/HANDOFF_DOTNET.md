@@ -12,7 +12,7 @@ Nhánh: `dotnet-gui` (tách từ `dotnet-port` ở GĐ5; nhánh làm việc mặ
 | 3 | `subprep` | ✅ 13/11/2026 (455 test C#) — kèm thay đổi ô "Ngôn ngữ" theo yêu cầu (xem mục GĐ3) |
 | 4 | `mux donor` | ✅ 13/11/2026 (641 test C#) |
 | 5 | GUI theo bản thiết kế "Concept 3 Pro Workbench" (cột trái 5 thẻ, Log, Cài đặt, ①②③, Giới thiệu, Hoàn tác) | ✅ 13/11/2026 (691 test C#) |
-| 6 | Đóng gói (`dotnet publish` win-x64 + win-arm64), `--kiem-tra`, `loi_khoi_dong.txt` | ✅ 13/11/2026 (710 test C#) |
+| 6 | Đóng gói (`dotnet publish` win-x64 + win-arm64), `--kiem-tra`, `loi_khoi_dong.txt` | ✅ 13/11/2026 (710 test C#; sau sửa giao diện: 717) |
 
 ## GĐ1: ánh xạ module
 
@@ -268,6 +268,22 @@ thiết kế (Single/Batch, cài đặt Claude Code, SubDL, nút ±50 ms, OS Has
    `requirements*.txt` (và `.venv/`, `.pytest_cache/` trên máy). Sau khi xoá: dựng 0 cảnh báo, 710/710 test xanh. Lịch sử bản Python: nhánh
    `claude/new-session-eckanp`. Giữ `docs/SPEC.md` (đặc tả tính năng; code C# trỏ tới).
 3. Từ nay `ConfigFields.cs` và `Resources/i18n_en.json` sửa tay (cách làm: `dotnet/CLAUDE.md`).
+
+## Sau GĐ6: sửa giao diện theo góp ý (13/11/2026)
+
+- **Chữ màu mờ trên nền Acrylic:** 5 màu nhấn trước dùng chung sắc sáng (Tailwind 500) cho cả Sáng / Tối → trên nền sáng chỉ ~2–2,5:1. Nay:
+  màu CHỮ riêng theo chế độ (`*TextBrush` trong Light.xaml / Dark.xaml), màu nhấn sáng chỉ còn làm nền / viền; chữ phụ dùng
+  `TextFillColorSecondaryBrush` thay cho `Opacity`; ô tick dạng nhãn (Pill) khi bật giữ màu chữ thường; khi bật Acrylic / Mica, vùng nội dung
+  đặt trên lớp nền 85% đục (`ContentLayer`) — kính chỉ còn ở khung ngoài + cột trái (như app Cài đặt của Windows 11). Đổi Sáng / Tối lúc đang
+  chạy: màu tự đổi (đã thử).
+- **WORKBENCH STATE đứng yên:** "Ngôn ngữ cần tải" trước đọc từ Cài đặt đã lưu, số file chỉ đếm lại khi mở thẻ ②. Nay theo lựa chọn hiện tại
+  (`WorkbenchUi.State`: ngôn ngữ đang tick ở ①, mốc ở ②, database ở ③), số file đếm lại sau mỗi việc (việc đếm là việc tự động của
+  `Runner` — `quiet` — không đè dòng "Xong: …"); số đếm tách ba dòng (Phim / Phụ đề trong 'srt_can_sync' / Phụ đề gốc trong 'srt_goc', đỏ khi
+  mốc = phụ đề gốc mà thư mục trống).
+- **TARGET VIDEO:** ô "Phụ đề gốc (mốc)" → "Thời lượng" (`VideoInfo.Duration` từ `mkvmerge -J` lúc quét, `UiText.Duration` → `1:54:36`).
+  Phụ đề mốc vẫn xem ở cột "Phụ đề gốc (mốc)" của bảng.
+- Đã thử bằng UI Automation (phim mẫu tự tạo, cấu hình tạm, kho mật khẩu `null`): Sáng + Acrylic, Tối + Acrylic, đổi chế độ lúc chạy; thẻ trạng
+  thái đổi đúng theo từng thao tác. Test: 717 (thêm `Workbench_state_follows_current_choices`, `Duration_text`).
 
 ## Gợi ý tiếp theo
 
