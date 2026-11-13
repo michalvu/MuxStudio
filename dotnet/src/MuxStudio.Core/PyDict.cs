@@ -29,6 +29,10 @@ internal static class PyDict
     public static string GetStr(this OrderedDictionary<string, object?>? d, string key, string dflt = "") =>
         d.Get(key) is var v && Py.Truthy(v) ? Py.Str(v) : dflt;
 
+    /// <summary><c>int(d.get(key) or 0)</c>.</summary>
+    public static int GetInt(this OrderedDictionary<string, object?>? d, string key) =>
+        d.Get(key) is var v && Py.Truthy(v) ? Py.ToInt(v) : 0;
+
     /// <summary><c>d.get(key) or None</c> rồi <c>str()</c>: để truyền tiếp cho hàm nhận <c>str | None</c>.</summary>
     public static string? GetStrOrNull(this OrderedDictionary<string, object?>? d, string key) =>
         d.Get(key) is var v && Py.Truthy(v) ? Py.Str(v) : null;

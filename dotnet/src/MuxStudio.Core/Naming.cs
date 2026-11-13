@@ -492,7 +492,7 @@ public static partial class Naming
     }
 
     /// <summary><c>Tên phim (Năm) [tmdbid-123]</c> / <c>[tvdbid-123]</c> — tên thư mục và tên file phim lẻ.</summary>
-    public static string MovieBaseName(string title, object year, string db, object dbId) =>
+    public static string MovieBaseName(string title, object year, string db, object? dbId) =>
         $"{JellyfinTitle(title)} ({Py.Str(year)}) [{db.ToLowerInvariant()}id-{Py.Str(dbId)}]";
 
     /// <summary>Thư mục series: <c>Tên series (Năm) [tmdbid-123]</c> (không có năm thì bỏ phần năm).</summary>
