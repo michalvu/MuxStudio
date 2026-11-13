@@ -11,7 +11,7 @@ Nhánh: `dotnet-port`. Quy ước làm việc: [`dotnet/CLAUDE.md`](../dotnet/CL
 | 2 | `tools` (Process + huỷ) `probe tmdb tvdb subsource opensubs titulky subfetch` + phần còn lại của `naming` | ✅ 13/11/2026 (582 test C#) |
 | 3 | `subprep` | ✅ 13/11/2026 (455 test C#) — kèm thay đổi ô "Ngôn ngữ" theo yêu cầu (xem mục GĐ3) |
 | 4 | `mux donor` | ✅ 13/11/2026 (641 test C#) |
-| 5 | GUI (NavigationView 5 thẻ, Log, Cài đặt, ①②③, Giới thiệu) | |
+| 5 | GUI theo bản thiết kế "Concept 3 Pro Workbench" (cột trái 5 thẻ, Log, Cài đặt, ①②③, Giới thiệu, Hoàn tác) | ✅ 13/11/2026 (691 test C#) |
 | 6 | Đóng gói (`dotnet publish` win-x64 + win-arm64), `--kiem-tra`, `loi_khoi_dong.txt` | |
 
 ## GĐ1: ánh xạ module
@@ -161,7 +161,7 @@ Khác Python (nhỏ, ghi lại):
 ## Khác biệt đã biết (cố ý hoặc chưa làm)
 
 - `secrets.ensure_backend`: chỉ cần cho PyInstaller, nên không port.
-- i18n: chưa có bài "mọi câu hiển thị đều có bản dịch" (`test_every_displayed_string_has_a_translation`). Bài này quét mã Python bằng `tools/i18n_extract.py`; bản C# sẽ làm bài tương tự khi port giao diện (GĐ5). Biến `recorded` (công cụ phát triển) cũng chưa port.
+- i18n: bài "mọi câu hiển thị đều có bản dịch" của Python quét mã bằng `tools/i18n_extract.py`; bản C# chưa có bài quét tự động tương đương — GĐ5 đã dò bằng tay (dùng `core.i18n` quét mọi chuỗi tiếng Việt trong `MuxStudio.App` + `Core/Ui`) và thêm 26 câu mới vào `tools/i18n/extra.json`; `GuiLogicTests.New_wpf_strings_have_english_translations` giữ các câu mới. Biến `recorded` (công cụ phát triển) chưa port.
 - `\b`/`\w` trong regex của `Episodes`/`Naming` dùng ngữ nghĩa .NET. Kết quả chỉ khác Python với dấu tổ hợp rời (chuỗi chưa chuẩn hoá NFC), ký tự số kiểu ①, ² và dấu nối khác `_`. Tên file thực tế hầu như không có các ký tự này. `I18n` thì đã dùng `[\p{L}\p{N}_]` cho giống hệt.
 - `PyJson.Loads` không nhận `NaN`/`Infinity` (Python có nhận); số nguyên vượt 64 bit → `double`.
 - `Coerce` số thực → số nguyên chỉ nhận |x| < 9.2e18; `float("1_000")` của Python có nhận dấu gạch dưới, C# thì không.
@@ -188,14 +188,44 @@ Sau khi sửa `tools/i18n/extra.json`: `set PYTHONIOENCODING=utf-8` rồi chạy
 `Data/python_codepages.json` được sinh một lần bằng lệnh sau:
 `bytes(range(256)).decode(f"cp{cp}", errors="muxstudio_c1")` cho cp ∈ {874, 1250…1258}, lưu dạng `{cp: [mã ký tự…]}`.
 
-## Gợi ý cho GĐ5 (giao diện)
+## GĐ5: giao diện WPF
 
-1. Mỗi lần bấm nút: một `Job` mới (`IProgress<LogLine>` gom 50–100 ms, `IProgress<JobProgress>`, `CancellationToken` của nút "Dừng
-   ngay"), gọi `SetJob(job)` trên phiên (`FetchSession`, `PrepSession`, `MuxSession` sống qua nhiều lần bấm), chạy lõi bằng `Task.Run`.
-   Phiên là `IDisposable` (xoá thư mục tạm) — giải phóng khi đổi thư mục phim / đóng thẻ.
-2. Bước ①: `FetchSession.Captcha` được gọi TỪ LUỒNG PHỤ và chờ kết quả → giao diện mở hộp thoại CAPTCHA qua `Dispatcher.Invoke`
-   (ảnh JPEG = `byte[]` → `BitmapImage`), trả mã hoặc `null` (= bỏ qua). Các client mạng dùng `Http.Shared` (không cần tạo).
-3. Bước ②: truyền ô "Ngôn ngữ" hiện tại vào `CleanupTargets(lang)` (xem mục GĐ3).
-4. Bước ③: `DbStatus()` gọi mạng (TMDB/TVDB) → chạy ở luồng phụ; dòng "Cần chọn": `ChooseName` / `SearchName` / `KeepOriginalName(s)`
-   rồi `PlanFile` lại; sau `Execute`: `Mux.UsedSources(plans, OutDir)` → hỏi bạn → `TrashSources`.
-5. i18n: bài "mọi câu hiển thị đều có bản dịch" (xem mục Khác biệt) làm khi port giao diện.
+Bố cục theo bản thiết kế trong `design/` ("Concept 3 Pro Workbench": thanh tiêu đề Fluent → thanh thư mục phim + Sáng / Tối / theo Windows →
+cột trái 5 thẻ theo thứ tự quy trình + thẻ "WORKBENCH STATE" → nội dung → khung log → thanh trạng thái có tiến độ + Dừng). Phần GIẢ của bản
+thiết kế (Single/Batch, cài đặt Claude Code, SubDL, nút ±50 ms, OS Hash…) KHÔNG có trong lõi nên đã thay bằng đúng tính năng của bản Python.
+
+| Python (`gui/`) | C# |
+|---|---|
+| phần thuần của `widgets`, `app`, `log_panel`, `fetch_view`, `subprep_view`, `mux_view`, `settings_view`, `about_view` | `src/MuxStudio.Core/Ui/*.cs` (không WPF, test được): `UiText`, `Steps`, `GridModel`, `WindowLayout`, `LogUi`, `UndoUi`, `FetchUi`, `PrepUi`, `MuxUi`, `SettingsUi`, `AboutUi` |
+| `App` + `UndoDialog` | `MainWindow.xaml(.cs)`, `Views/UndoDialog.cs` |
+| `W.Runner` | `Infra/Runner.cs` (luồng phụ, log DỊCH ở luồng phụ, gom 80 ms; `Ask` = hỏi luồng giao diện từ luồng phụ — CAPTCHA) |
+| `W.Table` / `W.CheckGrid` / `W.StepBar` | `Infra/Table.cs` (bọc `DataGrid`; cột tên file `Name: true` không dịch như `fit="name"`), `Infra/CheckGrid.cs`, `Infra/StepBar.cs` |
+| `W.Dialog`, `info/warn/ask_*`, `confirm_list`, `show_text`, `CaptchaDialog` | `Infra/Dlg.cs` |
+| `LogPanel` | `Views/LogPanel.xaml(.cs)` (`ListBox` ảo hoá; Ctrl+C chép dòng) |
+| `FetchView` / `SubprepView` / `MuxView` (+ `NameDialog`, `TrashDialog`) / `SettingsView` (+ `ImportDialog`) / `AboutView` | `Views/*.xaml(.cs)` |
+| màu `LEVEL_COLORS` / `ROW_BG` / `GRID_COLORS` | `Themes/Light.xaml`, `Themes/Dark.xaml` (`ThemeService` thay theo chế độ); `Themes/Workbench.xaml` (màu nhấn, `WbGrid`, `WbCell`) |
+
+- Phần trình bày "Concept 3" (làm lại theo ảnh thiết kế, CHỈ dữ liệu thật — không đổi lõi): ngôn ngữ / nguồn / database / mốc đồng bộ dạng
+  nhãn bật-tắt (`Pill`, `PillCyan`, `PillEmerald` trong `Themes/Workbench.xaml`); nhãn màu trong ô bảng (`Col(Badge: true)` + giá trị ẩn
+  `"~khoá"` của dòng); nút "+ Chọn / ✓ Đã chọn" trên dòng ứng viên (`Table.AddActionColumn`); thẻ "TARGET VIDEO", thanh "GIỎ PHỤ ĐỀ"
+  (①); ô thống kê + nhãn đếm TỐT / CẦN XEM / CÓ VẤN ĐỀ (②); thẻ từng luồng VIDEO / AUDIO (tick XOÁ → gạch ngang) / SUB / NGOÀI / AUDIO GHÉP
+  + khung "Output & mkvmerge" với lệnh thật (`PreviewCommands`, dựng ở luồng phụ cùng lúc lập kế hoạch) và tiến độ của lượt mux (③).
+  Dữ liệu cho phần này: `Core/Ui/WorkbenchUi.cs`; màu: `Infra/Chips.cs`. Những thứ trong ảnh mà lõi KHÔNG có (sóng âm, chỉnh offset ±50 ms,
+  OS Hash, Single/Batch, chọn nhiều bản / ngôn ngữ) không làm — theo lựa chọn của người dùng (13/11/2026).
+- Test: `GuiLogicTests` (50 bài) = các bài thuần của `test_gui_logic.py`. Bài `Runner` (Dispatcher) và `test_gui_app.py` (lái Tk) chưa port —
+  đã chạy tay bằng UI Automation trên thư mục phim mẫu: ① quét, ② mốc audio → đổi tên → alass thật → dọn dẹp, ③ mux thật 2 file → dọn
+  file nguồn, Hoàn tác, Cài đặt, Giới thiệu, Sáng / Tối, giao diện tiếng Anh.
+- Khác Python (cố ý): nút Sáng / Tối / theo Windows ở đầu cửa sổ (đổi + lưu `UiAppearance` ngay); "Xem lệnh" ở thẻ ② chạy ở luồng phụ;
+  bước ② dọn dẹp truyền ô "Ngôn ngữ" vào `CleanupTargets(lang)` (GĐ3); trang Giới thiệu liệt kê thư viện của bản .NET (.NET, WPF, WPF-UI,
+  CommunityToolkit.Mvvm) thay cho Python/Tk/…; trạng thái nguồn được dịch cả câu rồi mới bỏ tiền tố tên nguồn.
+- Bẫy WPF đã gặp: chữ nút có `_` (`srt_goc`) bị nuốt làm phím tắt → dùng `TextBlock` làm nội dung; template dòng / ô của WPF-UI không dùng
+  `Background` → kiểu ô riêng `WbCell` (BasedOn `DefaultDataGridCellStyle`), kiểu dòng BasedOn `DefaultDataGridRowStyle` (không phải kiểu mặc
+  định của Windows: nền trắng ở chế độ Tối); khoá phụ `UiGeometry`/`UiZoomed`/`UiLogHeight`/`UiLastFolder` không có trong bảng khoá →
+  đọc bằng `MainWindow.OptStr/OptBool/OptInt` (= `cfg.get`).
+
+## Gợi ý cho GĐ6 (đóng gói)
+
+1. `dotnet publish` win-x64 + win-arm64 (self-contained, single-file, ReadyToRun) — `App.IsFrozen` nhận bản một file (`Assembly.Location` rỗng).
+2. `--kiem-tra` (port `self_check`), `loi_khoi_dong.txt` đã có (`App.WriteStartupError`); thêm bắt `AppDomain.UnhandledException`,
+   `TaskScheduler.UnobservedTaskException`.
+3. Icon ứng dụng (chưa có `.ico` cho bản .NET).

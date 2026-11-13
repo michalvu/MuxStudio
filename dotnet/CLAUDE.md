@@ -78,6 +78,21 @@ Baseline Python (so sánh hành vi): `.venv\Scripts\python.exe -m pytest tests -
 | `fractions.Fraction(x).limit_denominator(n)` | `Fraction.FromDouble(x).LimitDenominator(n)` (chính xác, `BigInteger`) |
 | `time.sleep` trong client mạng | tham số `sleep` (test: `Sleeper.Sleep`); mặc định `Http.Sleep` (dừng ngay khi bấm "Dừng ngay") |
 
+## Giao diện (GĐ5)
+
+- Logic THUẦN của giao diện (dòng bảng, chữ trạng thái, màu, CSV, bố cục…) nằm ở `src/MuxStudio.Core/Ui/` (không WPF) và có test
+  (`GuiLogicTests`); `MuxStudio.App` chỉ dựng giao diện và gọi các hàm đó.
+- Chữ hiển thị: tiếng Việt gốc, dịch ở chỗ hiển thị — XAML `{l:Tr 'chữ'}` (chữ có dấu `'` thì đặt bằng code), code `L.T(...)`; `Table` tự dịch
+  ô (trừ cột `Name: true` = tên file), `Dlg.Text/Button` tự dịch. Câu MỚI → thêm vào `tools/i18n/extra.json` rồi chạy lại
+  `i18n_build.py` + `gen_dotnet_i18n.py` (xem HANDOFF). Ghép câu đúng như f-string của bản Python để `I18n.Tr` khớp mẫu.
+- Việc của lõi luôn qua `Runner.Start(...)` (luồng phụ); hỏi người dùng từ luồng phụ bằng `Runner.Ask`.
+- Nội dung nút / ô chọn có thể chứa `_` (vd `srt_goc`) → dùng `TextBlock`, không gán chuỗi thẳng vào `Content` (WPF coi `_` là phím tắt).
+- Bảng: `DataGrid` kiểu `WbGrid` + lớp `Table`; nền theo nhãn dòng (`need`/`bad`/`good`) do kiểu ô `WbCell` vẽ (template của WPF-UI bỏ qua
+  `Background`). Màu Sáng / Tối: chỉ dùng `DynamicResource` của `Themes/Light.xaml` / `Dark.xaml`.
+- Trình bày kiểu bản thiết kế: nhãn màu trong ô = `Col(Badge: true)` + giá trị `"~khoá"` (loại màu `good need bad info accent dim`); nút trên
+  dòng = `Table.AddActionColumn` (giá trị `act` / `~act`); ô tick dạng nhãn = kiểu `Pill*`; nhãn / ô thống kê rời = `Chips.Make/Fill/Tile`.
+  Dữ liệu hiển thị lấy từ `Core/Ui/WorkbenchUi.cs` — KHÔNG hiện số liệu giả (yêu cầu người dùng).
+
 ## File sinh tự động (đừng sửa tay)
 
 - `src/MuxStudio.Core/ConfigFields.cs` ← `python tools/gen_dotnet_config_fields.py` (sau khi sửa `FIELDS` trong `core/config.py`)
