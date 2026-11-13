@@ -9,7 +9,7 @@ Nhánh: `dotnet-port`. Quy ước làm việc: [`dotnet/CLAUDE.md`](../dotnet/CL
 | 0 | Solution `dotnet/` (Core, App WPF-UI, Tests xUnit), `Directory.Build.props`, analyzer locale | ✅ 13/11/2026 |
 | 1 | `timing pgs srt encoding episodes naming config secrets undo i18n` | ✅ 13/11/2026: 343 test C# (Python cùng module: 305) |
 | 2 | `tools` (Process + huỷ) `probe tmdb tvdb subsource opensubs titulky subfetch` + phần còn lại của `naming` | ⏳ `tools`, `probe` ✅ 13/11/2026 (386 test C#). Tiếp theo: HTTP (`tmdb tvdb subsource opensubs titulky`) → `naming` DB → `subfetch` |
-| 3 | `subprep` | |
+| 3 | `subprep` | ✅ 13/11/2026 (455 test C#) — kèm thay đổi ô "Ngôn ngữ" theo yêu cầu (xem mục GĐ3) |
 | 4 | `mux donor` | |
 | 5 | GUI (NavigationView 5 thẻ, Log, Cài đặt, ①②③, Giới thiệu) | |
 | 6 | Đóng gói (`dotnet publish` win-x64 + win-arm64), `--kiem-tra`, `loi_khoi_dong.txt` | |
@@ -62,9 +62,35 @@ track phụ đề mốc, `os.path.join`, `pathlib`, `round(x, n)`.
 Hạ tầng test mới:
 - `tests/MuxStudio.TestChild`: exe con thay `[sys.executable, "-c", ...]` và `fake_alass.py` (`print`, `args`, `hex`, `stderr`,
   `exit`, `sleep`, `tree`, `alass --help`, `mkvmerge -J` giả, `ffprobe` giả). Được chép cạnh DLL test; gọi qua `Child.Cmd(...)`.
-  GĐ3 sẽ mở rộng chế độ `alass` thành bản port đầy đủ của `fake_alass.py`.
+  GĐ3 đã mở rộng chế độ `alass` thành bản port đầy đủ của `fake_alass.py`.
 - `PyCases.Check(nhóm, hàm)`: chạy hàm C# trên mọi ca Python xuất, báo tối đa 15 ca lệch.
 - `PyData.D/L/J` (dựng JSON kiểu Python), `MkvFake.V/A/S/J` (= `V A S J` của `test_mux.py`, dùng lại ở GĐ4).
+
+## GĐ3: ánh xạ module
+
+| Python | C# (`src/MuxStudio.Core/`) | Test C# | Python / C# |
+|---|---|---|---|
+| `subprep.py` (hàm cấp module, dataclass) | `Subprep.cs` (`Subprep.*`, `Health`, `RefItem`, `RefIndex`, `RefMatch`, `SyncPair`, `CleanupPlan`…) | `SubprepTests` | 53 / 62 |
+| `subprep.PrepSession` | `PrepSession.cs` | `SubprepTests`, `SubprepE2ETests` | 7 (e2e) / 7 |
+| `test_golden_subprep.py` (so với .bat qua PowerShell) | — | `*_same_as_python` (so với Python: `Data/python_subprep_cases.json`) | 5 / 4 bài, 684 ca |
+| `tests/fake_alass.py` | chế độ `alass` của `tests/MuxStudio.TestChild` (`FakeAlass` trong `Support/SubprepLib.cs`) | | |
+
+- `tool_paths` → `ToolPaths(Mkvmerge, Mkvextract, Ffmpeg, Ffprobe, Alass)`; `Alass` là LỆNH (danh sách), `ToolPaths.Find(cfg, td)` = tự tìm.
+- `PrepSession` là `IDisposable` (= `close()` / `with`): xoá thư mục tạm. `processed` ghi thêm ngôn ngữ (`Processed.Lang`).
+- alass giả nhận cấu hình qua tham số `@file.json` (không dùng biến môi trường như bản Python → test chạy song song được) và có thêm
+  `sleep` (giả lập alass chạy lâu để thử "Dừng ngay" giữa lúc đồng bộ).
+- `AudioChoice.describe` của Python bị thụt lề nhầm vào trong `audio_layout_groups` (mã chết); bản C# đặt đúng chỗ: `AudioChoice.Describe()`.
+- `f"{x:+.2f}"` → `Py.Fixed(x, 2, plus: true)`.
+
+**Thay đổi CỐ Ý so với Python (yêu cầu người dùng 13/11/2026, chỉ bản C#)** — ô "Ngôn ngữ" ở bước ②:
+- **Tự nhận diện**: như Python — mọi ngôn ngữ trong `srt_can_sync` (thư mục con `vi\ cs\ en\…` hoặc hậu tố tên file).
+- **Chọn một ngôn ngữ** (vd `vi`): đổi tên / đồng bộ CHỈ phụ đề của ngôn ngữ đó (thư mục con `vi\` hoặc hậu tố `.vi`; đổi tên xét
+  thư mục trước, đồng bộ xét hậu tố trước — đúng thứ tự tự nhận diện của từng bước). Phụ đề ngôn ngữ khác **và** phụ đề chưa rõ
+  ngôn ngữ bị bỏ qua (người dùng chọn "Bỏ qua"), nhật ký ghi một dòng "[i] Chỉ xử lý phụ đề 'vi': N file; bỏ qua M file…".
+  Bản Python xử lý mọi phụ đề và gắn ép nhãn đã chọn (chỉ cảnh báo đỏ).
+- **Dọn dẹp** (`CleanupTargets(lang)`): chỉ phụ đề nguồn của ngôn ngữ đang chọn (kể cả khi trong phiên đã đồng bộ nhiều ngôn ngữ);
+  phụ đề gốc trong `srt_goc` vẫn cho xoá như cũ (người dùng chọn). GĐ5: giao diện phải truyền ô Ngôn ngữ hiện tại vào `CleanupTargets`.
+- Test: `SubprepTests.Language_*`. Hai câu nhật ký mới đã có bản dịch (`tools/i18n/extra.json`).
 
 ## Đã kiểm chứng giống Python
 
@@ -77,6 +103,8 @@ Hạ tầng test mới:
 - `Tools.GetToolInfo` / `MkvmergeVersion` với mkvmerge, mkvextract, ffmpeg, ffprobe thật trên máy (Desktop\mkvtoolnix,
   Desktop\alass-windows64): test `Tool_info_with_real_tools_if_installed` chạy thật, không bị bỏ qua.
 - `os.walk` đi vào junction (`mklink /J`), không đi vào symlink: C# làm y vậy (`Py.IsLink` đọc thẻ reparse).
+- Bước ② với công cụ thật trên máy người dùng (`SubprepE2ETests`, 7/7 chạy thật): trích phụ đề gốc (cả PGS), WAV mono 16 kHz,
+  thứ tự thử alass, alass thật khôi phục đúng độ lệch 7,5 s, alass thật nhận WAV.
 
 ## Khác biệt đã biết (cố ý hoặc chưa làm)
 
@@ -101,7 +129,10 @@ Hạ tầng test mới:
 .venv\Scripts\python.exe tools\gen_dotnet_config_fields.py   # ConfigFields.cs + Data/python_config.json
 .venv\Scripts\python.exe tools\gen_dotnet_i18n.py            # Resources/i18n_en.json + Data/python_i18n_cases.json
 .venv\Scripts\python.exe tools\gen_dotnet_probe.py           # Data/python_probe_cases.json (tools, probe, os.path, round…)
+.venv\Scripts\python.exe tools\gen_dotnet_subprep.py         # Data/python_subprep_cases.json (cắt recap, sức khoẻ, ghép mốc…)
 ```
+Sau khi sửa `tools/i18n/extra.json`: `set PYTHONIOENCODING=utf-8` rồi chạy `tools\i18n_build.py` và `tools\gen_dotnet_i18n.py`
+(console tiếng Séc dùng cp1250, dòng `print` cuối của script sẽ lỗi nếu thiếu biến này).
 `Data/python_codepages.json` được sinh một lần bằng lệnh sau:
 `bytes(range(256)).decode(f"cp{cp}", errors="muxstudio_c1")` cho cp ∈ {874, 1250…1258}, lưu dạng `{cp: [mã ký tự…]}`.
 
@@ -111,6 +142,7 @@ Hạ tầng test mới:
 2. HTTP: dùng chung một `HttpClient` và inject `HttpMessageHandler`. Port `tests/fakehttp.py` thành handler giả. Test **không bao giờ** gọi mạng thật (xem fixture `no_real_network` trong `conftest.py`). Các client nhận `Job` (log + `Job.Token` cho `HttpClient`). Kết quả JSON đọc bằng `PyJson.Loads` + `PyDict` (`r.Get("x")`, `r.GetDict("x")`, `r.GetStr("x")`).
 3. Phần còn lại của `naming` (xem trên) + `test_naming_db.py`.
 4. Dữ liệu mẫu `tests/data/titulky/*.html` đọc thẳng từ thư mục `tests/` của repo (`RepoPaths.Root`).
-5. Test Python hay `monkeypatch.setattr(tools, "run" | "mkvmerge_version", ...)` (test_mux, test_subprep). Bản C# chưa có chỗ
-   thay `Tools.Run`; khi cần (GĐ3/GĐ4) nên thêm chỗ thay theo luồng (`AsyncLocal`) hoặc truyền runner vào phiên, **không** dùng
-   biến tĩnh toàn cục (test chạy song song). Phần đọc kết quả đã tách sẵn: `Tools.ToolInfoOf`, `Tools.MkvmergeVersionOf`.
+5. Test Python hay `monkeypatch.setattr(tools, "run" | "mkvmerge_version", ...)` (test_mux). GĐ3 không cần (alass / mkvmerge giả
+   là exe con). GĐ4 (`test_mux.py` thay `tools.run` để giả mkvmerge ghi file `-o`): nên thêm chỗ thay theo luồng (`AsyncLocal`)
+   hoặc truyền runner vào phiên, **không** dùng biến tĩnh toàn cục (test chạy song song). Phần đọc kết quả đã tách sẵn:
+   `Tools.ToolInfoOf`, `Tools.MkvmergeVersionOf`.

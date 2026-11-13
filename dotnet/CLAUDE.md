@@ -60,6 +60,8 @@ Baseline Python (so sánh hành vi): `.venv\Scripts\python.exe -m pytest tests -
 | `str(Path(...))`, `Path(a) / b` | `Py.PurePath`, `Py.PathJoin` (`/` → `\`, bỏ `.` và dấu tách cuối) |
 | `os.path.abspath` / `normcase` / `islink` | `Py.AbsPath` / `Py.NormCase` / `Py.IsLink` (junction không phải link) |
 | `round(x, n)` | `Py.Round(x, n)` (**không** `Math.Round(x, n)`: lệch ở ca đúng giữa trên giá trị nhị phân, vd 0.0625) |
+| `f"{x:.2f}"`, `f"{x:+.2f}"` | `Py.Fixed(x, 2)`, `Py.Fixed(x, 2, plus: true)` (làm tròn như Python, giữ `-0.00`) |
+| `Path.stem / .suffix / .name / .parent` | `Subprep.Stem / Suffix / Name / Parent` (đường dẫn là `string`) |
 | `int(x)` | `Py.ToInt` (cắt phần lẻ, NaN → lỗi) |
 | `str.strip()` / `str.splitlines()` | `Py.StripWs` (Python coi `\x1c–\x1f` là khoảng trắng) / `Py.SplitLines` |
 | `d.get(k)`, `(d.get(k) or {})`, `(… or [])`, `str(d.get(k) or "")` | `PyDict`: `d.Get(k)`, `d.GetDict(k)`, `d.GetList(k)`, `d.GetStr(k)` |
@@ -74,4 +76,5 @@ Baseline Python (so sánh hành vi): `.venv\Scripts\python.exe -m pytest tests -
 - `src/MuxStudio.Core/ConfigFields.cs` ← `python tools/gen_dotnet_config_fields.py` (sau khi sửa `FIELDS` trong `core/config.py`)
 - `src/MuxStudio.Core/Resources/i18n_en.json` ← `python tools/gen_dotnet_i18n.py` (sau khi chạy `tools/i18n_build.py`)
 - `tests/MuxStudio.Core.Tests/Data/python_probe_cases.json` ← `python tools/gen_dotnet_probe.py` (sau khi sửa `core/tools.py` / `core/probe.py`)
+- `tests/MuxStudio.Core.Tests/Data/python_subprep_cases.json` ← `python tools/gen_dotnet_subprep.py` (sau khi sửa `core/subprep.py`)
 - `tests/MuxStudio.Core.Tests/Data/python_*.json` còn lại ← hai script đầu. Riêng `python_codepages.json` sinh một lần, bằng lệnh ghi trong HANDOFF_DOTNET.md.
