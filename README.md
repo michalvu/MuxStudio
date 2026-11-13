@@ -1,24 +1,48 @@
 # MuxStudio
 
-Phần mềm Windows (Python + CustomTkinter) thay cho ba công cụ dòng lệnh `SubFetch`, `SubPrep` và `MuxTool`:
-tải phụ đề → đồng bộ phụ đề → dọn track và mux MKV, đặt tên chuẩn Jellyfin.
+Phần mềm Windows giúp chuẩn bị phim cho thư viện Jellyfin / Emby, gộp ba việc vào một cửa sổ:
 
-> **Nhánh `dotnet-port`:** đang viết lại MuxStudio bằng C# / WPF (.NET 10) trong thư mục [`dotnet/`](dotnet/).
-> Mã Python (`core/`, `gui/`, `tests/`) giữ lại làm **bản chuẩn để đối chiếu**. Phần đóng gói PyInstaller và các script
-> dò API đã bỏ khỏi nhánh này (vẫn còn ở nhánh `claude/new-session-eckanp`). Tiến độ: [`docs/HANDOFF_DOTNET.md`](docs/HANDOFF_DOTNET.md),
-> hướng dẫn port: [`docs/PORT_DOTNET.md`](docs/PORT_DOTNET.md).
+1. **Tải phụ đề** — tìm và tải phụ đề nhiều ngôn ngữ từ SubSource, Titulky.com (tiếng Séc) và OpenSubtitles.
+2. **Chuẩn bị phụ đề** — đổi tên cho khớp với phim, đồng bộ thời gian bằng alass (theo phụ đề gốc hoặc theo audio của phim).
+3. **Mux** — dọn track audio / phụ đề thừa, ghép phụ đề và audio từ file khác, đặt tên chuẩn Jellyfin theo TMDB / TVDB, xuất file MKV.
 
-**Trạng thái bản Python:** **hoàn thành — đã duyệt cả 7 giai đoạn (0–6)**. Phiên bản **1.3.3**: giao diện 5 thẻ ① Tải phụ đề → ② Chuẩn bị phụ đề → ③ Mux → Cài đặt → Giới thiệu, hai ngôn ngữ (Tiếng Việt / English),
-bộ màu kiểu kính Sáng / Tối, khung log màu, nút Dừng, màn hình Hoàn tác.
+Mọi thao tác đổi tên / xoá đều hoàn tác được (nút **Hoàn tác…**); file bị xoá đi vào Thùng rác (mặc định).
 
-Tác giả: **Vũ Hoàng Anh**. Phần mềm của bên khác mà MuxStudio dùng (và giấy phép của chúng): xem thẻ **Giới thiệu**.
+**Tác giả:** Vũ Hoàng Anh — © 2026. Phần mềm và dịch vụ của bên khác mà MuxStudio dùng (cùng giấy phép của chúng) được liệt kê ở thẻ **Giới thiệu** trong chương trình.
 
-**Hướng dẫn dùng bản Python: [`HUONG_DAN.md`](HUONG_DAN.md)** — công cụ cần có, cấu hình lần đầu, quy trình
-① → ② → ③, báo lỗi.
+## Cài đặt
 
-- **Chạy bản Python từ mã nguồn:** bấm đúp `chay_muxstudio.bat`.
-- Chạy test Python trên Windows (tuỳ chọn, cần Python 3.11+): bấm đúp `run_tests.bat`.
-- Bản C#: `cd dotnet`, `dotnet build MuxStudio.slnx`, `dotnet test MuxStudio.slnx` (xem [`dotnet/CLAUDE.md`](dotnet/CLAUDE.md)).
+Bản dựng sẵn (`MuxStudio.exe`) chưa phát hành; hiện chạy từ mã nguồn.
 
-- Đặc tả: [`docs/SPEC.md`](docs/SPEC.md)
-- Bản sao .bat đã xoá bí mật (để test đối chiếu): [`reference/`](reference/)
+### 1. Cần có
+
+- Windows 10 hoặc 11 (x64 hoặc ARM64).
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+- Công cụ ngoài (MuxStudio chỉ gọi, không đi kèm):
+  - [MKVToolNix](https://mkvtoolnix.download) (`mkvmerge`, `mkvextract`) — **bắt buộc**.
+  - [alass](https://github.com/kaegi/alass) — **bắt buộc** cho bước đồng bộ phụ đề (bản Windows thường kèm sẵn `ffmpeg` / `ffprobe`).
+  - [FFmpeg](https://ffmpeg.org) (`ffmpeg`, `ffprobe`) — nên có: đồng bộ theo audio, đọc bitrate / HDR, đổi tốc độ audio ghép.
+
+### 2. Tải mã nguồn và dựng
+
+```powershell
+git clone -b dotnet-gui https://github.com/michalvu/MuxStudio.git
+cd MuxStudio\dotnet
+dotnet build MuxStudio.slnx -c Release
+```
+
+### 3. Mở chương trình
+
+```powershell
+dotnet run --project src\MuxStudio.App -c Release
+```
+
+hoặc bấm đúp file đã dựng: `dotnet\src\MuxStudio.App\bin\Release\net10.0-windows\MuxStudio.exe`
+(có thể truyền sẵn thư mục phim: `MuxStudio.exe "D:\Phim\Tên phim"`).
+
+### 4. Thiết lập lần đầu (trong chương trình)
+
+- **Cài đặt › Chung — thư mục & công cụ:** bấm **Tự tìm** (hoặc **Chọn…**) cho từng công cụ ở mục *Công cụ ngoài*.
+- **Cài đặt › API & tài khoản:** điền key SubSource, TMDB, TVDB, OpenSubtitles (tài khoản Titulky.com không bắt buộc).
+  Key và mật khẩu được lưu trong Windows Credential Manager, không ghi vào file cấu hình.
+- Bấm **Lưu cài đặt**, chọn thư mục phim ở đầu cửa sổ, rồi làm lần lượt ① → ② → ③.

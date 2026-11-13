@@ -1,6 +1,6 @@
 # Bàn giao: port MuxStudio sang C# / WPF (.NET 10)
 
-Nhánh: `dotnet-port`. Quy ước làm việc: [`dotnet/CLAUDE.md`](../dotnet/CLAUDE.md). Hướng dẫn tổng thể: [`PORT_DOTNET.md`](PORT_DOTNET.md).
+Nhánh: `dotnet-gui` (tách từ `dotnet-port` ở GĐ5; nhánh làm việc mặc định từ 13/11/2026). Quy ước làm việc: [`dotnet/CLAUDE.md`](../dotnet/CLAUDE.md). Hướng dẫn tổng thể: [`PORT_DOTNET.md`](PORT_DOTNET.md).
 
 ## Tiến độ
 
