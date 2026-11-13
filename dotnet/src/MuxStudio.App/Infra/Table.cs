@@ -186,10 +186,11 @@ public sealed class Table
                 bd.SetBinding(Border.BorderBrushProperty, new Binding($"Raw[~{col.Key}]") { Converter = KindBrushConverter.Soft, FallbackValue = Brushes.Transparent });
                 // mau chu theo loai: trigger (khong binding) — loai rong thi giu mau theo nhan dong / che do Sang-Toi
                 var bstyle = new Style(typeof(TextBlock), style);
-                foreach (var kind in new[] { "good", "need", "amber", "bad", "info", "cyan", "accent", "indigo", "dim" })
+                foreach (var kind in Chips.KindNames)
                 {
                     var dt = new DataTrigger { Binding = new Binding($"Raw[~{col.Key}]"), Value = kind };
-                    dt.Setters.Add(new Setter(TextBlock.ForegroundProperty, Chips.Brush(kind, false)));
+                    // tham chieu dong: chu dam o che do Sang, sang o che do Toi (doc ro tren nen Acrylic), tu doi khi doi che do
+                    dt.Setters.Add(new Setter(TextBlock.ForegroundProperty, new DynamicResourceExtension(Chips.TextKey(kind))));
                     bstyle.Triggers.Add(dt);
                 }
                 var tb = new FrameworkElementFactory(typeof(TextBlock));

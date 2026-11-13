@@ -685,6 +685,32 @@ public sealed class GuiLogicTests : IDisposable
     // ==========================================================================
 
     [Fact]
+    public void Workbench_state_follows_current_choices()
+    {
+        // chua chon gi
+        var s = WorkbenchUi.State(null, [], false, "", null);
+        Assert.Equal(("—", "—", "dim", "Phụ đề gốc", "chưa chọn", "need"), (s.Folder, s.Langs, s.LangsKind, s.Ref, s.Db, s.DbKind));
+        Assert.Equal(("—", "—", "—", ""), (s.Videos, s.Subs, s.Refs, s.RefsKind));
+        // doi lua chon o cac the -> gia tri doi theo
+        s = WorkbenchUi.State(@"D:\Phim\[YTS] Dune (2021)\", ["cs", "vi"], true, "tvdb", new PrepCounts(3, 5, 0));
+        Assert.Equal(("[YTS] Dune (2021)", "CS · VI", "need", "Audio", "TVDB", "good"), (s.Folder, s.Langs, s.LangsKind, s.Ref, s.Db, s.DbKind));
+        Assert.Equal(("3", "5", "0", ""), (s.Videos, s.Subs, s.Refs, s.RefsKind)); // moc = audio: srt_goc trong khong sao
+        s = WorkbenchUi.State(@"D:\Phim\Dune", ["vi"], false, "none", new PrepCounts(3, 5, 0));
+        Assert.Equal(("Phụ đề gốc", "Không đổi tên", "bad"), (s.Ref, s.Db, s.RefsKind)); // moc = phu de goc ma srt_goc trong -> do
+        Assert.Equal("", WorkbenchUi.State(@"D:\Phim\Dune", ["vi"], false, "tmdb", new PrepCounts(3, 5, 2)).RefsKind);
+        Assert.Equal("TMDB", WorkbenchUi.State(@"D:\", [], false, "tmdb", null).Db);
+    }
+
+    [Theory]
+    [InlineData(6876.54, "1:54:36")]
+    [InlineData(2707.9, "45:07")]
+    [InlineData(3600, "1:00:00")]
+    [InlineData(59.99, "0:59")]
+    [InlineData(0, "?")]
+    [InlineData(double.NaN, "?")]
+    public void Duration_text(double seconds, string want) => Assert.Equal(want, UiText.Duration(seconds));
+
+    [Fact]
     public void New_wpf_strings_have_english_translations()
     {
         var old = I18n.Language;
@@ -694,7 +720,8 @@ public sealed class GuiLogicTests : IDisposable
             foreach (var s in new[] { "Có", "Không", "Sáng", "Tối", "Theo Windows", "Đặt tên theo", "chưa chọn", "Phụ đề gốc", "Tập / file",
                                       "Bấm để tick / bỏ cả cột", "Đổi tên · đồng bộ (alass)", "Nền giao diện cửa sổ", "(không có gì để hoàn tác)",
                                       "GIỎ PHỤ ĐỀ", "✓ Đã chọn", "+ Chọn", "XOÁ (chưa áp dụng)", "GHÉP VÀO MKV", "Trong file MKV", "Phụ đề trong 'srt_can_sync'",
-                                      "VI: 2/2 · 1 cần chọn", "vi: đã chọn", "2 cặp sẽ đồng bộ", "1 lỗi/từ chối" })
+                                      "VI: 2/2 · 1 cần chọn", "vi: đã chọn", "2 cặp sẽ đồng bộ", "1 lỗi/từ chối", "Thời lượng", "Phim",
+                                      "Phụ đề gốc trong 'srt_goc'", "Không đổi tên", "Audio" })
                 Assert.False(I18n.HasVietnamese(I18n.T(s)), s);
             // cau ghep gia tri van dich theo mau cua ban Python
             Assert.False(I18n.HasVietnamese(I18n.T(PrepUi.CountsText(new PrepCounts(2, 3, 0), new Config()))));

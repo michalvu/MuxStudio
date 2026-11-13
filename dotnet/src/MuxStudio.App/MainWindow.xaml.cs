@@ -51,6 +51,7 @@ public partial class MainWindow : FluentWindow
     private readonly bool _forcedAppearance;
     private bool _secretErrorShown;
     private bool _closing;
+    private bool _ready;
     private string _current = "fetch";
 
     public MainWindow(Config cfg, string? folder = null, string? appearance = null, SecretStore? store = null)
@@ -67,7 +68,15 @@ public partial class MainWindow : FluentWindow
         Backdrop = ThemeService.Backdrop(cfg.Str("UiBackdrop"));
         WindowBackdropType = Backdrop;
         if (Backdrop == WindowBackdropType.None)
+        {
             SetResourceReference(BackgroundProperty, "ApplicationBackgroundBrush");
+        }
+        else // kinh (Acrylic / Mica) chi o khung ngoai; noi dung tren lop nen mo duc -> chu mau van ro
+        {
+            ContentLayer.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, "ContentLayerBrush");
+            ContentLayer.SetResourceReference(System.Windows.Controls.Border.BorderBrushProperty, "ControlElevationBorderBrush");
+            ContentLayer.BorderThickness = new Thickness(1);
+        }
         PlaceWindow();
         LogView.Folder = () => Folder;
         LogView.Redact = Redactor.Redact;
@@ -111,6 +120,7 @@ public partial class MainWindow : FluentWindow
         var start = folder ?? OptStr("UiLastFolder");
         if (start.Length > 0 && Directory.Exists(start))
             SetFolder(start, quiet: true);
+        _ready = true;
         UpdateState();
         UpdateViews();
         // nhu ban Python: OnShow chi chay khi BAN chuyen the (khong tu goi mang luc mo chuong trinh)
@@ -443,7 +453,14 @@ public partial class MainWindow : FluentWindow
         UndoBtn.IsEnabled = !busy;
         StatusDot.Fill = (Brush)FindResource(busy ? "AmberAccentBrush" : "EmeraldAccentBrush");
         StateBusy.Text = busy ? "BUSY" : "IDLE";
-        StateBusy.Foreground = StatusDot.Fill;
+        StateBusy.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, busy ? "AmberTextBrush" : "EmeraldTextBrush");
+        if (Runner.Quiet) // viec tu dong (dem file): khong de dong trang thai cua viec ban vua lam
+        {
+            UpdateViews();
+            return;
+        }
+        if (!busy && Folder is not null) // viec vua xong co the da them / doi / xoa file: dem lai cho the trang thai
+            Dispatcher.BeginInvoke(Prep.RefreshCounts, System.Windows.Threading.DispatcherPriority.Background);
         if (busy)
         {
             Prog.Value = 0;
@@ -477,22 +494,32 @@ public partial class MainWindow : FluentWindow
             v.UpdateButtons();
     }
 
-    /// <summary>Thẻ "WORKBENCH STATE" ở cột trái.</summary>
+    /// <summary>
+    /// Thẻ "WORKBENCH STATE" ở cột trái — theo lựa chọn HIỆN TẠI: ngôn ngữ đang tick ở ①, mốc đồng bộ ở ②, database ở ③ (mỗi thẻ gọi lại hàm này
+    /// khi bạn đổi), số file đếm lại sau mỗi việc (<see cref="OnBusy"/>).
+    /// </summary>
     public void UpdateState()
     {
-        StateFolder.Text = Folder is null ? "—" : Path.GetFileName(Folder.TrimEnd('\\')) is { Length: > 0 } n ? n : Folder;
+        if (!_ready) // cac the dang dung (OnConfigChanged cua the ① tick san ngon ngu)
+            return;
+        var st = WorkbenchUi.State(Folder, Fetch.Langs(), Prep.IsAudioMode, Mux.DbChoice, Folder is null ? null : Prep.Counts);
+        StateFolder.Text = st.Folder;
         StateFolder.ToolTip = Folder;
-        var langs = Cfg.List("Languages");
-        StateLangs.Text = langs.Count > 0 ? string.Join(" · ", langs.Select(x => x.ToUpperInvariant())) : "—";
-        StateRef.Text = L.T(Prep.IsAudioMode ? "Audio" : "Phụ đề gốc");
-        StateDb.Text = Mux.DbChoice switch
-        {
-            "tmdb" => "TMDB",
-            "tvdb" => "TVDB",
-            "none" => L.T("Không đổi tên"),
-            _ => L.T("chưa chọn"),
-        };
-        StateCounts.Text = Prep.CountsLine;
+        SetState(StateLangs, st.Langs, st.LangsKind);
+        SetState(StateRef, L.T(st.Ref), "info");
+        SetState(StateDb, L.T(st.Db), st.DbKind);
+        SetState(CountVideos, st.Videos, "");
+        CountSubsLabel.Text = L.T($"Phụ đề trong '{Cfg.Str("SubFolderName")}'");
+        SetState(CountSubs, st.Subs, "");
+        CountRefsLabel.Text = L.T($"Phụ đề gốc trong '{Cfg.Str("ExtractFolder")}'");
+        SetState(CountRefs, st.Refs, st.RefsKind);
+    }
+
+    /// <summary>Chữ + màu (theo chế độ Sáng / Tối, tự đổi) của một giá trị trong thẻ trạng thái.</summary>
+    private static void SetState(System.Windows.Controls.TextBlock t, string text, string kind)
+    {
+        t.Text = text;
+        t.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, Chips.TextKey(kind) ?? "TextFillColorPrimaryBrush");
     }
 
     private void StopAfter_Click(object sender, RoutedEventArgs e) => Runner.StopAfterCurrent();

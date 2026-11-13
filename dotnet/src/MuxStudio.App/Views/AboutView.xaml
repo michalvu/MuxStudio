@@ -20,7 +20,7 @@
             <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="{StaticResource MonoFont}" FontSize="22" FontWeight="Bold"
                        Foreground="{StaticResource BadgeTextBrush}" Text="MS" />
           </Border>
-          <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AmberAccentBrush}" Text="AUTHOR" />
+          <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AmberTextBrush}" Text="AUTHOR" />
           <TextBlock x:Name="TitleText" Margin="0,4,0,2" FontSize="24" FontWeight="Bold" />
           <TextBlock x:Name="AuthorText" FontSize="16" FontWeight="Bold" />
           <TextBlock x:Name="CopyrightText" Margin="0,2,0,0" Style="{StaticResource Body}" />
@@ -31,7 +31,7 @@
         <DockPanel LastChildFill="True">
           <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10" LastChildFill="True">
             <ui:Button DockPanel.Dock="Right" Icon="{ui:SymbolIcon Copy24}" Content="{l:Tr 'Chép nội dung trang này'}" Click="Copy_Click" />
-            <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AmberAccentBrush}"
+            <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AmberTextBrush}"
                        VerticalAlignment="Center" Text="THIRD-PARTY SOFTWARE &amp; SERVICES" />
           </DockPanel>
           <TextBlock x:Name="NoteText" Style="{StaticResource Body}" />

@@ -42,8 +42,11 @@ public partial class FetchView : UserControl, IStepView
             var name = Naming.LangName(c);
             var cb = new CheckBox { Style = pill, Content = new TextBlock { Text = c.ToUpperInvariant() + (name.Length > 0 ? "  " + name : "") } };
             _langBoxes[c] = cb;
+            cb.Checked += (_, _) => _app.UpdateState(); // the "WORKBENCH STATE": ngon ngu dang tick (khong phai Cai dat da luu)
+            cb.Unchecked += (_, _) => _app.UpdateState();
             LangPanel.Children.Insert(LangPanel.Children.IndexOf(ExtraBox), cb);
         }
+        LangExtra.TextChanged += (_, _) => _app.UpdateState();
         foreach (var (k, label) in FetchUi.Sources)
         {
             var cb = new CheckBox { Style = (Style)FindResource("PillCyan"), IsChecked = true, Content = new TextBlock { Text = label } };
@@ -87,7 +90,8 @@ public partial class FetchView : UserControl, IStepView
     public FrameworkElement Root => this;
 
     // ------------------------------------------------------------------ cau hinh
-    private List<string> Langs() =>
+    /// <summary>Ngôn ngữ đang tick ở thẻ ① (gồm ô "khác") — lượt quét tiếp theo sẽ dùng; cũng hiện ở thẻ "WORKBENCH STATE".</summary>
+    public List<string> Langs() =>
         SettingsUi.LangsFromParts(_langBoxes.ToDictionary(kv => kv.Key, kv => kv.Value.IsChecked == true, StringComparer.Ordinal), LangExtra.Text);
 
     private Dictionary<string, bool> SourcesOn() => _srcBoxes.ToDictionary(kv => kv.Key, kv => kv.Value.IsChecked == true, StringComparer.Ordinal);
@@ -312,7 +316,7 @@ public partial class FetchView : UserControl, IStepView
             VidName.ToolTip = null;
             VidTiles.Children.Add(Chips.Tile("FPS", "—"));
             VidTiles.Children.Add(Chips.Tile("Loại", "—"));
-            VidTiles.Children.Add(Chips.Tile("Phụ đề gốc (mốc)", "—"));
+            VidTiles.Children.Add(Chips.Tile("Thời lượng", "—"));
             VidLangs.Children.Clear();
             return;
         }
@@ -320,7 +324,7 @@ public partial class FetchView : UserControl, IStepView
         VidName.ToolTip = v.Path;
         VidTiles.Children.Add(Chips.Tile("FPS", v.Fps is { } f && f != 0 ? f.ToString("F3", CultureInfo.InvariantCulture) : "?", "good"));
         VidTiles.Children.Add(Chips.Tile("Loại", L.T(v.KindText)));
-        VidTiles.Children.Add(Chips.Tile("Phụ đề gốc (mốc)", v.Ref is not null ? L.T(v.Ref.Source) : L.T("không có"), v.Ref is not null ? "info" : "bad"));
+        VidTiles.Children.Add(Chips.Tile("Thời lượng", UiText.Duration(v.Duration)));
         Chips.Fill(VidLangs, WorkbenchUi.VideoLangs(_items.Where(it => ReferenceEquals(it.Video, v))), mono: true);
     }
 

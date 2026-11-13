@@ -194,6 +194,18 @@ public static partial class UiText
     /// <summary><c>shorten_name</c>: tên file rút gọn còn tối đa <paramref name="n"/> ký tự, giữ số tập + đuôi.</summary>
     public static string ShortenName(string? text, int n) => FitText(text ?? "", n, null, "name");
 
+    /// <summary>Thời lượng phim (giây) → <c>1:54:36</c> (dưới 1 giờ: <c>45:07</c>); 0 / không rõ → <c>?</c>. Bỏ phần lẻ của giây.</summary>
+    public static string Duration(double seconds)
+    {
+        if (double.IsNaN(seconds) || double.IsInfinity(seconds) || seconds < 1)
+            return "?";
+        var t = (long)Math.Floor(seconds);
+        long h = t / 3600, m = t / 60 % 60, s = t % 60;
+        return h > 0
+            ? string.Create(CultureInfo.InvariantCulture, $"{h}:{m:00}:{s:00}")
+            : string.Create(CultureInfo.InvariantCulture, $"{m}:{s:00}");
+    }
+
     /// <summary><c>progress_percent</c>: 0–100 (làm tròn xuống: chỉ ghi 100% khi thật sự xong hết).</summary>
     public static int ProgressPercent(int done, int total) => total <= 0 ? 0 : Math.Max(0, Math.Min(100, done * 100 / total));
 

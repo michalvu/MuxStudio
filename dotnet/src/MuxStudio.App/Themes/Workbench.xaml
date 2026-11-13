@@ -40,9 +40,8 @@
     <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
     <Setter Property="FontSize" Value="11" />
     <Setter Property="FontWeight" Value="Bold" />
-    <Setter Property="Opacity" Value="0.7" />
     <Setter Property="VerticalAlignment" Value="Center" />
-    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
   </Style>
   <Style x:Key="Hint" TargetType="TextBlock">
     <Setter Property="FontSize" Value="12" />
@@ -171,7 +170,7 @@
             <StackPanel Orientation="Horizontal">
               <Border x:Name="Box" Width="14" Height="14" Margin="0,0,7,0" CornerRadius="3" BorderThickness="1" VerticalAlignment="Center"
                       BorderBrush="{DynamicResource TextFillColorSecondaryBrush}">
-                <TextBlock x:Name="Mark" Text="✓" FontSize="10" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"
+                <TextBlock x:Name="Mark" Text="✓" FontSize="10" FontWeight="Bold" Foreground="{StaticResource BadgeTextBrush}" HorizontalAlignment="Center"
                            VerticalAlignment="Center" Visibility="Collapsed" />
               </Border>
               <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="False" />
@@ -181,7 +180,7 @@
             <Trigger Property="IsChecked" Value="True">
               <Setter TargetName="Bd" Property="Background" Value="{Binding Background, RelativeSource={RelativeSource TemplatedParent}}" />
               <Setter TargetName="Bd" Property="BorderBrush" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}" />
-              <Setter TargetName="Bd" Property="TextElement.Foreground" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}" />
+              <!-- chu giu mau chu thuong (Foreground): mau nhan sang tren nen sang / Acrylic doc khong ro; dau hieu "bat" = vien + nen + o ✓ -->
               <Setter TargetName="Box" Property="Background" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}" />
               <Setter TargetName="Box" Property="BorderBrush" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}" />
               <Setter TargetName="Mark" Property="Visibility" Value="Visible" />

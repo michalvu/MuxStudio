@@ -31,7 +31,7 @@ public sealed class Runner
     private readonly Lock _progLock = new();
     private JobProgress? _lastProg;
 
-    private sealed record Waiting(string Title, Func<Job, object?> Fn, Action<object?>? OnDone, Action<Exception>? OnError);
+    private sealed record Waiting(string Title, Func<Job, object?> Fn, Action<object?>? OnDone, Action<Exception>? OnError, bool Quiet);
 
     public Runner(Dispatcher ui, Action<IReadOnlyList<(string Level, string Message)>> write, Action<int, int, string> progress,
                   Action<bool, string> onBusy, Func<string, string> redact)
@@ -56,6 +56,9 @@ public sealed class Runner
 
     public bool Busy => Job is not null;
 
+    /// <summary>Việc đang chạy (hoặc vừa xong) là việc TỰ ĐỘNG (<c>quiet</c>: đếm file…) — cửa sổ không ghi đè dòng trạng thái của việc bạn làm.</summary>
+    public bool Quiet { get; private set; }
+
     private sealed class LogSink(Runner r) : IProgress<LogLine>
     {
         // luong phu: dich truoc khi day sang giao dien (I18n.Tr ~100 µs/dong)
@@ -73,24 +76,25 @@ public sealed class Runner
 
     /// <summary>Bắt đầu một việc (chỉ một việc mỗi lúc). Đang có việc khác: <paramref name="whenFree"/> → xếp hàng, chạy ngay khi việc đang chạy
     /// xong (việc tự động: đếm file, kiểm tra key); không thì báo và trả <c>false</c>.</summary>
-    public bool Start<T>(string title, Func<Job, T> fn, Action<T>? onDone = null, Action<Exception>? onError = null, bool whenFree = false) =>
-        StartCore(title, j => fn(j), onDone is null ? null : o => onDone((T)o!), onError, whenFree);
+    public bool Start<T>(string title, Func<Job, T> fn, Action<T>? onDone = null, Action<Exception>? onError = null, bool whenFree = false,
+                         bool quiet = false) =>
+        StartCore(title, j => fn(j), onDone is null ? null : o => onDone((T)o!), onError, whenFree, quiet);
 
     public bool Start(string title, Action<Job> fn, Action? onDone = null, Action<Exception>? onError = null, bool whenFree = false) =>
         StartCore(title, j =>
         {
             fn(j);
             return null;
-        }, onDone is null ? null : _ => onDone(), onError, whenFree);
+        }, onDone is null ? null : _ => onDone(), onError, whenFree, false);
 
-    private bool StartCore(string title, Func<Job, object?> fn, Action<object?>? onDone, Action<Exception>? onError, bool whenFree)
+    private bool StartCore(string title, Func<Job, object?> fn, Action<object?>? onDone, Action<Exception>? onError, bool whenFree, bool quiet)
     {
         if (Busy)
         {
             if (whenFree)
             {
                 if (_waiting.All(w => w.Title != title))
-                    _waiting.Add(new Waiting(title, fn, onDone, onError));
+                    _waiting.Add(new Waiting(title, fn, onDone, onError, quiet));
                 return true;
             }
             _write([("warn", L.T($"[!] Đang chạy \"{Title}\" — đợi xong (hoặc bấm Dừng) rồi bấm lại."))]);
@@ -99,6 +103,7 @@ public sealed class Runner
         var job = new Job(new LogSink(this), new ProgressSink(this), _redact);
         Job = job;
         Title = title;
+        Quiet = quiet;
         lock (_progLock)
             _lastProg = null;
         _onBusy(true, title);
@@ -185,7 +190,7 @@ public sealed class Runner
         {
             var nxt = _waiting[0];
             _waiting.RemoveAt(0);
-            StartCore(nxt.Title, nxt.Fn, nxt.OnDone, nxt.OnError, false);
+            StartCore(nxt.Title, nxt.Fn, nxt.OnDone, nxt.OnError, false, nxt.Quiet);
         }
     }
 

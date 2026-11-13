@@ -7,12 +7,36 @@ namespace MuxStudio.Core.Ui;
 public sealed record StreamCard(string Kind, int Id, string Badge, string Title, string Detail, string State, string StateText, bool CanToggle,
                                 bool IsDefault);
 
+/// <summary>Thẻ "WORKBENCH STATE": giá trị (chữ tiếng Việt gốc — dịch ở chỗ hiển thị) + loại màu (<c>good need bad dim</c>, rỗng = chữ thường).</summary>
+public sealed record WorkbenchState(string Folder, string Langs, string LangsKind, string Ref, string Db, string DbKind, string Videos, string Subs,
+                                    string Refs, string RefsKind);
+
 /// <summary>
 /// Dữ liệu cho phần trình bày kiểu "Concept 3 Pro Workbench" (nhãn màu, giỏ phụ đề, thẻ luồng, ô thống kê). CHỈ đọc dữ liệu thật của lõi — không
 /// đổi kế hoạch, không đổi kết quả. Loại màu: <c>good need bad info accent dim</c> (rỗng = chữ thường).
 /// </summary>
 public static class WorkbenchUi
 {
+    // ==========================================================================
+    //  Thẻ "WORKBENCH STATE" (cột trái)
+    // ==========================================================================
+
+    /// <summary>
+    /// Dữ liệu thẻ "WORKBENCH STATE" theo lựa chọn HIỆN TẠI của các thẻ (không phải theo Cài đặt đã lưu): ngôn ngữ đang tick ở ①, mốc đồng bộ ở
+    /// ②, database đặt tên ở ③, số file đếm lần gần nhất. <paramref name="counts"/> = <c>null</c>: chưa đếm (hoặc chưa chọn thư mục) → "—".
+    /// Mỗi giá trị kèm loại màu; số phụ đề gốc tô đỏ khi mốc = phụ đề gốc mà thư mục phụ đề gốc còn trống.
+    /// </summary>
+    public static WorkbenchState State(string? folder, IReadOnlyList<string> langs, bool audioMode, string db, PrepCounts? counts)
+    {
+        var name = folder is null ? "—" : Path.GetFileName(folder.TrimEnd('\\', '/')) is { Length: > 0 } n ? n : folder;
+        var lang = langs.Count > 0 ? string.Join(" · ", langs.Select(x => x.ToUpperInvariant())) : "—";
+        var dbText = db switch { "tmdb" => "TMDB", "tvdb" => "TVDB", "none" => "Không đổi tên", _ => "chưa chọn" };
+        string Num(int? v) => v?.ToString(CultureInfo.InvariantCulture) ?? "—";
+        var refsKind = counts is { Refs: 0, Videos: > 0 } && !audioMode ? "bad" : "";
+        return new WorkbenchState(name, lang, langs.Count > 0 ? "need" : "dim", audioMode ? "Audio" : "Phụ đề gốc", dbText,
+                                  db.Length > 0 ? "good" : "need", Num(counts?.Videos), Num(counts?.Subs), Num(counts?.Refs), refsKind);
+    }
+
     // ==========================================================================
     //  ① Tải phụ đề
     // ==========================================================================

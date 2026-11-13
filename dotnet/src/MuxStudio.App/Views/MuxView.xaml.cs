@@ -99,6 +99,12 @@ public partial class MuxView : UserControl, IStepView
         TabGrid.Header = L.T("Bảng chọn phụ đề theo tập");
         TabDonor.Header = L.T("Audio ghép từ file khác");
         TabInfo.Header = L.T("Chi tiết");
+        // mau chu cua the luong (KindBrushConverter.Accent) lay theo che do Sang / Toi luc gan: doi che do -> gan lai
+        ThemeService.Changed += () =>
+        {
+            if (StreamList.ItemsSource is not null)
+                StreamList.Items.Refresh();
+        };
         DonorHint.Text = L.T("Bấm đúp vào ô \"Độ lệch\" để sửa tay (chỉ cho lượt chạy này; muốn lưu lâu dài thì điền 'Độ lệch chỉnh tay' trong Cài đặt).");
         var pill = (Style)FindResource("PillEmerald");
         foreach (var (k, label) in MuxUi.Dbs)

@@ -8,6 +8,17 @@
   <SolidColorBrush x:Key="LogDimBrush" Color="#9AA0A6" />
   <SolidColorBrush x:Key="LogHeadBrush" Color="#8AB4F8" />
 
+  <!-- Màu CHỮ của 5 màu nhấn (xem Light.xaml). Chế độ Tối = sắc SÁNG (≥ 6:1 trên nền tối / Acrylic tối). -->
+  <SolidColorBrush x:Key="AmberTextBrush" Color="#FBBF24" />
+  <SolidColorBrush x:Key="CyanTextBrush" Color="#22D3EE" />
+  <SolidColorBrush x:Key="EmeraldTextBrush" Color="#34D399" />
+  <SolidColorBrush x:Key="RoseTextBrush" Color="#FB7185" />
+  <SolidColorBrush x:Key="IndigoTextBrush" Color="#A5B4FC" />
+  <SolidColorBrush x:Key="DimTextBrush" Color="#9CA3AF" />
+
+  <!-- Lớp nền dưới vùng nội dung khi bật nền Acrylic / Mica (xem Light.xaml) -->
+  <SolidColorBrush x:Key="ContentLayerBrush" Color="#D91C1C1C" />
+
   <SolidColorBrush x:Key="RowNeedBrush" Color="#6B5500" />
   <SolidColorBrush x:Key="RowBadBrush" Color="#5A1F1F" />
   <SolidColorBrush x:Key="RowGoodBrush" Color="#1D3B21" />

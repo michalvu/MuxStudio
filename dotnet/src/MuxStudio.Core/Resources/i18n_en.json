@@ -1335,7 +1335,8 @@
 "✓ Đã chọn": "✓ Chosen",
 "Phụ đề trong '{}'": "Subtitles in '{}'",
 "Trong file MKV": "Inside the MKV",
-"Phim": "Videos"
+"Phim": "Videos",
+"Thời lượng": "Duration"
 },
 "SKIP": [
 " ({} mục [!] nên xem)",

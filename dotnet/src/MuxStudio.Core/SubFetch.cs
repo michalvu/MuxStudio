@@ -82,6 +82,9 @@ public sealed class VideoInfo(string path, string stem, EpisodeInfo? ep, string 
     public string Title { get; } = title;
     public int? Year { get; } = year;
     public double? Fps { get; } = fps;
+
+    /// <summary>Thời lượng (giây) từ <c>mkvmerge -J</c> lúc quét (thẻ "TARGET VIDEO"); 0 = không rõ.</summary>
+    public double Duration { get; set; }
     public List<string> Tokens { get; } = tokens;
     public RefInfo? Ref { get; set; }
     public JDict? Entry { get; set; }
@@ -652,7 +655,7 @@ public sealed class FetchSession : IDisposable
             (title, year) = (rn.Title, rn.Year);
         }
         var j = _probe(v);
-        var info = new VideoInfo(v, stem, ep, title, year, Probe.VideoFps(j), Naming.TitleTokens(stem));
+        var info = new VideoInfo(v, stem, ep, title, year, Probe.VideoFps(j), Naming.TitleTokens(stem)) { Duration = Probe.Duration(j) };
         Job.Head($"=== {Subprep.Name(v)}");
         Job.Dim($"    Nhận diện: '{title}'" + (year is { } y && y != 0 ? string.Create(CultureInfo.InvariantCulture, $" ({y})") : "")
                 + $" - {info.KindText}" + (info.Fps is { } f && f != 0 ? $" - {Py.Str(f)} fps" : ""));

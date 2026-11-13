@@ -112,8 +112,8 @@ public partial class PrepView : UserControl, IStepView
     /// <summary>Mốc = audio của file phim (cho thẻ trạng thái ở cột trái).</summary>
     public bool IsAudioMode => ModeAudio.IsChecked == true;
 
-    /// <summary>Dòng đếm file (cho thẻ trạng thái ở cột trái).</summary>
-    public string CountsLine => _counts is null ? "" : L.T(PrepUi.CountsText(_counts, _app.Cfg));
+    /// <summary>Số file đếm lần gần nhất (thẻ "WORKBENCH STATE"); <c>null</c> = chưa đếm.</summary>
+    public PrepCounts? Counts => _counts;
 
     private string Mode() => IsAudioMode ? PrepUi.ModeAudio : PrepUi.ModeSub;
 
@@ -348,7 +348,8 @@ public partial class PrepView : UserControl, IStepView
     // ------------------------------------------------------------------ 1. dem
     private void Recount_Click(object sender, RoutedEventArgs e) => RefreshCounts();
 
-    private void RefreshCounts()
+    /// <summary>Đếm lại file (việc TỰ ĐỘNG, không đè dòng trạng thái): ô thống kê của thẻ ② và thẻ "WORKBENCH STATE".</summary>
+    public void RefreshCounts()
     {
         if (_app.Folder is null)
         {
@@ -362,7 +363,7 @@ public partial class PrepView : UserControl, IStepView
             ShowExtractHint();
             UpdateButtons();
             _app.UpdateState();
-        }, whenFree: true);
+        }, whenFree: true, quiet: true);
     }
 
     /// <summary>Ba ô thống kê: số phim, số phụ đề trong <c>srt_can_sync</c>, số phụ đề gốc trong <c>srt_goc</c> (đỏ khi trống mà mốc = phụ đề).</summary>

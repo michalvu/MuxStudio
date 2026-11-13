@@ -8,6 +8,18 @@
   <SolidColorBrush x:Key="LogDimBrush" Color="#6B6B6B" />
   <SolidColorBrush x:Key="LogHeadBrush" Color="#1A5FB4" />
 
+  <!-- Màu CHỮ của 5 màu nhấn (Workbench.xaml giữ bản sáng làm NỀN / viền nhãn đặc). Chế độ Sáng = sắc ĐẬM: ≥ 6:1 trên nền trắng, vẫn
+       ≥ 4,5:1 trên nền Acrylic / Mica sáng và trên nền nhạt của nhãn (sắc sáng cũ chỉ ~2–2,5:1 → chữ mờ). -->
+  <SolidColorBrush x:Key="AmberTextBrush" Color="#92400E" />
+  <SolidColorBrush x:Key="CyanTextBrush" Color="#155E75" />
+  <SolidColorBrush x:Key="EmeraldTextBrush" Color="#04704F" />
+  <SolidColorBrush x:Key="RoseTextBrush" Color="#BE123C" />
+  <SolidColorBrush x:Key="IndigoTextBrush" Color="#4338CA" />
+  <SolidColorBrush x:Key="DimTextBrush" Color="#4B5563" />
+
+  <!-- Lớp nền dưới vùng nội dung khi bật nền Acrylic / Mica (85% đục): kính ở khung ngoài, chữ đọc trên nền sáng ổn định -->
+  <SolidColorBrush x:Key="ContentLayerBrush" Color="#D9F9F9F9" />
+
   <SolidColorBrush x:Key="RowNeedBrush" Color="#FFF3C4" />
   <SolidColorBrush x:Key="RowBadBrush" Color="#FDE0DC" />
   <SolidColorBrush x:Key="RowGoodBrush" Color="#E3F5E1" />
