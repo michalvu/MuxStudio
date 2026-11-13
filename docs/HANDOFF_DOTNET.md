@@ -8,7 +8,7 @@ Nhánh: `dotnet-port`. Quy ước làm việc: [`dotnet/CLAUDE.md`](../dotnet/CL
 |---|---|---|
 | 0 | Solution `dotnet/` (Core, App WPF-UI, Tests xUnit), `Directory.Build.props`, analyzer locale | ✅ 13/11/2026 |
 | 1 | `timing pgs srt encoding episodes naming config secrets undo i18n` | ✅ 13/11/2026: 343 test C# (Python cùng module: 305) |
-| 2 | `tools` (Process + huỷ) `probe tmdb tvdb subsource opensubs titulky subfetch` + phần còn lại của `naming` | ⏳ `tools`, `probe` ✅ 13/11/2026 (386 test C#). Tiếp theo: HTTP (`tmdb tvdb subsource opensubs titulky`) → `naming` DB → `subfetch` |
+| 2 | `tools` (Process + huỷ) `probe tmdb tvdb subsource opensubs titulky subfetch` + phần còn lại của `naming` | ✅ 13/11/2026 (582 test C#) |
 | 3 | `subprep` | ✅ 13/11/2026 (455 test C#) — kèm thay đổi ô "Ngôn ngữ" theo yêu cầu (xem mục GĐ3) |
 | 4 | `mux donor` | |
 | 5 | GUI (NavigationView 5 thẻ, Log, Cài đặt, ①②③, Giới thiệu) | |
@@ -36,12 +36,20 @@ Hạ tầng test (`tests/MuxStudio.Core.Tests/Support/`):
 - `TempDir`, kèm `MovieDir()` (thư mục tên có `[ ]`).
 - `GlobalStateCollection`, `Approx` (= `pytest.approx`).
 
-## GĐ2: ánh xạ module (đang làm)
+## GĐ2: ánh xạ module
 
 | Python | C# (`src/MuxStudio.Core/`) | Test C# | Python / C# |
 |---|---|---|---|
 | `tools.py` | `Tools.cs` (`Job`, `Cancelled`, `RunResult`, `Tools.*`) | `ToolsTests` | 11 / 20 |
 | `probe.py` | `Probe.cs` | `ProbeTests` | 8 / 15 |
+| `tmdb.py` | `Tmdb.cs` (`TmdbClient`, `ConnStatus`, `INameDb`) | `TmdbTests` | 10 / 11 |
+| `tvdb.py` | `Tvdb.cs` (`TvdbClient`) | `NamingDbTests` | (trong `test_naming_db`) |
+| `naming.py` phần database | `NamingDb.cs` (`OutputName`, `ResolveOutputName`, `ChooseCandidate`, `SearchCandidates`…) | `NamingDbTests` | 16 / 14 (+1 bài cần `mux` → GĐ4) |
+| `subsource.py` | `SubSource.cs` (`SubSourceClient`, `SubSource.*`) | `SubSourceTests` | 31 / 32 |
+| `opensubs.py` | `OpenSubs.cs` (`OpenSubtitlesClient`, `OpenSubs.*`) | `OpenSubsTests` | 25 / 26 |
+| `titulky.py` | `Titulky.cs` (`TitulkyClient`, `Titulky.*`, `SearchRow`, `DownloadPage`) | `TitulkyTests` | 16 / 16 |
+| `subfetch.py` | `SubFetch.cs` (`FetchSession`, `Candidate`, `ChoiceMemory`, `RefProvider`, `SubFetch.*`) | `SubFetchTests` | 27 / 28 |
+| `requests` + `tests/fakehttp.py` | `Http.cs` (`Http`, `HttpResult`, `HttpNetworkException`, `PyUrl`) + `Support/FakeHttp.cs` | | |
 | (hành vi chuẩn của Python) | `PyStd.cs` (`os.path`, `pathlib`, `shutil.which`, `round(x, n)`, `int()`, `splitlines`, `strip`), `PyDict.cs` (`d.get`, `or {}`…) | `PyStdTests` | – / 8 |
 
 Test Python tương ứng: `tools` = 10 test của `test_tools_probe.py` + `test_unsupported_alass_flags` (phần không cần PrepSession);
@@ -65,6 +73,27 @@ Hạ tầng test mới:
   GĐ3 đã mở rộng chế độ `alass` thành bản port đầy đủ của `fake_alass.py`.
 - `PyCases.Check(nhóm, hàm)`: chạy hàm C# trên mọi ca Python xuất, báo tối đa 15 ca lệch.
 - `PyData.D/L/J` (dựng JSON kiểu Python), `MkvFake.V/A/S/J` (= `V A S J` của `test_mux.py`, dùng lại ở GĐ4).
+
+HTTP (thay `requests`):
+- `Http`: một `HttpClient` dùng chung (`Http.Shared`, tạo khi cần lần đầu), **đồng bộ** (`HttpClient.Send`, lõi chạy ở luồng phụ như
+  bản Python), giữ cookie, tự giải nén, theo chuyển hướng (≤ 30 như requests). `Request(method, url, query, headers, json, form,
+  timeout, ct)`: tham số mã hoá như requests (`quote_plus`; `null` bị bỏ, "" vẫn gửi); `json` = `PyJson.Dumps`; lỗi mạng / quá giờ →
+  `HttpNetworkException` (= `_NET_ERR`); `ct` (= `Job.Token`) bị huỷ → `Cancelled`.
+- `HttpResult.Text` giải mã như requests (charset trong `Content-Type`; `text/*` không ghi → ISO-8859-1; JSON → UTF-8); **khác**:
+  không có `Content-Type` → UTF-8 (requests đoán bằng `charset_normalizer`). `JsonOrNull()` = `try r.json() except ValueError: None`.
+- `html.unescape` → `WebUtility.HtmlDecode` (bộ thực thể HTML 4; Python có ~2200 thực thể HTML5 và nhận cả thực thể thiếu `;`).
+- User-Agent khi nơi gọi không đặt: `MuxStudio/<bản>` (requests gửi `python-requests/x.y`); Titulky và OpenSubtitles tự đặt như Python.
+- Hàm chờ mặc định của client (`Http.Sleep`) dừng ngay khi bấm "Dừng ngay" (Python `time.sleep` không ngắt được); lượt gọi tiếp ném
+  `Cancelled`. Test truyền `Sleeper.Sleep` / `Sleeper.Clock`.
+- Máy chủ giả `FakeHttp` (`HttpMessageHandler`): `Add(method, regex, FakeResponse | dãy phản hồi | hàm)`, `Calls`, `CallsTo`.
+  `FakeCall.Url` là địa chỉ nơi gọi truyền vào (chưa ghép tham số — lấy từ `Http.UrlOption`), `Params` đọc lại từ chuỗi đã mã hoá,
+  `Json` / `Data` đọc lại từ thân POST. Handler ném `HttpRequestException` = lỗi mạng.
+
+Khác Python (nhỏ, ghi lại):
+- `SafeExtract` đọc tên trong ZIP như `zipfile` (cờ UTF-8 → UTF-8, không có → cp437); thư mục đích trùng tên file → xoá file.
+- `FetchSession.Trash` (mặc định `Undo.Trash`) là chỗ test thay thế (Python `monkeypatch.setattr(undo, "trash", …)`).
+- `naming` `OutputName.QueryKey` là chuỗi (`Naming.QueryKey(...)` nối các phần bằng ``, `None` → "None") thay cho tuple.
+- `FetchSession` nhận `ToolPaths` (chỉ dùng `Mkvmerge`/`Mkvextract`); bỏ trống → `Tools.FindTool` cho hai công cụ đó.
 
 ## GĐ3: ánh xạ module
 
@@ -108,7 +137,6 @@ Hạ tầng test mới:
 
 ## Khác biệt đã biết (cố ý hoặc chưa làm)
 
-- **`naming.py` phần đặt tên theo database** (`movie_name`, `tv_name`, `choose_candidate`, `search_candidates`, `resolve_output_name`, `movie_name_from`, `tv_name_from`, `keep_name`, `_fill_keep`, `_cands`, `db_usable`) **chưa port**. Phần này cần client tmdb/tvdb và có test trong `test_naming_db.py`, nên để GĐ2. Đã có sẵn các kiểu dữ liệu `EpisodeHit`, `NameCandidate`, `YearOf`. Còn thiếu `OutputName`: thêm ở GĐ2 cùng interface `INameDb` (`DbName`, `Usable`, `SearchMovie`, `SearchSeries`, `PickShow`, `ResolveEpisode`). Kết quả API nên là `OrderedDictionary<string, object?>` (từ `PyJson.Loads`) để port sát `r.get(...)`.
 - `secrets.ensure_backend`: chỉ cần cho PyInstaller, nên không port.
 - i18n: chưa có bài "mọi câu hiển thị đều có bản dịch" (`test_every_displayed_string_has_a_translation`). Bài này quét mã Python bằng `tools/i18n_extract.py`; bản C# sẽ làm bài tương tự khi port giao diện (GĐ5). Biến `recorded` (công cụ phát triển) cũng chưa port.
 - `\b`/`\w` trong regex của `Episodes`/`Naming` dùng ngữ nghĩa .NET. Kết quả chỉ khác Python với dấu tổ hợp rời (chuỗi chưa chuẩn hoá NFC), ký tự số kiểu ①, ² và dấu nối khác `_`. Tên file thực tế hầu như không có các ký tự này. `I18n` thì đã dùng `[\p{L}\p{N}_]` cho giống hệt.
@@ -136,13 +164,9 @@ Sau khi sửa `tools/i18n/extra.json`: `set PYTHONIOENCODING=utf-8` rồi chạy
 `Data/python_codepages.json` được sinh một lần bằng lệnh sau:
 `bytes(range(256)).decode(f"cp{cp}", errors="muxstudio_c1")` cho cp ∈ {874, 1250…1258}, lưu dạng `{cp: [mã ký tự…]}`.
 
-## Gợi ý cho phần còn lại của GĐ2
+## Gợi ý cho GĐ4
 
-1. ~~`tools.py`, `probe.py`~~ ✅.
-2. HTTP: dùng chung một `HttpClient` và inject `HttpMessageHandler`. Port `tests/fakehttp.py` thành handler giả. Test **không bao giờ** gọi mạng thật (xem fixture `no_real_network` trong `conftest.py`). Các client nhận `Job` (log + `Job.Token` cho `HttpClient`). Kết quả JSON đọc bằng `PyJson.Loads` + `PyDict` (`r.Get("x")`, `r.GetDict("x")`, `r.GetStr("x")`).
-3. Phần còn lại của `naming` (xem trên) + `test_naming_db.py`.
-4. Dữ liệu mẫu `tests/data/titulky/*.html` đọc thẳng từ thư mục `tests/` của repo (`RepoPaths.Root`).
-5. Test Python hay `monkeypatch.setattr(tools, "run" | "mkvmerge_version", ...)` (test_mux). GĐ3 không cần (alass / mkvmerge giả
+1. Test Python hay `monkeypatch.setattr(tools, "run" | "mkvmerge_version", ...)` (test_mux). GĐ3 không cần (alass / mkvmerge giả
    là exe con). GĐ4 (`test_mux.py` thay `tools.run` để giả mkvmerge ghi file `-o`): nên thêm chỗ thay theo luồng (`AsyncLocal`)
    hoặc truyền runner vào phiên, **không** dùng biến tĩnh toàn cục (test chạy song song). Phần đọc kết quả đã tách sẵn:
    `Tools.ToolInfoOf`, `Tools.MkvmergeVersionOf`.
