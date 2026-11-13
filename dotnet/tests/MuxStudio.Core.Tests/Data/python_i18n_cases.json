@@ -6285,7 +6285,7 @@
 ],
 [
 "Phim Thử (2020) bỏ qua | #1, #2 3 | a.srt Sẵn sàng. | C:\\Phim Thử\\Tập 1.mkv lỗi/từ chối",
-"Phim Thử (2020) bỏ qua | #1, #2 3 | a.srt Ready. | C:\\Phim Thử\\Tập 1.mkv errors/rejected"
+"Videos Thử (2020) bỏ qua | #1, #2 3 | a.srt Ready. | C:\\Phim Thử\\Tập 1.mkv errors/rejected"
 ],
 [
 "en, cs cặp sẽ đồng bộ, S01E05 bỏ qua",
@@ -6810,6 +6810,198 @@
 [
 "[!] Không có phụ đề 'bỏ qua' nào trong '#1, #2'.",
 "[!] No 'skipped' subtitles in '#1, #2'."
+],
+[
+"(không có gì để hoàn tác)",
+"(nothing to undo)"
+],
+[
+".NET Foundation và các tác giả .NET",
+".NET Foundation and the .NET contributors"
+],
+[
+".NET Foundation và các tác giả WPF",
+".NET Foundation and the WPF contributors"
+],
+[
+".NET Foundation và các tác giả Windows Community Toolkit",
+".NET Foundation and the Windows Community Toolkit contributors"
+],
+[
+"Leszek Pomianowski và các tác giả WPF-UI",
+"Leszek Pomianowski and the WPF-UI contributors"
+],
+[
+"Nền giao diện cửa sổ",
+"Window UI framework"
+],
+[
+"Thư viện phụ của giao diện",
+"Helper library of the interface"
+],
+[
+"Bấm đúp để sửa tên",
+"Double-click to edit the name"
+],
+[
+"Bấm đúp để sửa tên / chọn kết quả",
+"Double-click to edit the name / pick a result"
+],
+[
+"Bấm để tick / bỏ cả cột",
+"Click to tick / untick the whole column"
+],
+[
+"Bấm để tick / bỏ cả dòng",
+"Click to tick / untick the whole row"
+],
+[
+"Tập / file",
+"Episode / file"
+],
+[
+"Có",
+"Yes"
+],
+[
+"Không",
+"No"
+],
+[
+"Công cụ · API key · tuỳ chọn",
+"Tools · API keys · options"
+],
+[
+"Dọn track · đặt tên · mkvmerge",
+"Clean tracks · naming · mkvmerge"
+],
+[
+"Đổi tên · đồng bộ (alass)",
+"Rename · sync (alass)"
+],
+[
+"Tác giả · giấy phép",
+"Author · licenses"
+],
+[
+"Không hiện được ảnh trong cửa sổ này.",
+"Cannot show the image in this window."
+],
+[
+"Phụ đề gốc",
+"Original subtitles"
+],
+[
+"chưa chọn",
+"not chosen"
+],
+[
+"Đặt tên theo",
+"Naming by"
+],
+[
+"Sáng",
+"Light"
+],
+[
+"Tối",
+"Dark"
+],
+[
+"Theo Windows",
+"Follow Windows"
+],
+[
+"Sửa các ô sau rồi lưu lại:",
+"Fix the following fields, then save again:"
+],
+[
+"AUDIO GHÉP",
+"DONOR AUDIO"
+],
+[
+"Bấm \"Quét thư mục\" để bắt đầu.",
+"Click \"Scan folder\" to start."
+],
+[
+"Chưa quét thư mục phim.",
+"The video folder has not been scanned yet."
+],
+[
+"CẦN CHỌN",
+"NEEDS A CHOICE"
+],
+[
+"EXT CẠNH PHIM",
+"EXTERNAL"
+],
+[
+"GHÉP VÀO MKV",
+"MUXED INTO MKV"
+],
+[
+"GIỎ PHỤ ĐỀ",
+"SUBTITLE BASKET"
+],
+[
+"GIỮ (chưa áp dụng)",
+"KEEP (not applied yet)"
+],
+[
+"XOÁ (chưa áp dụng)",
+"REMOVE (not applied yet)"
+],
+[
+"file có sẵn",
+"existing file"
+],
+[
+"không có",
+"none"
+],
+[
+"3 lỗi/từ chối",
+"3 errors/rejected"
+],
+[
+"a.srt lỗi/từ chối",
+"a.srt errors/rejected"
+],
+[
+"Sẵn sàng. cặp sẽ đồng bộ",
+"Ready. pairs to sync"
+],
+[
+"C:\\Phim Thử\\Tập 1.mkv cặp sẽ đồng bộ",
+"C:\\Phim Thử\\Tập 1.mkv pairs to sync"
+],
+[
+"đã chọn",
+"chosen"
+],
+[
+"đã tải",
+"downloaded"
+],
+[
+"✓ Đã chọn",
+"✓ Chosen"
+],
+[
+"Phụ đề trong 'en, cs'",
+"Subtitles in 'en, cs'"
+],
+[
+"Phụ đề trong 'S01E05'",
+"Subtitles in 'S01E05'"
+],
+[
+"Trong file MKV",
+"Inside the MKV"
+],
+[
+"Phim",
+"Videos"
 ],
 [
 "  [!] API & tài khoản",
@@ -10945,7 +11137,7 @@
 ],
 [
 "2 Phụ đề gốc (mốc thời gian): a.srt",
-"2 Original subtitle (timing reference): a.srt"
+"2 Original subtitles (mốc thời gian): a.srt"
 ],
 [
 "File có sẵn: Sẵn sàng.\n(C:\\Phim Thử\\Tập 1.mkv) — sẽ được CHÉP (không di chuyển).…",
@@ -11345,7 +11537,7 @@
 ],
 [
 "    [v] \nBấm đúp để sửa tên.",
-"    [v] \nBấm đúp để sửa tên."
+"    [v] \nDouble-click to edit the name."
 ],
 [
 "  [!]   ⚠ 2+ audio tiếng Anh: tick track muốn xoá",
@@ -12309,7 +12501,7 @@
 ],
 [
 "Phim Thử (2020) bỏ qua | #1, #2 3 | a.srt Sẵn sàng. | C:\\Phim Thử\\Tập 1.mkv lỗi/từ chối →",
-"Phim Thử (2020) bỏ qua | #1, #2 3 | a.srt Ready. | C:\\Phim Thử\\Tập 1.mkv errors/rejected →"
+"Videos Thử (2020) bỏ qua | #1, #2 3 | a.srt Ready. | C:\\Phim Thử\\Tập 1.mkv errors/rejected →"
 ],
 [
 "(en, cs cặp sẽ đồng bộ, S01E05 bỏ qua)",
@@ -12770,6 +12962,174 @@
 [
 "[!] Không có phụ đề 'bỏ qua' nào trong '#1, #2'.…",
 "[!] No 'skipped' subtitles in '#1, #2'.…"
+],
+[
+"    [v] (không có gì để hoàn tác).",
+"    [v] (nothing to undo)."
+],
+[
+"  [!] .NET Foundation và các tác giả WPF",
+"  [!] .NET Foundation and the WPF contributors"
+],
+[
+"▶ 1. .NET Foundation và các tác giả Windows Community Toolkit",
+"▶ 1. .NET Foundation and the Windows Community Toolkit contributors"
+],
+[
+"Leszek Pomianowski và các tác giả WPF-UI →",
+"Leszek Pomianowski and the WPF-UI contributors →"
+],
+[
+"(Nền giao diện cửa sổ)",
+"(Window UI framework)"
+],
+[
+"2 Thư viện phụ của giao diện",
+"2 Helper library of the interface"
+],
+[
+"Bấm đúp để sửa tên…",
+"Double-click to edit the name…"
+],
+[
+"    [v] Bấm đúp để sửa tên / chọn kết quả.",
+"    [v] Double-click to edit the name / pick a result."
+],
+[
+"  [!] Bấm để tick / bỏ cả dòng",
+"  [!] Bấm để tick / bỏ cả lines"
+],
+[
+"▶ 1. Tập / file",
+"▶ 1. Episode / file"
+],
+[
+"Có →",
+"Yes →"
+],
+[
+"(Không)",
+"(No)"
+],
+[
+"2 Công cụ · API key · tuỳ chọn",
+"2 Tools · API keys · options"
+],
+[
+"Dọn track · đặt tên · mkvmerge…",
+"Clean tracks · naming · mkvmerge…"
+],
+[
+"    [v] Đổi tên · đồng bộ (alass).",
+"    [v] Rename · sync (alass)."
+],
+[
+"  [!] Không hiện được ảnh trong cửa sổ này.",
+"  [!] Cannot show the image in this window."
+],
+[
+"▶ 1. Phụ đề gốc",
+"▶ 1. Original subtitles"
+],
+[
+"chưa chọn →",
+"not chosen →"
+],
+[
+"(Đặt tên theo)",
+"(Naming by)"
+],
+[
+"2 Sáng",
+"2 Light"
+],
+[
+"Tối…",
+"Dark…"
+],
+[
+"    [v] Theo Windows.",
+"    [v] Follow Windows."
+],
+[
+"  [!] AUDIO GHÉP",
+"  [!] DONOR AUDIO"
+],
+[
+"▶ 1. Bấm \"Quét thư mục\" để bắt đầu.",
+"▶ 1. Click \"Scan folder\" to start."
+],
+[
+"Chưa quét thư mục phim. →",
+"The video folder has not been scanned yet. →"
+],
+[
+"(CẦN CHỌN)",
+"(NEEDS A CHOICE)"
+],
+[
+"2 EXT CẠNH PHIM",
+"2 EXTERNAL"
+],
+[
+"GHÉP VÀO MKV…",
+"MUXED INTO MKV…"
+],
+[
+"    [v] GIỎ PHỤ ĐỀ.",
+"    [v] SUBTITLE BASKET."
+],
+[
+"  [!] XOÁ (chưa áp dụng)",
+"  [!] REMOVE (not applied yet)"
+],
+[
+"▶ 1. file có sẵn",
+"▶ 1. existing file"
+],
+[
+"không có →",
+"none →"
+],
+[
+"(3 lỗi/từ chối)",
+"(3 errors/rejected)"
+],
+[
+"2 a.srt lỗi/từ chối",
+"2 a.srt errors/rejected"
+],
+[
+"Sẵn sàng. cặp sẽ đồng bộ…",
+"Ready. cặp sẽ đồng bộ…"
+],
+[
+"    [v] C:\\Phim Thử\\Tập 1.mkv cặp sẽ đồng bộ.",
+"    [v] C:\\Phim Thử\\Tập 1.mkv pairs to sync."
+],
+[
+"  [!] đã tải",
+"  [!] đã downloads"
+],
+[
+"▶ 1. ✓ Đã chọn",
+"▶ 1. ✓ Chosen"
+],
+[
+"Phụ đề trong 'en, cs' →",
+"Subtitles in 'en, cs' →"
+],
+[
+"(Phụ đề trong 'S01E05')",
+"(Subtitles in 'S01E05')"
+],
+[
+"2 Trong file MKV",
+"2 Trong file MKV"
+],
+[
+"Phim…",
+"Videos…"
 ],
 [
 "Chung — thư mục & công cụ | API & tài khoản",
