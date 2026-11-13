@@ -6,6 +6,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>MuxStudio</AssemblyName>
     <RootNamespace>MuxStudio.App</RootNamespace>
+    <!-- icon cua file .exe (Explorer, thanh tac vu) -->
+    <ApplicationIcon>Assets\muxstudio.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +17,14 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="WPF-UI" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- icon cua so / thanh tieu de (AppIcon.cs) -->
+    <Resource Include="Assets\muxstudio.ico" />
+    <Resource Include="Assets\muxstudio.png" />
+    <!-- ban phat hanh (build.bat): nam CANH MuxStudio.exe, khong nhet vao file .exe -->
+    <None Include="kiem_tra_MuxStudio.bat" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
   </ItemGroup>
 
 </Project>

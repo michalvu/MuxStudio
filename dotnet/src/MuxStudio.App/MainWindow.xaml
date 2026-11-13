@@ -21,7 +21,11 @@
     </Grid.RowDefinitions>
 
     <!-- ROW 0: thanh tiêu đề Fluent -->
-    <ui:TitleBar x:Name="TitleBarCtl" Grid.Row="0" Title="MuxStudio" />
+    <ui:TitleBar x:Name="TitleBarCtl" Grid.Row="0" Title="MuxStudio">
+      <ui:TitleBar.Icon>
+        <ui:ImageIcon Source="pack://application:,,,/MuxStudio;component/Assets/muxstudio.png" Width="16" Height="16" />
+      </ui:TitleBar.Icon>
+    </ui:TitleBar>
 
     <!-- ROW 1: thư mục phim (chọn MỘT lần, dùng chung cho cả ba bước) + Sáng / Tối -->
     <Border Grid.Row="1" Padding="14,8" BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="0,1,0,1">

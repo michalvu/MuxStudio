@@ -61,6 +61,7 @@ public partial class MainWindow : FluentWindow
         InitializeComponent();
         Title = AppInfo.Title;
         TitleBarCtl.Title = AppInfo.Title;
+        Icon = AppIcon.Image;
         VersionBadge.Text = $"MUXSTUDIO {AppInfo.Version}";
         Redactor = new Redactor(Secrets().Values);
         Backdrop = ThemeService.Backdrop(cfg.Str("UiBackdrop"));
@@ -74,7 +75,7 @@ public partial class MainWindow : FluentWindow
         Runner = new Runner(Dispatcher, LogView.WriteMany, OnProgress, OnBusy, Redactor.Redact);
         // dong dau khung log: ban nao dang chay (nguoi dung bao loi kem "Luu log")
         Log("head", $"{AppInfo.Title} — chọn thư mục phim ở trên, rồi làm lần lượt ① → ② → ③.");
-        Log("dim", AppInfo.BuildInfo(App.IsFrozen, $"WPF-UI {typeof(FluentWindow).Assembly.GetName().Version?.ToString(3)}"));
+        Log("dim", App.BuildInfo());
         StatusText.Text = L.T("Sẵn sàng.");
         ProgPct.Text = "";
 
@@ -101,7 +102,7 @@ public partial class MainWindow : FluentWindow
         {
             ThemeService.Apply(appearance ?? cfg.Str("UiAppearance"), this, Backdrop);
             UpdateThemeButtons();
-            if (Plan.Zoomed)
+            if (Plan.Zoomed && !SelfTest)
                 WindowState = WindowState.Maximized;
         };
         Closing += OnClosingWindow;
@@ -116,6 +117,9 @@ public partial class MainWindow : FluentWindow
     }
 
     public Config Cfg { get; }
+
+    /// <summary>Dựng thử khi tự kiểm tra (<c>--kiem-tra</c>): cửa sổ nằm ngoài màn hình nên không phóng to (= <c>root.withdraw()</c>).</summary>
+    public bool SelfTest { get; init; }
 
     public SecretStore SecretStore { get; }
 
@@ -504,6 +508,32 @@ public partial class MainWindow : FluentWindow
     }
 
     // ------------------------------------------------------------------ dong
+    /// <summary>Đóng không hỏi, không lưu cấu hình (cửa sổ dựng thử của <c>--kiem-tra</c>): dừng việc đang chạy, dọn thư mục tạm.</summary>
+    internal void CloseQuiet()
+    {
+        _closing = true;
+        try
+        {
+            Runner.Job?.CancelNow();
+        }
+        catch (ObjectDisposedException)
+        {
+            // viec vua xong
+        }
+        foreach (var v in Views)
+        {
+            try
+            {
+                v.Close();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // xoa thu muc tam that bai: bo qua
+            }
+        }
+        Close();
+    }
+
     private void OnClosingWindow(object? sender, CancelEventArgs e)
     {
         if (_closing)

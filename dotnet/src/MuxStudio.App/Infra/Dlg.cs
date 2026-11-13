@@ -35,6 +35,7 @@ public sealed class Dlg
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             ShowInTaskbar = false,
             ResizeMode = ResizeMode.CanResize,
+            Icon = AppIcon.Image,
         };
         Win.SetResourceReference(Control.BackgroundProperty, "ApplicationBackgroundBrush");
         var o = owner is null ? null : owner as Window ?? Window.GetWindow(owner);
@@ -240,6 +241,25 @@ public sealed class Dlg
         d.Run();
     }
 
+    /// <summary>Ảnh (JPEG / PNG / GIF…) từ bộ nhớ, hoặc <c>null</c> nếu không đọc được (= <c>W.image_png</c>; tự kiểm tra cũng gọi hàm này).</summary>
+    public static BitmapImage? DecodeImage(byte[] image)
+    {
+        try
+        {
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.StreamSource = new MemoryStream(image);
+            bmp.EndInit();
+            bmp.Freeze();
+            return bmp;
+        }
+        catch (Exception e) when (e is NotSupportedException or IOException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
     /// <summary><c>CaptchaDialog</c>: hiện ảnh mã CAPTCHA (Titulky.com), BẠN gõ mã. Trả mã, hoặc <c>null</c> nếu bỏ qua.</summary>
     public static string? Captcha(DependencyObject? owner, byte[] image, string note = "", string site = "Titulky.com")
     {
@@ -248,20 +268,7 @@ public sealed class Dlg
         d.Text($"{site} yêu cầu gõ mã trong ảnh trước khi cho tải (giới hạn tải của trang). Gõ đúng các ký tự trong ảnh rồi bấm Tải.");
         if (note.Length > 0)
             d.Text(note, "dim");
-        BitmapImage? bmp = null;
-        try
-        {
-            bmp = new BitmapImage();
-            bmp.BeginInit();
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.StreamSource = new MemoryStream(image);
-            bmp.EndInit();
-            bmp.Freeze();
-        }
-        catch (Exception e) when (e is NotSupportedException or IOException or ArgumentException)
-        {
-            bmp = null;
-        }
+        var bmp = DecodeImage(image);
         if (bmp is not null)
         {
             d.Top(new Border

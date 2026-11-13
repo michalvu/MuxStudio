@@ -20,6 +20,20 @@ public interface ISecretBackend
     void DeletePassword(string service, string username);
 }
 
+/// <summary>Không cất gì (= <c>keyring.backends.null.Keyring</c>): đọc luôn ra <c>null</c>, ghi / xoá không làm gì.</summary>
+public sealed class NullSecretBackend : ISecretBackend
+{
+    public string? GetPassword(string service, string username) => null;
+
+    public void SetPassword(string service, string username, string password)
+    {
+    }
+
+    public void DeletePassword(string service, string username)
+    {
+    }
+}
+
 /// <summary>Một mục thô trong Credential Manager (kiểu GENERIC).</summary>
 public sealed record RawCredential(string UserName, byte[] Blob);
 
@@ -242,10 +256,14 @@ public static class Secrets
 
     private static ISecretBackend? _backend;
 
+    /// <summary>Biến môi trường chọn backend (= <c>PYTHON_KEYRING_BACKEND</c> của keyring): <c>null</c> → <see cref="NullSecretBackend"/>.
+    /// Chỉ để test chạy <c>MuxStudio.exe</c> thật trong tiến trình con mà không chạm Credential Manager thật.</summary>
+    public const string BackendEnv = "MUXSTUDIO_SECRET_BACKEND";
+
     /// <summary>Backend đang dùng (= <c>keyring.get_keyring()</c>). Mặc định: Windows Credential Manager. Test thay bằng bộ nhớ.</summary>
     public static ISecretBackend Backend
     {
-        get => _backend ??= new WinVaultBackend();
+        get => _backend ??= Environment.GetEnvironmentVariable(BackendEnv) == "null" ? new NullSecretBackend() : new WinVaultBackend();
         set => _backend = value;
     }
 

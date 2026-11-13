@@ -10,6 +10,9 @@
     <Deterministic>true</Deterministic>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <Version>1.3.3</Version>
+    <!-- pdb nằm TRONG dll/exe: bản một file (build.bat) vẫn có số dòng trong loi_khoi_dong.txt và khung log -->
+
+    <DebugType>embedded</DebugType>
     <Company>MuxStudio</Company>
     <Product>MuxStudio</Product>
   </PropertyGroup>

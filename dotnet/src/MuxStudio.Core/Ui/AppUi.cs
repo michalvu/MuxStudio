@@ -18,14 +18,46 @@ public static class AppInfo
 
     public static string Title => $"MuxStudio {Version}";
 
+    /// <summary>
+    /// <c>is_frozen</c>: đang chạy bản phát hành MỘT FILE (<c>dotnet publish -p:PublishSingleFile=true</c>, xem <c>build.bat</c>), không phải
+    /// bản dựng từ mã nguồn. Trong bản một file, thư viện nằm trong file .exe nên <see cref="System.Reflection.Assembly.Location"/> rỗng.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("SingleFile", "IL3000",
+        Justification = "Location rỗng chính là dấu hiệu của bản một file")]
+    public static bool IsFrozen => string.IsNullOrEmpty(typeof(AppInfo).Assembly.Location);
+
+    /// <summary>Thư mục chứa <c>MuxStudio.exe</c> (bản một file: thư mục của file .exe, không phải thư mục giải nén tạm).</summary>
+    public static string ProgramDir() =>
+        Path.GetDirectoryName(Environment.ProcessPath) is { Length: > 0 } d ? d : AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+
     /// <summary><c>os_name</c>: <c>Windows 11 (10.0.22631)</c>.</summary>
-    public static string OsName()
+    public static string OsName() => OperatingSystem.IsWindows() ? OsName(Environment.OSVersion.Version) : Environment.OSVersion.ToString();
+
+    /// <summary><c>os_name</c> với một số phiên bản Windows cho sẵn (Windows 11 vẫn báo "10": số build ≥ 22000 = Windows 11).</summary>
+    public static string OsName(Version v)
     {
-        var v = Environment.OSVersion.Version;
         var ver = string.Create(CultureInfo.InvariantCulture, $"{v.Major}.{v.Minor}.{v.Build}");
-        if (OperatingSystem.IsWindows())
-            return $"Windows {(v.Major == 10 && v.Build >= 22000 ? "11" : v.Major.ToString(CultureInfo.InvariantCulture))} ({ver})";
-        return Environment.OSVersion.ToString();
+        return $"Windows {(v.Major == 10 && v.Build >= 22000 ? "11" : v.Major.ToString(CultureInfo.InvariantCulture))} ({ver})";
+    }
+
+    /// <summary>
+    /// <c>write_startup_error</c>: lỗi khởi động (bản .exe không có cửa sổ console) → <c>%APPDATA%\MuxStudio\loi_khoi_dong.txt</c>
+    /// (UTF-8, CRLF). Dòng đầu = <paramref name="buildInfo"/> (bản nào đang chạy). Không ghi được → chỉ trả đường dẫn.
+    /// </summary>
+    public static string WriteStartupError(string tb, string buildInfo)
+    {
+        var p = Path.Combine(ConfigSchema.AppConfigDir(), "loi_khoi_dong.txt");
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(p)!);
+            var text = $"{buildInfo}\nLúc: {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)}\n\n{tb}";
+            File.WriteAllText(p, text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\n", "\r\n", StringComparison.Ordinal), Py.Utf8NoBom);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // khong ghi duoc: noi goi chi bao bang hop thoai
+        }
+        return p;
     }
 
     /// <summary><c>build_info</c>: một dòng — phiên bản MuxStudio, bản .exe hay mã nguồn, .NET, hệ điều hành, thư viện giao diện.</summary>
