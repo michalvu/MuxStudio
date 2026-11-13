@@ -8,7 +8,7 @@ namespace MuxStudio.Core.Tests;
 /// đăng nhập / tải / CAPTCHA / chờ chạy với máy chủ giả. Không gọi mạng thật. Port <c>tests/test_titulky.py</c>.</summary>
 public class TitulkyTests
 {
-    public static string DataDir => Path.Combine(RepoPaths.Root, "tests", "data", "titulky");
+    public static string DataDir => RepoPaths.Data("titulky");
 
     public static string Page(string name) => File.ReadAllText(Path.Combine(DataDir, name), Encoding.UTF8);
 

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+		<html lang="cs">
+		<head>
+		    <meta charset="UTF-8">
+		    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+		    <title>Titulky.com - download</title>
+		    <link rel="stylesheet" type="text/css" media="all"   href="./css/idown.css?3" />
+		    <script type='text/javascript' src='./downfnc.js?3'></script>
+		</head>
+		<body>
+	  	<div title="příprava stažení..."  id="imgLoader" ></div>
+
+          <h3>Zabezpečené stažení titulků</h3>
+          <b style="font-size:8pt">
+                        Byl překročen denní limit stažených titulků pro IP adresu, ze které se přihlašujete. Není vyloučené, že jste limit nevyčerpali vy, ale to bohužel není možné rozlišit. Nyní je tedy nutné, pro zabránění stahování roboty, opsat kód z obrázku do políčka. Pokud máte prémiový nebo překladatelský účet, můžete také stahovat na <a href="https://premium.titulky.com" target="premium.titulky">prémiovém serveru</a><br />
+
+          </b>
+                    <img alt="Opište kód" src="./captcha/captcha.php" width="400" height="100" />
+          <form name="downform" method="POST" action="idown.php" onsubmit="if (document.downform.downkod.value==''){return false;}">
+          <input name="downkod" type="text" autocomplete="off" />
+          <input name="securedown" type="hidden" value="2" />
+          <input name="zip" type="hidden" value="" />
+          <input name="T" type="hidden" value="" />
+          <input name="titulky" type="hidden" value="115664" />
+          <input name="histstamp" type="hidden" value="" />
+          <input class="button-netusers" type="submit" value="Potvrdit" />
+          </form>
+          <br /><img src="./img/ico/lightbulb.gif" alt="TIP" width="16" height="16" />&nbsp;<span style="color:#d00">Prémiové účty mají denní limit <b>25</b> titulků bez ohledu na IP, která může být sdílená.<br /><div style="background:#ffffcc;border:1px solid #ffcc00;font-size:8pt;font-family:verdana;color:#111;padding:6px">Pokud chcete změnit svůj účet na prémiový, provedete to na <a href="https://www.netusers.cz/?sub=20P&section=4&napremium=1&confirmS=1&L1=&origin=titulky" target="netusers">Netusers.cz</a></div>
+</span><br />        <script>ShowLoader('none')</script>
+    </body>
+  </html>

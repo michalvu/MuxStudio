@@ -29,17 +29,20 @@ public sealed class ConfigDirScope : IDisposable
     }
 }
 
-/// <summary>Đường dẫn trong repo (thư mục <c>reference/</c> của bản Python).</summary>
+/// <summary>Đường dẫn trong repo. Dữ liệu test (3 file .bat gốc, trang Titulky mẫu…) nằm trong <c>Data/</c> của project test — không
+/// phụ thuộc thư mục của bản Python (sẽ bị xoá).</summary>
 public static class RepoPaths
 {
+    /// <summary>Gốc repo (thư mục chứa <c>dotnet/MuxStudio.slnx</c>).</summary>
     public static string Root { get; } = FindRoot();
 
-    public static string Reference => Path.Combine(Root, "reference");
+    /// <summary>Ba file .bat gốc (<c>SubFetch_v30.bat</c>, <c>SubPrep_v20.bat</c>, <c>MuxTool_v17.bat</c>) — bản sao của <c>reference/</c>.</summary>
+    public static string Reference => Data("reference");
 
     private static string FindRoot()
     {
         var d = new DirectoryInfo(AppContext.BaseDirectory);
-        while (d is not null && !(Directory.Exists(Path.Combine(d.FullName, "core")) && Directory.Exists(Path.Combine(d.FullName, "dotnet"))))
+        while (d is not null && !File.Exists(Path.Combine(d.FullName, "dotnet", "MuxStudio.slnx")))
             d = d.Parent;
         return d?.FullName ?? throw new DirectoryNotFoundException("không tìm thấy gốc repo");
     }
