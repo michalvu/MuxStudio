@@ -10,34 +10,33 @@ Mục lục: [1. Tạo MuxStudio.exe](#1-tạo-muxstudioexe-một-lần) · [2. 
 
 ---
 
-## 1. Chạy MuxStudio
+## 1. Tạo MuxStudio.exe (một lần)
 
-> **Nhánh `dotnet-port`:** phần tạo bản `.exe` bằng PyInstaller (`build.bat`) đã bỏ khỏi nhánh này — bản `.exe` mới sẽ do
-> bản C# tạo (`dotnet publish`, xem `docs/PORT_DOTNET.md`). Các bước 1–7 dưới đây chỉ dùng được ở nhánh
-> `claude/new-session-eckanp`. Ở nhánh này, chạy bản Python từ mã nguồn: bấm đúp `chay_muxstudio.bat`.
+Bản `.exe` là **một file duy nhất**, chạy **không cần cài .NET**. Chỉ máy dùng để **tạo** (build) bản `.exe` mới cần .NET SDK.
 
-Bản `.exe` chạy **không cần cài Python**. Chỉ máy dùng để **tạo** (build) bản `.exe` mới cần Python.
-
-1. Cài **Python 3.11 trở lên** (đã thử tới 3.14, cả bản ARM64 cho máy Windows on ARM) từ <https://www.python.org/downloads/>. Ở màn hình đầu của bộ cài, **tick ô
-   "Add python.exe to PATH"** rồi bấm *Install Now*.
-2. Tải mã nguồn MuxStudio về (trên GitHub: nút **Code › Download ZIP**, rồi giải nén), hoặc dùng thư mục đã có.
-3. Mở thư mục đó, **bấm đúp `build.bat`**. Một cửa sổ đen hiện ra và chạy 4 bước:
-   - `[1/4]` tạo môi trường riêng `.venv-build` và tải thư viện (lần đầu vài phút);
+1. Cài **.NET 10 SDK** từ <https://dotnet.microsoft.com/download/dotnet/10.0> (cột *SDK*, bản *x64* — hoặc *Arm64* nếu máy
+   là Windows on ARM).
+2. Tải mã nguồn MuxStudio về (trên GitHub: chọn nhánh `dotnet-gui`, nút **Code › Download ZIP**, rồi giải nén), hoặc dùng
+   thư mục đã có.
+3. Mở thư mục `dotnet` trong đó, **bấm đúp `build.bat`**. Một cửa sổ đen hiện ra và chạy 4 bước:
+   - `[1/4]` kiểm tra đã có .NET 10 SDK;
    - `[2/4]` kiểm tra MuxStudio cũ có đang mở không (đang mở thì đóng nó rồi chạy lại);
-   - `[3/4]` đóng gói bằng PyInstaller (1–3 phút, **nhiều dòng chữ là bình thường**);
-   - `[4/4]` chạy thử bản `.exe` vừa tạo (tự kiểm tra, không mở cửa sổ) và in báo cáo.
-4. Thành công: cuối cùng có dòng **`KẾT QUẢ: ĐẠT`** và **`THANH CONG`**, thư mục `dist\MuxStudio` tự mở.
+   - `[3/4]` đóng gói hai bản: `win-x64` (máy Intel / AMD) và `win-arm64` (máy Windows on ARM) — lần đầu vài phút vì phải
+     tải thư viện .NET, **nhiều dòng chữ là bình thường**;
+   - `[4/4]` chạy thử bản `.exe` hợp với máy này (tự kiểm tra, không mở cửa sổ) và in báo cáo.
+4. Thành công: cuối cùng có dòng **`KẾT QUẢ: ĐẠT`** và **`THANH CONG`**, thư mục `dotnet\dist\win-x64` tự mở.
    Không thành công: cửa sổ ghi `[LOI]` kèm việc cần làm — xem [mục 6](#6-báo-lỗi).
-5. **Chép CẢ thư mục `dist\MuxStudio`** tới nơi bạn muốn (vd `C:\Users\fenha\Desktop\MuxStudio`).
-   Đừng chép riêng file `MuxStudio.exe` — nó cần thư mục `_internal` nằm cạnh.
+5. **Chép `MuxStudio.exe`** (nên chép kèm `kiem_tra_MuxStudio.bat` nằm cạnh nó) tới nơi bạn muốn (vd
+   `C:\Users\fenha\Desktop\MuxStudio`). Máy Windows on ARM thì lấy file trong `dotnet\dist\win-arm64`.
 6. Tạo lối tắt: chuột phải `MuxStudio.exe` › *Send to* (*Gửi tới*) › *Desktop (create shortcut)*.
 7. Bấm đúp `MuxStudio.exe` để chạy. Số phiên bản hiện trên thanh tiêu đề (vd **MuxStudio 1.3.3**) và ở dòng đầu
-   khung Nhật ký.
+   khung Nhật ký. Lần đầu mở hơi lâu hơn một chút (Windows giải nén vài thư viện vào `%TEMP%\.net`).
 
-**Cập nhật bản mới:** tải mã nguồn mới → bấm đúp `build.bat` lần nữa → chép đè thư mục `dist\MuxStudio` lên thư mục
-cũ. Cấu hình và key **không mất** (nằm ở chỗ khác, xem [mục 3](#3-cấu-hình-lần-đầu)).
+**Cập nhật bản mới:** tải mã nguồn mới → bấm đúp `dotnet\build.bat` lần nữa → chép đè `MuxStudio.exe` lên file cũ.
+Cấu hình và key **không mất** (nằm ở chỗ khác, xem [mục 3](#3-cấu-hình-lần-đầu)) — bản .NET đọc được cả cấu hình và key
+mà bản Python đã lưu.
 
-> Muốn chạy thẳng từ mã nguồn (không build): bấm đúp `chay_muxstudio.bat` (cũng cần Python).
+> Muốn chạy thẳng từ mã nguồn (không đóng gói): trong thư mục `dotnet`, gõ `dotnet run --project src\MuxStudio.App -c Release`.
 
 ## 2. Công cụ ngoài cần có
 
@@ -154,29 +153,30 @@ của file phim*) và **Ngôn ngữ**, rồi theo thanh các bước:
 ## 6. Báo lỗi
 
 Gửi cho người hỗ trợ:
-1. **Số phiên bản** (thanh tiêu đề, vd *MuxStudio 1.3.3*; dòng thứ hai của khung Nhật ký ghi rõ bản `.exe`, Python, Windows).
+1. **Số phiên bản** (thanh tiêu đề, vd *MuxStudio 1.3.3*; dòng thứ hai của khung Nhật ký ghi rõ bản `.exe` hay mã nguồn, .NET, Windows).
 2. **Log**: khung Nhật ký › **Lưu log…** (key, mật khẩu đã được che).
 3. **Ảnh chụp màn hình** chỗ bị lỗi.
-4. **Không mở được chương trình**: file `%APPDATA%\MuxStudio\loi_khoi_dong.txt` (gõ `%APPDATA%\MuxStudio` vào thanh
-   địa chỉ của File Explorer rồi Enter).
+4. **Không mở được chương trình**, hoặc chương trình **tự đóng** kèm thông báo lỗi: file
+   `%APPDATA%\MuxStudio\loi_khoi_dong.txt` (gõ `%APPDATA%\MuxStudio` vào thanh địa chỉ của File Explorer rồi Enter).
 5. **Báo cáo tự kiểm tra**: bấm đúp `kiem_tra_MuxStudio.bat` (nằm cạnh `MuxStudio.exe`) → Notepad mở báo cáo
-   (`%APPDATA%\MuxStudio\kiem_tra.txt`). Ngay sau khi build thì báo cáo là file `kiem_tra_exe.txt` cạnh `build.bat`.
+   (`%APPDATA%\MuxStudio\kiem_tra.txt`). Ngay sau khi build thì báo cáo là file `dotnet\kiem_tra_exe.txt` cạnh `build.bat`.
    Dòng `[LỖI]` = hỏng, `[!]` = chạy được nhưng nên xem (vd chưa có alass).
 
 ## 7. Bị chặn khi chạy
 
 - **"Windows protected your PC"** (SmartScreen, màn hình xanh): bấm **More info** (*Thông tin thêm*) › **Run anyway**
   (*Vẫn chạy*). Chỉ hỏi lần đầu.
-- **Phần mềm diệt virus báo nhầm / xoá `MuxStudio.exe`** (hay gặp với chương trình đóng gói bằng PyInstaller):
+- **Phần mềm diệt virus báo nhầm / xoá `MuxStudio.exe`** (hay gặp với chương trình một file chưa ký số):
   *Windows Security › Virus & threat protection › Manage settings › Exclusions › Add or remove exclusions › Add an
   exclusion › Folder* → chọn thư mục MuxStudio (và thư mục mã nguồn nếu bị chặn lúc build), rồi build / chép lại.
+  Nếu bị chặn ngay lần đầu mở: thêm cả thư mục `%TEMP%\.net` (chỗ `MuxStudio.exe` giải nén thư viện).
 - **Công cụ tải từ mạng không chạy** (Cài đặt ghi *"tìm thấy nhưng KHÔNG chạy được"*): chuột phải file đó (vd
   `alass.exe`, `mkvmerge.exe`) › **Properties** › tick **Unblock** › **OK**. Nếu cả thư mục tải về dạng ZIP: Unblock file
   ZIP **trước khi** giải nén.
 
 ## 8. Việc khác (tuỳ chọn)
 
-- **Chạy toàn bộ test** (kiểm tra chương trình trên máy bạn, cần Python): bấm đúp `run_tests.bat` → cuối cùng có dòng
-  `… passed`. Trên máy bạn chạy được cả test alass thật.
-- Script dò API / Titulky với tài khoản thật (`chay_do_api.bat`, `chay_do_titulky.bat`) đã bỏ khỏi nhánh `dotnet-port`
+- **Chạy toàn bộ test** của bản .NET (cần .NET 10 SDK): trong thư mục `dotnet`, gõ `dotnet test MuxStudio.slnx` → cuối
+  cùng có dòng *Úspěšné / Passed*. Trên máy bạn chạy được cả test alass, mkvmerge thật.
+- Script dò API / Titulky với tài khoản thật (`chay_do_api.bat`, `chay_do_titulky.bat`) đã bỏ khỏi nhánh `dotnet-port` / `dotnet-gui`
   (vẫn còn ở nhánh `claude/new-session-eckanp`).

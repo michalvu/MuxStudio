@@ -12,7 +12,7 @@ Nhánh: `dotnet-gui` (tách từ `dotnet-port` ở GĐ5; nhánh làm việc mặ
 | 3 | `subprep` | ✅ 13/11/2026 (455 test C#) — kèm thay đổi ô "Ngôn ngữ" theo yêu cầu (xem mục GĐ3) |
 | 4 | `mux donor` | ✅ 13/11/2026 (641 test C#) |
 | 5 | GUI theo bản thiết kế "Concept 3 Pro Workbench" (cột trái 5 thẻ, Log, Cài đặt, ①②③, Giới thiệu, Hoàn tác) | ✅ 13/11/2026 (691 test C#) |
-| 6 | Đóng gói (`dotnet publish` win-x64 + win-arm64), `--kiem-tra`, `loi_khoi_dong.txt` | |
+| 6 | Đóng gói (`dotnet publish` win-x64 + win-arm64), `--kiem-tra`, `loi_khoi_dong.txt` | ✅ 13/11/2026 (710 test C#) |
 
 ## GĐ1: ánh xạ module
 
@@ -223,9 +223,64 @@ thiết kế (Single/Batch, cài đặt Claude Code, SubDL, nút ±50 ms, OS Has
   định của Windows: nền trắng ở chế độ Tối); khoá phụ `UiGeometry`/`UiZoomed`/`UiLogHeight`/`UiLastFolder` không có trong bảng khoá →
   đọc bằng `MainWindow.OptStr/OptBool/OptInt` (= `cfg.get`).
 
-## Gợi ý cho GĐ6 (đóng gói)
+## GĐ6: đóng gói
 
-1. `dotnet publish` win-x64 + win-arm64 (self-contained, single-file, ReadyToRun) — `App.IsFrozen` nhận bản một file (`Assembly.Location` rỗng).
-2. `--kiem-tra` (port `self_check`), `loi_khoi_dong.txt` đã có (`App.WriteStartupError`); thêm bắt `AppDomain.UnhandledException`,
-   `TaskScheduler.UnobservedTaskException`.
-3. Icon ứng dụng (chưa có `.ico` cho bản .NET).
+| Python | C# |
+|---|---|
+| `build.bat` + `MuxStudio.spec` (PyInstaller, onedir) | `dotnet/build.bat` + `src/MuxStudio.App/Properties/PublishProfiles/win-x64.pubxml`, `win-arm64.pubxml` |
+| `assets/kiem_tra_MuxStudio.bat` | `src/MuxStudio.App/kiem_tra_MuxStudio.bat` (publish chép cạnh `.exe`: `CopyToPublishDirectory` + `ExcludeFromSingleFile`) |
+| `self_check*`, `CheckItem`, `_run_check`, `_chk_*` (phần không cần Tk) | `Core/Ui/SelfCheck.cs` (`SelfCheck.Items/Report/Execute/Run/IsSelfCheck`, `CheckItem`, `CheckResult`) |
+| `_chk_gui_libs`, `_chk_icon`, `_chk_captcha_image`, `_chk_window` | `Infra/SelfCheckWpf.cs` (truyền vào lõi qua `SelfCheckUi`) |
+| `write_startup_error`, `build_info`, `os_name`, `W.is_frozen` | `AppInfo.WriteStartupError / BuildInfo / OsName / IsFrozen / ProgramDir` (`Core/Ui/AppUi.cs`); `App.BuildInfo()` thêm bản WPF-UI |
+| `W.ICON_ICO`, `W.ICON_PNG`, `resource_path` | `Infra/AppIcon.cs`: `src/MuxStudio.App/Assets/muxstudio.ico` / `.png` (bản chép từ `assets/` của Python) nhúng dạng tài nguyên WPF + `ApplicationIcon` của .exe |
+| `test_packaging.py` | `PackagingTests` (19 bài) |
+
+- **Bản phát hành:** `build.bat` → `[1/4]` có .NET 10 SDK → `[2/4]` MuxStudio.exe không đang mở → `[3/4]` publish `win-x64` và `win-arm64`
+  vào `dotnet\dist\win-*\` (xoá bản cũ trước) → `[4/4]` chạy `--kiem-tra` bản hợp với máy (`PROCESSOR_ARCHITECTURE`), in báo cáo
+  `kiem_tra_exe.txt`, mã thoát ≠ 0 → `[LOI]`. Đã chạy thật trên máy người dùng (x64): ĐẠT. Bản arm64 chỉ kiểm được là file PE ARM64 (0xAA64)
+  — **chưa chạy thử trên máy ARM** (không có máy).
+- **Chọn cấu hình publish (đo 13/11/2026, x64, 5 lần, cấu hình tạm, tới khi cửa sổ nhận input):**
+
+  | Biến thể | Kích thước | Khởi động (trung vị) |
+  |---|---|---|
+  | **ReadyToRun, không nén (đang dùng)** | 158 MB (arm64: 176 MB) | **0,72 s** |
+  | ReadyToRun + `EnableCompressionInSingleFile` | 71 MB | 0,92 s |
+  | không ReadyToRun | 139 MB | 0,85 s |
+
+  Lần chạy đầu tiên trên một máy chậm hơn ~0,3 s (giải nén thư viện native của WPF vào `%TEMP%\.net`, `IncludeNativeLibrariesForSelfExtract`).
+  Muốn file nhỏ để gửi: nén ZIP (không đổi tốc độ khởi động). Không dùng được trim (WPF không hỗ trợ).
+- **`--kiem-tra` / `--self-check [báo cáo.txt]`** (mặc định `%APPDATA%\MuxStudio\kiem_tra.txt`, UTF-8, CRLF; mã thoát 0 = đạt): các mục như
+  bản Python, đổi theo .NET: "Giao diện (WPF + WPF-UI)" (tài nguyên Fluent + bảng màu Sáng / Tối), "Windows Credential Manager" (đọc thử mục
+  không có), "Thùng rác" (`SHFileOperationW` có mặt), "Kết nối HTTPS" (kho chứng chỉ gốc của Windows — .NET không có file `certifi`), "Ảnh
+  CAPTCHA (JPEG)" (tạo JPEG rồi đọc bằng `Dlg.DecodeImage` — hàm của hộp thoại CAPTCHA), "Cửa sổ chính" (dựng `MainWindow` NGOÀI màn hình,
+  không focus, không lên thanh tác vụ, cấu hình tạm, `SelfTest = true` = không phóng to; đóng bằng `CloseQuiet` = không hỏi, không lưu),
+  "Phông chữ tiếng Việt" (KIỂM ĐỦ GLYPH chữ có dấu của phông đầu tiên có trên máy — Python chỉ kiểm tên phông), "Icon cửa sổ".
+  Chế độ này không mở hộp thoại nào: lỗi giao diện chưa bắt được gom vào mục "Cửa sổ chính".
+- **Bắt lỗi toàn cục (`App.xaml.cs`):** lỗi giao diện khi cửa sổ đã mở → khung log (như GĐ5); khi CHƯA mở xong → `loi_khoi_dong.txt` + hộp thoại
+  + thoát (trước đây: chương trình đóng không báo); `AppDomain.UnhandledException` (luồng phụ ngoài `Runner`, .NET buộc đóng) → ghi
+  `loi_khoi_dong.txt` + hộp thoại "MuxStudio gặp lỗi và phải đóng"; `TaskScheduler.UnobservedTaskException` → khung log, chạy tiếp.
+- **Khác Python (cố ý):** bản phát hành là MỘT file (Python: thư mục `_internal`); `loi_khoi_dong.txt` ghi CRLF và cả lỗi làm chương trình phải
+  đóng sau khi đã mở; thanh tiêu đề có icon (ảnh 16 px từ `muxstudio.png`), hộp thoại cũng đặt icon; `DebugType=embedded` (số dòng trong lỗi của
+  bản một file); `MUXSTUDIO_SECRET_BACKEND=null` → `NullSecretBackend` (= `PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring`, chỉ để test
+  chạy .exe thật). Các bài `test_packaging.py` không port: `ensure_backend` (không cần), `MuxStudio.spec`, `requirements*.txt`, so từng điểm
+  ảnh icon với `tools/make_icon.py` (script không có ở nhánh này — `PackagingTests` kiểm cấu trúc file `.ico`: 7 cỡ 16–256, 32 bit, 256 = PNG),
+  dọn file `core/pool.py` cũ.
+- Đã chạy tay: mở bản `dist\win-x64\MuxStudio.exe` (cấu hình tạm), chụp màn hình — icon hiện trên thanh tiêu đề.
+
+## Bỏ bản Python (quyết định của người dùng, 13/11/2026)
+
+Bản C# đã đủ; người dùng sẽ xoá phần Python. Để `dotnet/` không còn dùng file nào ở ngoài:
+- icon `assets/muxstudio.ico`, `.png` → chép vào `dotnet/src/MuxStudio.App/Assets/`;
+- `reference/*.bat` (3 file .bat gốc, `ConfigTests`) → `tests/MuxStudio.Core.Tests/Data/reference/` (giữ nguyên từng byte: `.gitattributes`
+  `binary`, `.gitignore` cho phép); `tests/data/titulky/*` (`TitulkyTests`) → `Data/titulky/`;
+- `RepoPaths.Root` tìm gốc repo theo `dotnet/MuxStudio.slnx` (trước: thư mục `core/`); bỏ bài so số phiên bản với `pyproject.toml`.
+
+Đã kiểm: chép riêng `dotnet/` + `.gitignore` sang thư mục trống → dựng 0 cảnh báo, 710/710 test xanh. Khi xoá Python, xoá được cả `core/`,
+`gui/`, `tests/`, `tools/`, `assets/`, `reference/`, `MuxStudio.pyw`, `*.bat` ở gốc, `pyproject.toml`, `requirements*.txt`, `.venv/`.
+Sau đó: `Data/python_*.json` thành dữ liệu cố định (không sinh lại được); câu dịch mới sửa thẳng `Resources/i18n_en.json` (xem `dotnet/CLAUDE.md`).
+`HUONG_DAN.md` (mục 2–8) và `docs/SPEC.md` vẫn tả theo bản Python ở vài chỗ nhỏ.
+
+## Gợi ý tiếp theo
+
+1. Chạy thử `dist\win-arm64\MuxStudio.exe --kiem-tra` trên một máy Windows on ARM.
+2. Ký số file `.exe` (giảm cảnh báo SmartScreen / diệt virus) nếu sau này phát hành rộng.

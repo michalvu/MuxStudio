@@ -85,15 +85,17 @@ Mỗi module gồm: port code → port test → `dotnet test` xanh → commit.
 | 3 | `subprep` | `fake_alass.py`: gọi `python fake_alass.py` qua Process, hoặc viết bản C# |
 | 4 | `mux donor` | `test_mux`, `test_golden_mux` |
 | 5 | GUI: `MainWindow` (NavigationView 5 thẻ) → Log → Cài đặt → ①②③ → Giới thiệu | chạy tay + test ViewModel |
-| 6 | Đóng gói, `--kiem-tra`, `loi_khoi_dong.txt` (bắt `DispatcherUnhandledException`, `AppDomain.UnhandledException`, `TaskScheduler.UnobservedTaskException`) | |
+| 6 | Đóng gói, `--kiem-tra`, `loi_khoi_dong.txt` (bắt `DispatcherUnhandledException`, `AppDomain.UnhandledException`, `TaskScheduler.UnobservedTaskException`) | `test_packaging` → `PackagingTests` (✅ xong) |
 
 **Mẹo đối chiếu:** với `build_args(plan)` (mux) và `preview_commands` (subprep), cho cả hai bản in danh sách tham số trên cùng một thư mục phim mẫu, rồi so từng chuỗi. Nếu tham số mkvmerge/ffmpeg giống nhau thì file đầu ra cũng giống nhau.
 
-**Đóng gói** (thay `build.bat` + PyInstaller):
+**Đóng gói** (GĐ6 ✅, thay `build.bat` + PyInstaller): bấm đúp `dotnet\build.bat`, hoặc
 ```powershell
-dotnet publish src/MuxStudio.App -c Release -r win-x64   --self-contained -p:PublishSingleFile=true -p:PublishReadyToRun=true
-dotnet publish src/MuxStudio.App -c Release -r win-arm64 --self-contained -p:PublishSingleFile=true -p:PublishReadyToRun=true
+dotnet publish src/MuxStudio.App -c Release -p:PublishProfile=win-x64     # -> dotnet\dist\win-x64\MuxStudio.exe
+dotnet publish src/MuxStudio.App -c Release -p:PublishProfile=win-arm64   # -> dotnet\dist\win-arm64\MuxStudio.exe
 ```
+Profile (`src/MuxStudio.App/Properties/PublishProfiles/*.pubxml`): self-contained, một file (kể cả thư viện native của WPF),
+ReadyToRun, không nén. Lý do và số đo: `docs/HANDOFF_DOTNET.md`, mục GĐ6.
 
 ## 7. Làm việc cùng Claude trong VS Code
 

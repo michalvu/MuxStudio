@@ -2,6 +2,12 @@
 
 Bản port C# của MuxStudio Python. Code Python ở thư mục gốc repo (`core/`, `gui/`, `tests/`) là **bản chuẩn để đối chiếu** cho tới khi bản C# chạy đủ cả ba bước. Tiến độ và việc tiếp theo: [`docs/HANDOFF_DOTNET.md`](../docs/HANDOFF_DOTNET.md). Hướng dẫn port tổng thể: [`docs/PORT_DOTNET.md`](../docs/PORT_DOTNET.md).
 
+**Bản C# đã xong (GĐ6, 13/11/2026); người dùng sẽ XOÁ bản Python.** `dotnet/` tự đủ: icon ở `src/MuxStudio.App/Assets/`, dữ liệu test
+(3 file .bat gốc, trang Titulky mẫu, ca đối chiếu `python_*.json`) ở `tests/MuxStudio.Core.Tests/Data/` — đã thử dựng + test khi chỉ có
+`dotnet/` (710/710). Đừng thêm tham chiếu tới file ngoài `dotnet/`. Khi Python đã xoá: các mục dưới đây nhắc tới Python / `tools/*.py` chỉ
+còn là lịch sử — `Data/python_*.json` giữ nguyên (không sinh lại được), câu dịch mới thêm thẳng vào `src/MuxStudio.Core/Resources/i18n_en.json`
+(mục `"EN"`: `"câu tiếng Việt": "English"`, chỗ chèn giá trị giống câu đã có), `ConfigFields.cs` sửa tay.
+
 ## Lệnh
 
 ```powershell
@@ -9,6 +15,9 @@ cd dotnet
 dotnet build MuxStudio.slnx            # phải 0 lỗi, 0 cảnh báo
 dotnet test  MuxStudio.slnx            # phải xanh hết
 dotnet run --project src/MuxStudio.App # chạy app
+build.bat                              # đóng gói: dist\win-x64\ + dist\win-arm64\ (MuxStudio.exe một file + kiem_tra_MuxStudio.bat), rồi tự kiểm tra
+dotnet publish src/MuxStudio.App -c Release -p:PublishProfile=win-x64   # chỉ một bản (win-arm64 tương tự)
+src\MuxStudio.App\bin\Debug\net10.0-windows\MuxStudio.exe --kiem-tra x.txt   # tự kiểm tra (mã thoát 0 = đạt)
 ```
 
 Baseline Python (so sánh hành vi): `.venv\Scripts\python.exe -m pytest tests -q` (ở thư mục gốc repo).
@@ -92,6 +101,19 @@ Baseline Python (so sánh hành vi): `.venv\Scripts\python.exe -m pytest tests -
 - Trình bày kiểu bản thiết kế: nhãn màu trong ô = `Col(Badge: true)` + giá trị `"~khoá"` (loại màu `good need bad info accent dim`); nút trên
   dòng = `Table.AddActionColumn` (giá trị `act` / `~act`); ô tick dạng nhãn = kiểu `Pill*`; nhãn / ô thống kê rời = `Chips.Make/Fill/Tile`.
   Dữ liệu hiển thị lấy từ `Core/Ui/WorkbenchUi.cs` — KHÔNG hiện số liệu giả (yêu cầu người dùng).
+
+## Đóng gói (GĐ6)
+
+- Bản phát hành = publish profile `win-x64` / `win-arm64` (self-contained, MỘT file, ReadyToRun, không nén, không trim — WPF không hỗ trợ
+  trim). `DebugType=embedded` (Directory.Build.props): pdb nằm trong dll → bản một file vẫn có số dòng trong lỗi.
+- Bản một file: `Assembly.Location` rỗng (cảnh báo IL3000) → chỉ dùng qua `AppInfo.IsFrozen`; đường dẫn chương trình = `AppInfo.ProgramDir()`
+  (`Environment.ProcessPath`), file đi kèm (icon…) = tài nguyên WPF (`pack://application:,,,/MuxStudio;component/…`), không đọc file cạnh .exe.
+- Tự kiểm tra `--kiem-tra`: mục của lõi trong `Core/Ui/SelfCheck.cs` (test được), mục WPF + dựng thử cửa sổ trong `Infra/SelfCheckWpf.cs`.
+  Thêm mục mới: hàm trả chuỗi (đạt) / `CheckResult.Warn(...)`, ném lỗi = `[LỖI]`. Báo cáo và `loi_khoi_dong.txt` giữ tiếng Việt (không dịch).
+  Chế độ này KHÔNG được mở hộp thoại nào (`build.bat` đang chờ).
+- Test chạy `MuxStudio.exe` thật (`PackagingTests.Exe_self_check_builds_window`) đặt `MUXSTUDIO_CONFIG_DIR` (cấu hình tạm) và
+  `MUXSTUDIO_SECRET_BACKEND=null` (= `PYTHON_KEYRING_BACKEND` — không chạm Credential Manager thật).
+- `build.bat`, `kiem_tra_MuxStudio.bat`: chữ KHÔNG dấu (ASCII) + CRLF, mọi `goto` có nhãn (`PackagingTests` kiểm).
 
 ## File sinh tự động (đừng sửa tay)
 

@@ -12,7 +12,7 @@ Mọi thao tác đổi tên / xoá đều hoàn tác được (nút **Hoàn tác
 
 ## Cài đặt
 
-Bản dựng sẵn (`MuxStudio.exe`) chưa phát hành; hiện chạy từ mã nguồn.
+Bản dựng sẵn (`MuxStudio.exe`) chưa phát hành: tự đóng gói bằng `dotnet\build.bat` (mục 2), hoặc chạy từ mã nguồn (mục 3).
 
 ### 1. Cần có
 
@@ -31,13 +31,17 @@ cd MuxStudio\dotnet
 dotnet build MuxStudio.slnx -c Release
 ```
 
+**Đóng gói thành một file `MuxStudio.exe`** (chạy được trên máy không cài .NET): bấm đúp `dotnet\build.bat`. Kết quả:
+`dotnet\dist\win-x64\MuxStudio.exe` (máy Intel / AMD) và `dotnet\dist\win-arm64\MuxStudio.exe` (Windows on ARM), mỗi bản kèm
+`kiem_tra_MuxStudio.bat` (tự kiểm tra). Chi tiết: [HUONG_DAN.md](HUONG_DAN.md), mục 1.
+
 ### 3. Mở chương trình
 
 ```powershell
 dotnet run --project src\MuxStudio.App -c Release
 ```
 
-hoặc bấm đúp file đã dựng: `dotnet\src\MuxStudio.App\bin\Release\net10.0-windows\MuxStudio.exe`
+hoặc bấm đúp file đã dựng: `dotnet\src\MuxStudio.App\bin\Release\net10.0-windows\MuxStudio.exe` (hoặc bản đóng gói ở `dotnet\dist\…`)
 (có thể truyền sẵn thư mục phim: `MuxStudio.exe "D:\Phim\Tên phim"`).
 
 ### 4. Thiết lập lần đầu (trong chương trình)
