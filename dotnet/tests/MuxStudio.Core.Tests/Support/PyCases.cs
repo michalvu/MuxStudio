@@ -3,18 +3,29 @@ using System.Collections;
 namespace MuxStudio.Core.Tests.Support;
 
 /// <summary>
-/// Ca đối chiếu do Python xuất (<c>Data/python_probe_cases.json</c>, sinh bằng <c>tools/gen_dotnet_probe.py</c>):
+/// Ca đối chiếu do Python xuất (<c>Data/python_*_cases.json</c>, sinh bằng <c>tools/gen_dotnet_*.py</c>):
 /// <c>{nhóm: [[đầu vào, kết quả Python], ...]}</c>. <see cref="Check"/> chạy hàm C# trên từng đầu vào và so kết quả.
 /// </summary>
 public static class PyCases
 {
-    private static readonly Lazy<OrderedDictionary<string, object?>> Data =
-        new(() => PyData.J(File.ReadAllText(RepoPaths.Data("python_probe_cases.json"), Py.Utf8Strict)));
+    private static readonly Dictionary<string, OrderedDictionary<string, object?>> Files = new(StringComparer.Ordinal);
+    private static readonly Lock Gate = new();
+
+    /// <summary>Nội dung một file dữ liệu Python (đọc một lần).</summary>
+    public static OrderedDictionary<string, object?> Load(string file)
+    {
+        lock (Gate)
+        {
+            if (!Files.TryGetValue(file, out var d))
+                Files[file] = d = PyData.J(File.ReadAllText(RepoPaths.Data(file), Py.Utf8Strict));
+            return d;
+        }
+    }
 
     /// <summary>Chạy <paramref name="fn"/> trên mọi ca của nhóm; lệch ca nào thì báo (tối đa 15 ca) với đầu vào + hai kết quả.</summary>
-    public static void Check(string group, Func<object?, object?> fn)
+    public static void Check(string group, Func<object?, object?> fn, string file = "python_probe_cases.json")
     {
-        var cases = (List<object?>)Data.Value[group]!;
+        var cases = (List<object?>)Load(file)[group]!;
         Assert.NotEmpty(cases);
         var bad = new List<string>();
         foreach (var c in cases.Cast<List<object?>>())

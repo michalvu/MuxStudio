@@ -221,6 +221,21 @@ public sealed record AlassFlags(List<string> Ok, List<string> Unsupported, bool 
 public sealed record ToolRole(string Role, bool Required);
 
 /// <summary>
+/// Đường dẫn công cụ cho một phiên (= <c>tool_paths</c> của Python: <c>{"mkvmerge": …, "alass": đường dẫn hoặc danh sách lệnh}</c>).
+/// <see cref="Alass"/> là LỆNH (có thể nhiều phần, vd alass giả của test). <c>null</c> = không có công cụ đó.
+/// </summary>
+public sealed record ToolPaths(string? Mkvmerge = null, string? Mkvextract = null, string? Ffmpeg = null, string? Ffprobe = null,
+                               IReadOnlyList<string>? Alass = null)
+{
+    /// <summary>Tự tìm (<c>tools.find_all_tools</c>).</summary>
+    public static ToolPaths Find(Config cfg, string? targetDir = null)
+    {
+        var f = Tools.FindAllTools(cfg, targetDir);
+        return new ToolPaths(f["mkvmerge"], f["mkvextract"], f["ffmpeg"], f["ffprobe"], f["alass"] is { } a ? [a] : null);
+    }
+}
+
+/// <summary>
 /// Công cụ ngoài + tiến trình con (port <c>core/tools.py</c>).
 /// Thay <c>Find-Exe</c> (MT), <c>Find-MkvTool</c>/<c>Find-Alass</c>/<c>Find-Near</c> (SP), vòng tìm mkvmerge đầu SubFetch,
 /// <c>Join-Safe</c> (cả 3), <c>Save-ToDest</c> (SF).

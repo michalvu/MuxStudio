@@ -7,7 +7,8 @@
 //   MuxStudio.TestChild exit <mã>        thoát với mã cho trước
 //   MuxStudio.TestChild sleep <giây>     ngủ
 //   MuxStudio.TestChild tree <giây> <file>  mở một tiến trình cháu (sleep), ghi PID cháu vào <file>, rồi ngủ
-//   MuxStudio.TestChild alass [tham số…]   alass GIẢ: "--help" in trợ giúp như tests/fake_alass.py (DEFAULT_HELP)
+//   MuxStudio.TestChild alass [@cấu_hình.json] [tham số…] REF INC OUT
+//                                        alass GIẢ = bản port của tests/fake_alass.py (xem class FakeAlass bên dưới)
 //   MuxStudio.TestChild -J <file>        mkvmerge -J GIẢ: JSON 1 track video 23.976 fps, 5400 s, "file_name" = <file>;
 //                                        tên có "canh-bao" → mã 1, có "hong" → in rác
 //   MuxStudio.TestChild -v quiet … <file>  ffprobe GIẢ: {"streams": [{"index": 1, "codec_name": "aac",
@@ -16,6 +17,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 var utf8 = new UTF8Encoding(false);
 var stdout = Console.OpenStandardOutput();
@@ -66,13 +68,7 @@ switch (args[0])
         Thread.Sleep(TimeSpan.FromSeconds(double.Parse(rest[0], CultureInfo.InvariantCulture)));
         return 0;
     case "alass":
-        if (rest.Contains("--help"))
-        {
-            Write(stdout, FakeAlass.DefaultHelp + "\n");
-            return 0;
-        }
-        Write(stderr, "alass giả: chưa hỗ trợ đồng bộ (GĐ3)\n");
-        return 1;
+        return FakeAlass.Run(rest, s => Write(stdout, s), s => Write(stderr, s));
     case "-J":
         if (rest[0].Contains("hong", StringComparison.Ordinal))
         {
@@ -91,8 +87,156 @@ switch (args[0])
         return 2;
 }
 
-internal static class FakeAlass
+/// <summary>
+/// alass GIẢ cho test bước ② (port <c>tests/fake_alass.py</c>). Gọi giống alass thật: <c>alass [tham số...] REF INC OUT</c>.
+/// Cấu hình: tham số đầu <c>@file.json</c> (hoặc biến môi trường <c>FAKE_ALASS</c> = đường dẫn file JSON như bản Python):
+/// <list type="bullet">
+/// <item><c>log</c>: file JSONL — mỗi lần gọi ghi <c>{flags, ref, inc, out, wav}</c> (<c>wav</c> = kênh/tần số/bit nếu REF là WAV)</item>
+/// <item><c>help</c>: chữ in ra cho <c>--help</c></item>
+/// <item><c>offset</c>: số giây cộng vào mọi mốc (mặc định 0)</item>
+/// <item><c>fail</c>: danh sách luật <c>{"ref": "wav"|"video"|"sub"|"any", "flags": true|false}</c>; khớp luật nào → mã 1</item>
+/// <item><c>zero_first</c>: dồn N dòng đầu về 00:00:00 (giả lập lỗi alass)</item>
+/// <item><c>sleep</c>: (chỉ bản C#) ngủ N giây trước khi ghi kết quả — thử "Dừng ngay"</item>
+/// </list>
+/// </summary>
+internal static partial class FakeAlass
 {
+    public static int Run(string[] argv, Action<string> stdout, Action<string> stderr)
+    {
+        JsonElement conf = default;
+        var confPath = Environment.GetEnvironmentVariable("FAKE_ALASS");
+        if (argv.Length > 0 && argv[0].StartsWith('@'))
+        {
+            confPath = argv[0][1..];
+            argv = argv[1..];
+        }
+        if (!string.IsNullOrEmpty(confPath))
+            conf = JsonDocument.Parse(File.ReadAllText(confPath, Encoding.UTF8)).RootElement;
+        string? Str(string k) => conf.ValueKind == JsonValueKind.Object && conf.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String
+            ? v.GetString() : null;
+        double Num(string k) => conf.ValueKind == JsonValueKind.Object && conf.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number
+            ? v.GetDouble() : 0.0;
+
+        if (argv.Contains("--help"))
+        {
+            stdout((Str("help") ?? DefaultHelp) + "\n");
+            return 0;
+        }
+        var flags = argv[..^3];
+        var (refPath, inc, outPath) = (argv[^3], argv[^2], argv[^1]);
+        object? wav = null;
+        if (refPath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
+            wav = WavInfo(refPath);
+        if (Str("log") is { } log)
+        {
+            var rec = new Dictionary<string, object?> { ["flags"] = flags, ["ref"] = refPath, ["inc"] = inc, ["out"] = outPath, ["wav"] = wav };
+            File.AppendAllText(log, JsonSerializer.Serialize(rec) + "\n", new UTF8Encoding(false));
+        }
+        var low = refPath.ToLowerInvariant();
+        var kind = low.EndsWith(".wav", StringComparison.Ordinal) ? "wav"
+            : low.EndsWith(".mkv", StringComparison.Ordinal) || low.EndsWith(".mp4", StringComparison.Ordinal) ? "video" : "sub";
+        if (conf.ValueKind == JsonValueKind.Object && conf.TryGetProperty("fail", out var fail))
+        {
+            foreach (var rule in fail.EnumerateArray())
+            {
+                var r = rule.TryGetProperty("ref", out var rv) ? rv.GetString() : "any";
+                var f = rule.TryGetProperty("flags", out var fv) ? fv.GetBoolean() : flags.Length > 0;
+                if ((r == "any" || r == kind) && f == flags.Length > 0)
+                {
+                    stderr("error: missing field `codec_long_name`\n");
+                    return 1;
+                }
+            }
+        }
+        if (Num("sleep") > 0) // (chỉ bản C#) giả lập alass chạy lâu để thử "Dừng ngay"
+            Thread.Sleep(TimeSpan.FromSeconds(Num("sleep")));
+        var off = Num("offset");
+        var zero = (int)Num("zero_first");
+        var txt = new UTF8Encoding(false, false).GetString(File.ReadAllBytes(inc));
+        var il = inc.ToLowerInvariant();
+        if (il.EndsWith(".ass", StringComparison.Ordinal) || il.EndsWith(".ssa", StringComparison.Ordinal))
+        {
+            txt = AssRe().Replace(txt, m =>
+            {
+                static double T(Match m, int i) => int.Parse(m.Groups[i].Value, CultureInfo.InvariantCulture) * 3600
+                    + int.Parse(m.Groups[i + 1].Value, CultureInfo.InvariantCulture) * 60
+                    + int.Parse(m.Groups[i + 2].Value, CultureInfo.InvariantCulture)
+                    + int.Parse(m.Groups[i + 3].Value, CultureInfo.InvariantCulture) / 100.0;
+                return $"{m.Groups[1].Value}{AssStamp(T(m, 2) + off)},{AssStamp(T(m, 6) + off)},";
+            });
+        }
+        else
+        {
+            var n = 0;
+            txt = SrtRe().Replace(txt, m =>
+            {
+                static double T(Match m, int i) => int.Parse(m.Groups[i].Value, CultureInfo.InvariantCulture) * 3600
+                    + int.Parse(m.Groups[i + 1].Value, CultureInfo.InvariantCulture) * 60
+                    + int.Parse(m.Groups[i + 2].Value, CultureInfo.InvariantCulture)
+                    + int.Parse(m.Groups[i + 3].Value, CultureInfo.InvariantCulture) / 1000.0;
+                n++;
+                var (a, b) = (T(m, 1) + off, T(m, 5) + off);
+                if (n <= zero)
+                    (a, b) = (0.0, 0.01);
+                return $"{Stamp(a)} --> {Stamp(b)}";
+            });
+        }
+        File.WriteAllBytes(outPath, new UTF8Encoding(false).GetBytes(txt));
+        return 0;
+    }
+
+    private static Dictionary<string, int> WavInfo(string path)
+    {
+        var b = File.ReadAllBytes(path);
+        var pos = 12; // "RIFF" size "WAVE"
+        while (pos + 8 <= b.Length)
+        {
+            var id = Encoding.ASCII.GetString(b, pos, 4);
+            var size = BitConverter.ToInt32(b, pos + 4);
+            if (id == "fmt ")
+            {
+                return new Dictionary<string, int>
+                {
+                    ["channels"] = BitConverter.ToInt16(b, pos + 10),
+                    ["rate"] = BitConverter.ToInt32(b, pos + 12),
+                    ["bits"] = BitConverter.ToInt16(b, pos + 22),
+                };
+            }
+            pos += 8 + size + (size & 1);
+        }
+        throw new InvalidDataException("không có khối fmt");
+    }
+
+    private static string Stamp(double sec)
+    {
+        var ms = (long)Math.Round(Math.Max(0.0, sec) * 1000);
+        var h = ms / 3_600_000;
+        ms %= 3_600_000;
+        var m = ms / 60_000;
+        ms %= 60_000;
+        var s = ms / 1000;
+        ms %= 1000;
+        return string.Create(CultureInfo.InvariantCulture, $"{h:00}:{m:00}:{s:00},{ms:000}");
+    }
+
+    private static string AssStamp(double sec)
+    {
+        var cs = (long)Math.Round(Math.Max(0.0, sec) * 100);
+        var h = cs / 360_000;
+        cs %= 360_000;
+        var m = cs / 6000;
+        cs %= 6000;
+        var s = cs / 100;
+        cs %= 100;
+        return string.Create(CultureInfo.InvariantCulture, $"{h}:{m:00}:{s:00}.{cs:00}");
+    }
+
+    [GeneratedRegex(@"^(Dialogue:\s*[^,]*,)(\d+):(\d{2}):(\d{2})\.(\d{2}),(\d+):(\d{2}):(\d{2})\.(\d{2}),", RegexOptions.Multiline)]
+    private static partial Regex AssRe();
+
+    [GeneratedRegex(@"(\d{2}):(\d{2}):(\d{2}),(\d{3}) --> (\d{2}):(\d{2}):(\d{2}),(\d{3})")]
+    private static partial Regex SrtRe();
+
     /// <summary>= <c>DEFAULT_HELP</c> của tests/fake_alass.py.</summary>
     public const string DefaultHelp = """
         alass 2.0.0 (giả)

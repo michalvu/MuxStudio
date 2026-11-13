@@ -237,6 +237,15 @@ internal static partial class Py
         return neg ? -r : r;
     }
 
+    /// <summary><c>f"{x:.{d}f}"</c> / <c>f"{x:+.{d}f}"</c>: làm tròn đúng như Python (về số chẵn trên giá trị nhị phân chính xác),
+    /// giữ dấu của -0.0 (Python in <c>-0.00</c>).</summary>
+    public static string Fixed(double x, int d, bool plus = false)
+    {
+        var r = Round(x, d);
+        var body = Math.Abs(r).ToString("F" + d.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+        return double.IsNegative(r) ? "-" + body : (plus ? "+" : "") + body;
+    }
+
     /// <summary>
     /// <c>int(x)</c>: bool → 0/1, số thực → cắt phần lẻ (NaN/vô cực → lỗi như Python), chuỗi → số nguyên (bỏ khoảng trắng,
     /// có dấu, chữ số Unicode). Kiểu khác (vd <c>None</c>) → lỗi.
