@@ -6796,6 +6796,22 @@
 "    [i] Titulky: tried part of the title '#1, #2' → 3 results, kept a.srt."
 ],
 [
+"[i] Chỉ xử lý phụ đề 'Sẵn sàng.': C:\\Phim Thử\\Tập 1.mkv file; bỏ qua en, cs file của ngôn ngữ khác hoặc chưa rõ ngôn ngữ.",
+"[i] Only 'Ready.' subtitles: C:\\Phim Thử\\Tập 1.mkv file(s); skipped en, cs file(s) in another or unknown language."
+],
+[
+"[i] Chỉ xử lý phụ đề 'S01E05': Kiểm tra công cụ file; bỏ qua xyz file của ngôn ngữ khác hoặc chưa rõ ngôn ngữ.",
+"[i] Only 'S01E05' subtitles: Checking tools file(s); skipped xyz file(s) in another or unknown language."
+],
+[
+"[!] Không có phụ đề '12.5' nào trong 'Phim Thử (2020)'.",
+"[!] No '12.5' subtitles in 'Phim Thử (2020)'."
+],
+[
+"[!] Không có phụ đề 'bỏ qua' nào trong '#1, #2'.",
+"[!] No 'skipped' subtitles in '#1, #2'."
+],
+[
 "  [!] API & tài khoản",
 "  [!] API & accounts"
 ],
@@ -12738,6 +12754,22 @@
 [
 "▶ 1.     [i] Titulky: thử một phần tên '#1, #2' → 3 kết quả, giữ a.srt.",
 "▶ 1.     [i] Titulky: tried part of the title '#1, #2' → 3 results, kept a.srt."
+],
+[
+"[i] Chỉ xử lý phụ đề 'Sẵn sàng.': C:\\Phim Thử\\Tập 1.mkv file; bỏ qua en, cs file của ngôn ngữ khác hoặc chưa rõ ngôn ngữ. →",
+"[i] Only 'Ready.' subtitles: C:\\Phim Thử\\Tập 1.mkv file(s); skipped en, cs file(s) in another or unknown language. →"
+],
+[
+"([i] Chỉ xử lý phụ đề 'S01E05': Kiểm tra công cụ file; bỏ qua xyz file của ngôn ngữ khác hoặc chưa rõ ngôn ngữ.)",
+"([i] Only 'S01E05' subtitles: Checking tools file(s); skipped xyz file(s) in another or unknown language.)"
+],
+[
+"2 [!] Không có phụ đề '12.5' nào trong 'Phim Thử (2020)'.",
+"2 [!] No '12.5' subtitles in 'Phim Thử (2020)'."
+],
+[
+"[!] Không có phụ đề 'bỏ qua' nào trong '#1, #2'.…",
+"[!] No 'skipped' subtitles in '#1, #2'.…"
 ],
 [
 "Chung — thư mục & công cụ | API & tài khoản",

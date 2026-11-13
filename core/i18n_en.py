@@ -1289,6 +1289,8 @@ EN: dict[str, str] = {
     "Titulky: đăng nhập lỗi — ": "Titulky: login error — ",
     "    [i] Titulky: tìm '{}' → {} kết quả, giữ {} bản tiếng Séc đúng phim / đúng tập.": "    [i] Titulky: searched '{}' → {} results, kept {} Czech releases for the right video / episode.",
     "    [i] Titulky: thử một phần tên '{}' → {} kết quả, giữ {}.": "    [i] Titulky: tried part of the title '{}' → {} results, kept {}.",
+    "[i] Chỉ xử lý phụ đề '{}': {} file; bỏ qua {} file của ngôn ngữ khác hoặc chưa rõ ngôn ngữ.": "[i] Only '{}' subtitles: {} file(s); skipped {} file(s) in another or unknown language.",
+    "[!] Không có phụ đề '{}' nào trong '{}'.": "[!] No '{}' subtitles in '{}'.",
 }
 
 #: Chuỗi có chữ tiếng Việt nhưng CỐ Ý không dịch (không hiển thị, hoặc chỉ nằm trong báo cáo tự kiểm tra).
