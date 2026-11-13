@@ -1,12 +1,13 @@
 # MuxStudio .NET (WPF, .NET 10) — quy ước cho Claude
 
-Bản port C# của MuxStudio Python. Code Python ở thư mục gốc repo (`core/`, `gui/`, `tests/`) là **bản chuẩn để đối chiếu** cho tới khi bản C# chạy đủ cả ba bước. Tiến độ và việc tiếp theo: [`docs/HANDOFF_DOTNET.md`](../docs/HANDOFF_DOTNET.md). Hướng dẫn port tổng thể: [`docs/PORT_DOTNET.md`](../docs/PORT_DOTNET.md).
+MuxStudio bản C# (port từ bản Python cũ — đã xong 6 giai đoạn, 13/11/2026). **Bản Python đã bị xoá khỏi repo** (13/11/2026, theo yêu cầu
+người dùng; lịch sử còn ở nhánh `claude/new-session-eckanp`). Tiến độ và việc tiếp theo: [`docs/HANDOFF_DOTNET.md`](../docs/HANDOFF_DOTNET.md).
+Đặc tả tính năng (viết thời bản Python, code C# vẫn trỏ tới): [`docs/SPEC.md`](../docs/SPEC.md).
 
-**Bản C# đã xong (GĐ6, 13/11/2026); người dùng sẽ XOÁ bản Python.** `dotnet/` tự đủ: icon ở `src/MuxStudio.App/Assets/`, dữ liệu test
-(3 file .bat gốc, trang Titulky mẫu, ca đối chiếu `python_*.json`) ở `tests/MuxStudio.Core.Tests/Data/` — đã thử dựng + test khi chỉ có
-`dotnet/` (710/710). Đừng thêm tham chiếu tới file ngoài `dotnet/`. Khi Python đã xoá: các mục dưới đây nhắc tới Python / `tools/*.py` chỉ
-còn là lịch sử — `Data/python_*.json` giữ nguyên (không sinh lại được), câu dịch mới thêm thẳng vào `src/MuxStudio.Core/Resources/i18n_en.json`
-(mục `"EN"`: `"câu tiếng Việt": "English"`, chỗ chèn giá trị giống câu đã có), `ConfigFields.cs` sửa tay.
+- `dotnet/` tự đủ: icon ở `src/MuxStudio.App/Assets/`, dữ liệu test (3 file .bat gốc, trang Titulky mẫu, ca đối chiếu `python_*.json`) ở
+  `tests/MuxStudio.Core.Tests/Data/`. Đừng thêm tham chiếu tới file ngoài `dotnet/`.
+- Các mục dưới đây nhắc tới Python (tên hàm "port …", bảng bẫy Python → C#) là lịch sử để hiểu code. `Data/python_*.json` là dữ liệu CỐ
+  ĐỊNH (do bản Python xuất, không sinh lại được nữa): đừng sửa cho test xanh trừ khi CỐ Ý đổi hành vi.
 
 ## Lệnh
 
@@ -20,13 +21,11 @@ dotnet publish src/MuxStudio.App -c Release -p:PublishProfile=win-x64   # chỉ 
 src\MuxStudio.App\bin\Debug\net10.0-windows\MuxStudio.exe --kiem-tra x.txt   # tự kiểm tra (mã thoát 0 = đạt)
 ```
 
-Baseline Python (so sánh hành vi): `.venv\Scripts\python.exe -m pytest tests -q` (ở thư mục gốc repo).
-
 ## Quy tắc port
 
 1. **Port sát, không tự thêm tính năng, không "sửa cho đẹp" logic.** Mỗi hàm C# ghi rõ nó port hàm Python nào. Chuỗi tiếng Việt (trạng thái, nhật ký, lỗi) giữ **nguyên văn**, vì i18n và nhật ký hoàn tác dựa vào chúng.
 2. Mỗi module: port code → port test của nó (`tests/test_x.py` → `XTests.cs`) → `dotnet test` xanh → commit riêng.
-3. Ở chỗ hành vi khó đoán, thêm **test đối chiếu với dữ liệu do Python xuất** (`tests/MuxStudio.Core.Tests/Data/python_*.json`, sinh bằng `tools/gen_dotnet_*.py`). Đừng đoán kết quả của Python: chạy Python để lấy.
+3. Test đối chiếu với dữ liệu do Python xuất (`tests/MuxStudio.Core.Tests/Data/python_*.json`, sinh hồi còn bản Python bằng `tools/gen_dotnet_*.py` — đã xoá) giữ hành vi cũ: phải luôn xanh.
 4. Test **không bao giờ** chạm Credential Manager thật, Thùng rác thật hay mạng thật. Dùng `MemorySecretBackend`, `FakeCredentialTable`, `Undo.SendToRecycleBin` giả (hoặc thuộc tính `Trash` của phiên) và máy chủ giả `FakeHttp` (truyền `fake.Client` vào client / phiên — quên truyền là gọi `Http.Shared` = mạng thật).
 5. Test đụng state tĩnh dùng chung (bảng ngôn ngữ — kể cả chỉ đọc qua `Naming.LangMatch`/`Probe`, ngôn ngữ giao diện, biến môi trường như `PATH`, `Undo.SendToRecycleBin`) phải gắn `[Collection(GlobalStateCollection.Name)]` và trả state về như cũ.
 6. `MuxStudio.Core` **không** tham chiếu WPF.
@@ -92,8 +91,9 @@ Baseline Python (so sánh hành vi): `.venv\Scripts\python.exe -m pytest tests -
 - Logic THUẦN của giao diện (dòng bảng, chữ trạng thái, màu, CSV, bố cục…) nằm ở `src/MuxStudio.Core/Ui/` (không WPF) và có test
   (`GuiLogicTests`); `MuxStudio.App` chỉ dựng giao diện và gọi các hàm đó.
 - Chữ hiển thị: tiếng Việt gốc, dịch ở chỗ hiển thị — XAML `{l:Tr 'chữ'}` (chữ có dấu `'` thì đặt bằng code), code `L.T(...)`; `Table` tự dịch
-  ô (trừ cột `Name: true` = tên file), `Dlg.Text/Button` tự dịch. Câu MỚI → thêm vào `tools/i18n/extra.json` rồi chạy lại
-  `i18n_build.py` + `gen_dotnet_i18n.py` (xem HANDOFF). Ghép câu đúng như f-string của bản Python để `I18n.Tr` khớp mẫu.
+  ô (trừ cột `Name: true` = tên file), `Dlg.Text/Button` tự dịch. Câu MỚI → thêm thẳng vào
+  `src/MuxStudio.Core/Resources/i18n_en.json` (mục `"EN"`: `"câu tiếng Việt": "English"`; phần giá trị thay đổi viết `{}` ở cả hai bên, như
+  các câu đã có) và vào danh sách của `GuiLogicTests.New_wpf_strings_have_english_translations`. Câu cố ý không dịch → mục `"SKIP"`.
 - Việc của lõi luôn qua `Runner.Start(...)` (luồng phụ); hỏi người dùng từ luồng phụ bằng `Runner.Ask`.
 - Nội dung nút / ô chọn có thể chứa `_` (vd `srt_goc`) → dùng `TextBlock`, không gán chuỗi thẳng vào `Content` (WPF coi `_` là phím tắt).
 - Bảng: `DataGrid` kiểu `WbGrid` + lớp `Table`; nền theo nhãn dòng (`need`/`bad`/`good`) do kiểu ô `WbCell` vẽ (template của WPF-UI bỏ qua
@@ -115,11 +115,7 @@ Baseline Python (so sánh hành vi): `.venv\Scripts\python.exe -m pytest tests -
   `MUXSTUDIO_SECRET_BACKEND=null` (= `PYTHON_KEYRING_BACKEND` — không chạm Credential Manager thật).
 - `build.bat`, `kiem_tra_MuxStudio.bat`: chữ KHÔNG dấu (ASCII) + CRLF, mọi `goto` có nhãn (`PackagingTests` kiểm).
 
-## File sinh tự động (đừng sửa tay)
+## File từng sinh tự động (giờ sửa tay)
 
-- `src/MuxStudio.Core/ConfigFields.cs` ← `python tools/gen_dotnet_config_fields.py` (sau khi sửa `FIELDS` trong `core/config.py`)
-- `src/MuxStudio.Core/Resources/i18n_en.json` ← `python tools/gen_dotnet_i18n.py` (sau khi chạy `tools/i18n_build.py`)
-- `tests/MuxStudio.Core.Tests/Data/python_probe_cases.json` ← `python tools/gen_dotnet_probe.py` (sau khi sửa `core/tools.py` / `core/probe.py`)
-- `tests/MuxStudio.Core.Tests/Data/python_subprep_cases.json` ← `python tools/gen_dotnet_subprep.py` (sau khi sửa `core/subprep.py`)
-- `tests/MuxStudio.Core.Tests/Data/python_mux_cases.json` ← `python tools/gen_dotnet_mux.py` (sau khi sửa `core/mux.py` / `core/donor.py`)
-- `tests/MuxStudio.Core.Tests/Data/python_*.json` còn lại ← hai script đầu. Riêng `python_codepages.json` sinh một lần, bằng lệnh ghi trong HANDOFF_DOTNET.md.
+- `src/MuxStudio.Core/ConfigFields.cs` (bảng khoá cấu hình): thêm / đổi khoá thì sửa cả `Data/python_config.json` (ConfigTests so với nó).
+- `src/MuxStudio.Core/Resources/i18n_en.json` (bảng dịch): xem mục Giao diện ở trên.

@@ -178,5 +178,3 @@ Gửi cho người hỗ trợ:
 
 - **Chạy toàn bộ test** của bản .NET (cần .NET 10 SDK): trong thư mục `dotnet`, gõ `dotnet test MuxStudio.slnx` → cuối
   cùng có dòng *Úspěšné / Passed*. Trên máy bạn chạy được cả test alass, mkvmerge thật.
-- Script dò API / Titulky với tài khoản thật (`chay_do_api.bat`, `chay_do_titulky.bat`) đã bỏ khỏi nhánh `dotnet-port` / `dotnet-gui`
-  (vẫn còn ở nhánh `claude/new-session-eckanp`).

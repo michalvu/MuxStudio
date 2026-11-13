@@ -1,19 +1,9 @@
-# Python
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.venv/
-venv/
-*.egg-info/
-
-# Thu muc build / dist (cu: PyInstaller; .NET: dotnet/dist/win-x64, win-arm64 - build.bat)
-build/
+# Ban dong goi (dotnet\build.bat): dotnet/dist/win-x64, win-arm64 + bao cao tu kiem tra
 dist/
 kiem_tra_exe.txt
 
-# Ban goc .bat co key that - KHONG dua len repo
+# Ban goc .bat co key that - KHONG dua len repo (ban da che key dung cho test: cho phep)
 *_v[0-9]*.bat
-!reference/*.bat
 !dotnet/tests/MuxStudio.Core.Tests/Data/reference/*.bat
 
 # Nhat ky / file tam khi chay thu

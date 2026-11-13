@@ -1,5 +1,8 @@
 # Hướng dẫn port MuxStudio sang C# / WPF
 
+> **Lịch sử:** việc port đã xong (GĐ6, 13/11/2026) và bản Python đã bị xoá khỏi nhánh này. Các đường dẫn `core/`, `gui/`, `tests/*.py`,
+> `tools/*.py` dưới đây nói về bản Python cũ (còn ở nhánh `claude/new-session-eckanp`).
+
 Tiến độ thực tế: [`HANDOFF_DOTNET.md`](HANDOFF_DOTNET.md). Quy ước khi viết code: [`../dotnet/CLAUDE.md`](../dotnet/CLAUDE.md).
 
 ## 0. Nền tảng: .NET 10 (LTS)

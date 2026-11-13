@@ -1,5 +1,0 @@
-requests
-keyring
-send2trash
-customtkinter>=5.2.2,<7
-pillow>=10

@@ -174,18 +174,10 @@ Khác Python (nhỏ, ghi lại):
 - Script dò API (`tools/probe_*.py`, `nhap_tu_bat.py`, `chay_do_*.bat`) và test của chúng (`test_probe_tools.py`) đã bỏ khỏi
   nhánh này (công cụ phát triển, không thuộc `core/`), cùng phần đóng gói PyInstaller — vẫn còn ở nhánh `claude/new-session-eckanp`.
 
-## Làm lại dữ liệu đối chiếu
+## Dữ liệu đối chiếu (cố định)
 
-```powershell
-.venv\Scripts\python.exe tools\gen_dotnet_config_fields.py   # ConfigFields.cs + Data/python_config.json
-.venv\Scripts\python.exe tools\gen_dotnet_i18n.py            # Resources/i18n_en.json + Data/python_i18n_cases.json
-.venv\Scripts\python.exe tools\gen_dotnet_probe.py           # Data/python_probe_cases.json (tools, probe, os.path, round…)
-.venv\Scripts\python.exe tools\gen_dotnet_subprep.py         # Data/python_subprep_cases.json (cắt recap, sức khoẻ, ghép mốc…)
-.venv\Scripts\python.exe tools\gen_dotnet_mux.py             # Data/python_mux_cases.json (kế hoạch mux, ghép audio, lệnh mkvmerge…)
-```
-Sau khi sửa `tools/i18n/extra.json`: `set PYTHONIOENCODING=utf-8` rồi chạy `tools\i18n_build.py` và `tools\gen_dotnet_i18n.py`
-(console tiếng Séc dùng cp1250, dòng `print` cuối của script sẽ lỗi nếu thiếu biến này).
-`Data/python_codepages.json` được sinh một lần bằng lệnh sau:
+`tests/MuxStudio.Core.Tests/Data/python_*.json` do bản Python xuất (script `tools/gen_dotnet_*.py`, đã xoá cùng bản Python). Không sinh
+lại được nữa: đó là "đáp án" hành vi cũ — chỉ sửa khi CỐ Ý đổi hành vi. `Data/python_codepages.json` được sinh bằng lệnh:
 `bytes(range(256)).decode(f"cp{cp}", errors="muxstudio_c1")` cho cp ∈ {874, 1250…1258}, lưu dạng `{cp: [mã ký tự…]}`.
 
 ## GĐ5: giao diện WPF
@@ -267,18 +259,15 @@ thiết kế (Single/Batch, cài đặt Claude Code, SubDL, nút ±50 ms, OS Has
   dọn file `core/pool.py` cũ.
 - Đã chạy tay: mở bản `dist\win-x64\MuxStudio.exe` (cấu hình tạm), chụp màn hình — icon hiện trên thanh tiêu đề.
 
-## Bỏ bản Python (quyết định của người dùng, 13/11/2026)
+## Bỏ bản Python (13/11/2026, theo yêu cầu người dùng)
 
-Bản C# đã đủ; người dùng sẽ xoá phần Python. Để `dotnet/` không còn dùng file nào ở ngoài:
-- icon `assets/muxstudio.ico`, `.png` → chép vào `dotnet/src/MuxStudio.App/Assets/`;
-- `reference/*.bat` (3 file .bat gốc, `ConfigTests`) → `tests/MuxStudio.Core.Tests/Data/reference/` (giữ nguyên từng byte: `.gitattributes`
-  `binary`, `.gitignore` cho phép); `tests/data/titulky/*` (`TitulkyTests`) → `Data/titulky/`;
-- `RepoPaths.Root` tìm gốc repo theo `dotnet/MuxStudio.slnx` (trước: thư mục `core/`); bỏ bài so số phiên bản với `pyproject.toml`.
-
-Đã kiểm: chép riêng `dotnet/` + `.gitignore` sang thư mục trống → dựng 0 cảnh báo, 710/710 test xanh. Khi xoá Python, xoá được cả `core/`,
-`gui/`, `tests/`, `tools/`, `assets/`, `reference/`, `MuxStudio.pyw`, `*.bat` ở gốc, `pyproject.toml`, `requirements*.txt`, `.venv/`.
-Sau đó: `Data/python_*.json` thành dữ liệu cố định (không sinh lại được); câu dịch mới sửa thẳng `Resources/i18n_en.json` (xem `dotnet/CLAUDE.md`).
-`HUONG_DAN.md` (mục 2–8) và `docs/SPEC.md` vẫn tả theo bản Python ở vài chỗ nhỏ.
+1. `dotnet/` tự đủ: icon `assets/muxstudio.*` → `dotnet/src/MuxStudio.App/Assets/`; `reference/*.bat` (`ConfigTests`) →
+   `tests/MuxStudio.Core.Tests/Data/reference/` (giữ nguyên từng byte: `.gitattributes` `binary`, `.gitignore` cho phép);
+   `tests/data/titulky/*` (`TitulkyTests`) → `Data/titulky/`; `RepoPaths.Root` tìm gốc repo theo `dotnet/MuxStudio.slnx`.
+2. Đã xoá khỏi repo: `core/ gui/ tests/ tools/ assets/ reference/`, `MuxStudio.pyw`, `chay_muxstudio.bat`, `run_tests.bat`, `pyproject.toml`,
+   `requirements*.txt` (và `.venv/`, `.pytest_cache/` trên máy). Sau khi xoá: dựng 0 cảnh báo, 710/710 test xanh. Lịch sử bản Python: nhánh
+   `claude/new-session-eckanp`. Giữ `docs/SPEC.md` (đặc tả tính năng; code C# trỏ tới).
+3. Từ nay `ConfigFields.cs` và `Resources/i18n_en.json` sửa tay (cách làm: `dotnet/CLAUDE.md`).
 
 ## Gợi ý tiếp theo
 

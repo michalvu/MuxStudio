@@ -1,3 +1,2 @@
 *.bat -text
-reference/*.bat binary
 dotnet/tests/MuxStudio.Core.Tests/Data/reference/*.bat binary
