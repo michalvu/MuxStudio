@@ -195,6 +195,25 @@ internal static partial class Py
         return a == 0 && b == s.Length ? s : s[a..b];
     }
 
+    /// <summary><c>str.split()</c> (không tham số): tách theo dãy khoảng trắng (kể cả \x1c–\x1f), bỏ phần tử rỗng.</summary>
+    public static List<string> SplitWs(string s)
+    {
+        static bool Ws(char c) => char.IsWhiteSpace(c) || c is >= '\x1c' and <= '\x1f';
+        var o = new List<string>();
+        var i = 0;
+        while (i < s.Length)
+        {
+            while (i < s.Length && Ws(s[i]))
+                i++;
+            var start = i;
+            while (i < s.Length && !Ws(s[i]))
+                i++;
+            if (i > start)
+                o.Add(s[start..i]);
+        }
+        return o;
+    }
+
     // ------------------------------------------------------------------
     //  số
     // ------------------------------------------------------------------
