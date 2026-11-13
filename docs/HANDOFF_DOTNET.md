@@ -10,7 +10,7 @@ Nhánh: `dotnet-port`. Quy ước làm việc: [`dotnet/CLAUDE.md`](../dotnet/CL
 | 1 | `timing pgs srt encoding episodes naming config secrets undo i18n` | ✅ 13/11/2026: 343 test C# (Python cùng module: 305) |
 | 2 | `tools` (Process + huỷ) `probe tmdb tvdb subsource opensubs titulky subfetch` + phần còn lại của `naming` | ✅ 13/11/2026 (582 test C#) |
 | 3 | `subprep` | ✅ 13/11/2026 (455 test C#) — kèm thay đổi ô "Ngôn ngữ" theo yêu cầu (xem mục GĐ3) |
-| 4 | `mux donor` | |
+| 4 | `mux donor` | ✅ 13/11/2026 (641 test C#) |
 | 5 | GUI (NavigationView 5 thẻ, Log, Cài đặt, ①②③, Giới thiệu) | |
 | 6 | Đóng gói (`dotnet publish` win-x64 + win-arm64), `--kiem-tra`, `loi_khoi_dong.txt` | |
 
@@ -121,6 +121,27 @@ Khác Python (nhỏ, ghi lại):
   phụ đề gốc trong `srt_goc` vẫn cho xoá như cũ (người dùng chọn). GĐ5: giao diện phải truyền ô Ngôn ngữ hiện tại vào `CleanupTargets`.
 - Test: `SubprepTests.Language_*`. Hai câu nhật ký mới đã có bản dịch (`tools/i18n/extra.json`).
 
+## GĐ4: ánh xạ module
+
+| Python | C# (`src/MuxStudio.Core/`) | Test C# | Python / C# |
+|---|---|---|---|
+| `donor.py` | `Donor.cs` (`Donor.*`, `DonorPlan`, `DonorTrack`, `DonorTiming`, `TrackTimes`, `Fraction`) | `DonorTests` | 24 / 25 (+ `Fraction`) |
+| `mux.py` | `Mux.cs` (`MuxSession`, `MuxPlan`, `Mux.*`, `AudioRule`, `ExtSub`, `IntSub`, `SubItem`, `UsedFile`…) | `MuxTests` | 27 / 28 (+1 bài của `test_naming_db`) |
+| `test_golden_mux.py` (so với .bat qua PowerShell) | — | `MuxCrossCheckTests` (so với Python: `Data/python_mux_cases.json`) | 12 / 3 bài: 80 kế hoạch + 60 ca ghép audio + 4 nhóm hàm thuần |
+| `test_e2e_mux.py` (công cụ thật) | — | `MuxE2ETests` | 3 / 3 (chạy thật trên máy người dùng: lệch < 10 ms) |
+
+- **`ToolRunner`** (`delegate RunResult (args, job, timeout)`): `MuxSession(…, runner:)` / `.Runner`, `TrackTimes.Runner`,
+  `Donor.Prepare(…, runner)` — thay `monkeypatch.setattr(tools, "run", …)` của test Python (mkvmerge giả ghi file `-o`:
+  `MuxLib.FakeRun`). `MuxSession(…, mkvmergeVersion:)` thay `monkeypatch.setattr(tools, "mkvmerge_version", …)`. Không biến tĩnh.
+- `MuxSession.Trash` (mặc định `Undo.Trash`) thay `monkeypatch.setattr(undo, "trash", …)`. `MuxSession.Ver` đặt lại → tự đổi
+  `FDef`/`FFor` (Python đặt riêng `ver`, `f_def`, `f_for`). `UiLang` = `_ui_lang`, `TrackTimes` thay được bằng `TrackTimesFn` (= `times_fn`).
+- `Fraction`: `fractions.Fraction(float)` CHÍNH XÁC (giá trị nhị phân, `BigInteger`) + `limit_denominator` (cùng cách chọn cận như
+  Python) — cho `StretchFilter` (TĐ-34: không dùng `double`).
+- `MuxSession.Execute` bắt `OperationCanceledException` (Python bắt `tools.Cancelled`) — gồm cả huỷ qua `Job.Token` lúc gọi HTTP.
+- Test Python `test_mux.py` có 3 bài của `probe` (tên codec, kênh, bitrate, HDR): đã ở `ProbeTests` (GĐ2).
+- `MuxCrossCheckTests` dựng lại CÙNG thư mục phim giả cho từng ca rồi so TỪNG trường kế hoạch, TỪNG dòng nhật ký, TỪNG tham số mkvmerge /
+  ffmpeg (đường dẫn gốc → `<ROOT>`). Đã thử ngược: sửa một giá trị trong dữ liệu là test báo đúng chỗ lệch.
+
 ## Đã kiểm chứng giống Python
 
 - `config.json` mặc định do C# ghi **giống từng byte** `json.dumps(..., ensure_ascii=False, indent=2)` của Python.
@@ -132,6 +153,8 @@ Khác Python (nhỏ, ghi lại):
 - `Tools.GetToolInfo` / `MkvmergeVersion` với mkvmerge, mkvextract, ffmpeg, ffprobe thật trên máy (Desktop\mkvtoolnix,
   Desktop\alass-windows64): test `Tool_info_with_real_tools_if_installed` chạy thật, không bị bỏ qua.
 - `os.walk` đi vào junction (`mklink /J`), không đi vào symlink: C# làm y vậy (`Py.IsLink` đọc thẻ reparse).
+- Bước ③ (`MuxCrossCheckTests`): 80 kế hoạch mux + 60 ca ghép audio — kế hoạch, nhật ký, lệnh mkvmerge/ffmpeg giống Python từng chuỗi.
+- Bước ③ với công cụ thật (`MuxE2ETests`, 3/3 chạy thật): tiếng bíp PAL +1,5 s và cùng FPS −2 s, audio ghép lệch < 10 ms.
 - Bước ② với công cụ thật trên máy người dùng (`SubprepE2ETests`, 7/7 chạy thật): trích phụ đề gốc (cả PGS), WAV mono 16 kHz,
   thứ tự thử alass, alass thật khôi phục đúng độ lệch 7,5 s, alass thật nhận WAV.
 
@@ -158,15 +181,21 @@ Khác Python (nhỏ, ghi lại):
 .venv\Scripts\python.exe tools\gen_dotnet_i18n.py            # Resources/i18n_en.json + Data/python_i18n_cases.json
 .venv\Scripts\python.exe tools\gen_dotnet_probe.py           # Data/python_probe_cases.json (tools, probe, os.path, round…)
 .venv\Scripts\python.exe tools\gen_dotnet_subprep.py         # Data/python_subprep_cases.json (cắt recap, sức khoẻ, ghép mốc…)
+.venv\Scripts\python.exe tools\gen_dotnet_mux.py             # Data/python_mux_cases.json (kế hoạch mux, ghép audio, lệnh mkvmerge…)
 ```
 Sau khi sửa `tools/i18n/extra.json`: `set PYTHONIOENCODING=utf-8` rồi chạy `tools\i18n_build.py` và `tools\gen_dotnet_i18n.py`
 (console tiếng Séc dùng cp1250, dòng `print` cuối của script sẽ lỗi nếu thiếu biến này).
 `Data/python_codepages.json` được sinh một lần bằng lệnh sau:
 `bytes(range(256)).decode(f"cp{cp}", errors="muxstudio_c1")` cho cp ∈ {874, 1250…1258}, lưu dạng `{cp: [mã ký tự…]}`.
 
-## Gợi ý cho GĐ4
+## Gợi ý cho GĐ5 (giao diện)
 
-1. Test Python hay `monkeypatch.setattr(tools, "run" | "mkvmerge_version", ...)` (test_mux). GĐ3 không cần (alass / mkvmerge giả
-   là exe con). GĐ4 (`test_mux.py` thay `tools.run` để giả mkvmerge ghi file `-o`): nên thêm chỗ thay theo luồng (`AsyncLocal`)
-   hoặc truyền runner vào phiên, **không** dùng biến tĩnh toàn cục (test chạy song song). Phần đọc kết quả đã tách sẵn:
-   `Tools.ToolInfoOf`, `Tools.MkvmergeVersionOf`.
+1. Mỗi lần bấm nút: một `Job` mới (`IProgress<LogLine>` gom 50–100 ms, `IProgress<JobProgress>`, `CancellationToken` của nút "Dừng
+   ngay"), gọi `SetJob(job)` trên phiên (`FetchSession`, `PrepSession`, `MuxSession` sống qua nhiều lần bấm), chạy lõi bằng `Task.Run`.
+   Phiên là `IDisposable` (xoá thư mục tạm) — giải phóng khi đổi thư mục phim / đóng thẻ.
+2. Bước ①: `FetchSession.Captcha` được gọi TỪ LUỒNG PHỤ và chờ kết quả → giao diện mở hộp thoại CAPTCHA qua `Dispatcher.Invoke`
+   (ảnh JPEG = `byte[]` → `BitmapImage`), trả mã hoặc `null` (= bỏ qua). Các client mạng dùng `Http.Shared` (không cần tạo).
+3. Bước ②: truyền ô "Ngôn ngữ" hiện tại vào `CleanupTargets(lang)` (xem mục GĐ3).
+4. Bước ③: `DbStatus()` gọi mạng (TMDB/TVDB) → chạy ở luồng phụ; dòng "Cần chọn": `ChooseName` / `SearchName` / `KeepOriginalName(s)`
+   rồi `PlanFile` lại; sau `Execute`: `Mux.UsedSources(plans, OutDir)` → hỏi bạn → `TrashSources`.
+5. i18n: bài "mọi câu hiển thị đều có bản dịch" (xem mục Khác biệt) làm khi port giao diện.

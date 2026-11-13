@@ -18,7 +18,7 @@ Baseline Python (so sánh hành vi): `.venv\Scripts\python.exe -m pytest tests -
 1. **Port sát, không tự thêm tính năng, không "sửa cho đẹp" logic.** Mỗi hàm C# ghi rõ nó port hàm Python nào. Chuỗi tiếng Việt (trạng thái, nhật ký, lỗi) giữ **nguyên văn**, vì i18n và nhật ký hoàn tác dựa vào chúng.
 2. Mỗi module: port code → port test của nó (`tests/test_x.py` → `XTests.cs`) → `dotnet test` xanh → commit riêng.
 3. Ở chỗ hành vi khó đoán, thêm **test đối chiếu với dữ liệu do Python xuất** (`tests/MuxStudio.Core.Tests/Data/python_*.json`, sinh bằng `tools/gen_dotnet_*.py`). Đừng đoán kết quả của Python: chạy Python để lấy.
-4. Test **không bao giờ** chạm Credential Manager thật, Thùng rác thật hay mạng thật. Dùng `MemorySecretBackend`, `FakeCredentialTable`, `Undo.SendToRecycleBin` giả và (từ GĐ2) `HttpMessageHandler` giả.
+4. Test **không bao giờ** chạm Credential Manager thật, Thùng rác thật hay mạng thật. Dùng `MemorySecretBackend`, `FakeCredentialTable`, `Undo.SendToRecycleBin` giả (hoặc thuộc tính `Trash` của phiên) và máy chủ giả `FakeHttp` (truyền `fake.Client` vào client / phiên — quên truyền là gọi `Http.Shared` = mạng thật).
 5. Test đụng state tĩnh dùng chung (bảng ngôn ngữ — kể cả chỉ đọc qua `Naming.LangMatch`/`Probe`, ngôn ngữ giao diện, biến môi trường như `PATH`, `Undo.SendToRecycleBin`) phải gắn `[Collection(GlobalStateCollection.Name)]` và trả state về như cũ.
 6. `MuxStudio.Core` **không** tham chiếu WPF.
 
@@ -70,6 +70,13 @@ Baseline Python (so sánh hành vi): `.venv\Scripts\python.exe -m pytest tests -
 | `shutil.copyfile` / `shutil.which` | `Tools.CopyFile` (chỉ chép nội dung; `File.Copy` giữ cả thời gian sửa) / `Py.Which` |
 | `tools.Job`, `Cancelled`, `cancel_now` | `Job` (`Token`, `CancelNow` diệt cả cây tiến trình), `Cancelled : OperationCanceledException` |
 | test: `[sys.executable, "-c", …]`, `fake_alass.py` | `Child.Cmd(...)` (exe `tests/MuxStudio.TestChild`) |
+| `requests` (`session.request`, `r.text`, `r.json()`) | `Http.Request` (đồng bộ, `Http.Shared`), `HttpResult.Text` / `JsonOrNull()`; lỗi mạng = `HttpNetworkException` |
+| `urlencode` / `quote` / `urljoin` / `html.unescape` | `PyUrl.Encode` / `PyUrl.Quote` / `PyUrl.Join` / `WebUtility.HtmlDecode` |
+| test: `tests/fakehttp.py` (`FakeHTTP`, `FakeResponse`, `Sleeper`, `zip_bytes`) | `Support/FakeHttp.cs` (`FakeHttp` = `HttpMessageHandler`, `FakeResponse.Json/Text/Bytes`, `Sleeper`, `ZipData.Of`) |
+| test: `monkeypatch.setattr(tools, "run" / "mkvmerge_version", …)` | `ToolRunner` truyền vào phiên (`MuxSession.Runner`, `mkvmergeVersion:`) — không biến tĩnh |
+| test: `monkeypatch.setattr(undo, "trash", …)` | thuộc tính `Trash` của phiên (`FetchSession`, `MuxSession`) |
+| `fractions.Fraction(x).limit_denominator(n)` | `Fraction.FromDouble(x).LimitDenominator(n)` (chính xác, `BigInteger`) |
+| `time.sleep` trong client mạng | tham số `sleep` (test: `Sleeper.Sleep`); mặc định `Http.Sleep` (dừng ngay khi bấm "Dừng ngay") |
 
 ## File sinh tự động (đừng sửa tay)
 
@@ -77,4 +84,5 @@ Baseline Python (so sánh hành vi): `.venv\Scripts\python.exe -m pytest tests -
 - `src/MuxStudio.Core/Resources/i18n_en.json` ← `python tools/gen_dotnet_i18n.py` (sau khi chạy `tools/i18n_build.py`)
 - `tests/MuxStudio.Core.Tests/Data/python_probe_cases.json` ← `python tools/gen_dotnet_probe.py` (sau khi sửa `core/tools.py` / `core/probe.py`)
 - `tests/MuxStudio.Core.Tests/Data/python_subprep_cases.json` ← `python tools/gen_dotnet_subprep.py` (sau khi sửa `core/subprep.py`)
+- `tests/MuxStudio.Core.Tests/Data/python_mux_cases.json` ← `python tools/gen_dotnet_mux.py` (sau khi sửa `core/mux.py` / `core/donor.py`)
 - `tests/MuxStudio.Core.Tests/Data/python_*.json` còn lại ← hai script đầu. Riêng `python_codepages.json` sinh một lần, bằng lệnh ghi trong HANDOFF_DOTNET.md.
