@@ -1,0 +1,126 @@
+<UserControl x:Class="MuxStudio.App.Views.FetchView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:l="clr-namespace:MuxStudio.App">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <!-- ngôn ngữ cần tải + nguồn (dạng nhãn bật / tắt) -->
+    <ui:Card Grid.Row="0" Padding="14,10" Margin="0,0,0,10">
+      <StackPanel>
+        <DockPanel Margin="0,0,0,8" LastChildFill="True">
+          <ui:Button x:Name="CheckBtn" DockPanel.Dock="Right" Icon="{ui:SymbolIcon PlugConnected24}" Content="{l:Tr 'Kiểm tra nguồn'}" Click="CheckSources_Click" />
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Border Style="{StaticResource BadgeBorder}" Background="{StaticResource AmberAccentBrush}">
+              <TextBlock Style="{StaticResource BadgeText}" Text="STEP 01 · MULTI-LANGUAGE QUERY" />
+            </Border>
+            <TextBlock Style="{StaticResource CardTitle}" Text="{l:Tr '① Tải phụ đề'}" />
+          </StackPanel>
+        </DockPanel>
+        <WrapPanel x:Name="LangPanel" Orientation="Horizontal">
+          <StackPanel x:Name="ExtraBox" Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+            <TextBlock Margin="4,0,6,0" VerticalAlignment="Center" Text="{l:Tr 'Mã khác:'}" />
+            <ui:TextBox x:Name="LangExtra" Width="130" PlaceholderText="{l:Tr 'vd: pt ru'}" />
+          </StackPanel>
+        </WrapPanel>
+        <Border Margin="0,2,0,0" Padding="10,8,10,2" CornerRadius="6" BorderThickness="1"
+                Background="{DynamicResource ControlFillColorSecondaryBrush}" BorderBrush="{DynamicResource ControlElevationBorderBrush}">
+          <DockPanel LastChildFill="True">
+            <TextBlock DockPanel.Dock="Left" Margin="0,4,12,0" VerticalAlignment="Top" Style="{StaticResource MonoLabel}" Text="PROVIDERS" />
+            <WrapPanel x:Name="SrcPanel" Orientation="Horizontal" />
+          </DockPanel>
+        </Border>
+      </StackPanel>
+    </ui:Card>
+
+    <!-- phim đang chọn + các bước -->
+    <Grid Grid.Row="1" Margin="0,0,0,10">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="5*" />
+        <ColumnDefinition Width="7*" />
+      </Grid.ColumnDefinitions>
+      <Grid Grid.Column="0" Margin="0,0,10,0">
+        <Rectangle RadiusX="8" RadiusY="8" Stroke="{StaticResource AmberAccentBrush}" StrokeThickness="1.5" StrokeDashArray="4 3"
+                   Fill="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+        <StackPanel Margin="16,12">
+          <DockPanel LastChildFill="True">
+            <Border DockPanel.Dock="Left" Width="38" Height="38" Margin="0,0,12,0" CornerRadius="8" Background="{StaticResource AmberSoftBgBrush}">
+              <ui:SymbolIcon Symbol="Video24" Foreground="{StaticResource AmberAccentBrush}" />
+            </Border>
+            <StackPanel>
+              <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource AmberAccentBrush}" Text="TARGET VIDEO" />
+              <TextBlock x:Name="VidName" Margin="0,3,0,0" FontFamily="{StaticResource MonoFont}" FontSize="13" FontWeight="Bold"
+                         TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+            </StackPanel>
+          </DockPanel>
+          <UniformGrid x:Name="VidTiles" Columns="3" Margin="0,10,0,6" />
+          <WrapPanel x:Name="VidLangs" Orientation="Horizontal" />
+        </StackPanel>
+      </Grid>
+      <ui:Card Grid.Column="1" Padding="12,8" VerticalAlignment="Stretch">
+        <StackPanel>
+          <WrapPanel x:Name="StepsPanel" Orientation="Horizontal" />
+          <DockPanel Margin="0,6,0,0" LastChildFill="True">
+            <ui:Button x:Name="SkipAllBtn" DockPanel.Dock="Right" Margin="6,0,0,0" Content="{l:Tr 'Bỏ qua mọi dòng cần chọn'}" Click="SkipAll_Click" />
+            <ui:Button x:Name="ResetBtn" DockPanel.Dock="Right" Margin="6,0,0,0" Content="{l:Tr '↺ Làm lại từ đầu'}" Click="Reset_Click"
+                       ToolTip="{l:Tr 'Xoá bảng phim / ứng viên, tổng kết và tiến độ của lượt này để làm lô file mới. KHÔNG xoá file nào; ngôn ngữ và nguồn đang tick được giữ.'}" />
+            <TextBlock x:Name="Hint" Style="{StaticResource Hint}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+          </DockPanel>
+        </StackPanel>
+      </ui:Card>
+    </Grid>
+
+    <!-- bảng phim / ngôn ngữ + bảng ứng viên -->
+    <Grid Grid.Row="2">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="52*" MinHeight="110" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="48*" MinHeight="110" />
+      </Grid.RowDefinitions>
+      <DataGrid x:Name="TreeGrid" Grid.Row="0" Style="{StaticResource WbGrid}" />
+      <GridSplitter Grid.Row="1" Height="6" HorizontalAlignment="Stretch" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" Background="Transparent" />
+      <Grid Grid.Row="2">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <DockPanel Margin="0,2,0,6" LastChildFill="True">
+          <ui:Button x:Name="SkipBtn" DockPanel.Dock="Right" Margin="6,0,0,0" Content="{l:Tr 'Bỏ qua ngôn ngữ này'}" Click="SkipCurrent_Click" />
+          <ui:Button x:Name="ChooseBtn" DockPanel.Dock="Right" Margin="6,0,0,0" Appearance="Primary" Content="{l:Tr 'Chọn bản này'}" Click="Choose_Click" />
+          <CheckBox x:Name="Remember" DockPanel.Dock="Right" Margin="8,0,4,0" Content="{l:Tr 'Dùng lại lựa chọn này cho các tập sau cùng season'}" />
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Border Style="{StaticResource BadgeBorder}" Background="{StaticResource CyanAccentBrush}">
+              <TextBlock Style="{StaticResource BadgeText}" Text="CANDIDATES" />
+            </Border>
+            <TextBlock x:Name="CandTitle" Style="{StaticResource Body}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+          </StackPanel>
+        </DockPanel>
+        <DataGrid x:Name="CandGrid" Grid.Row="1" Style="{StaticResource WbGrid}" />
+      </Grid>
+    </Grid>
+
+    <!-- giỏ phụ đề: ngôn ngữ nào đã chọn / còn cần chọn + tải -->
+    <Border Grid.Row="3" Margin="0,10,0,0" Padding="14,10" CornerRadius="8" Background="{StaticResource PanelDarkBrush}">
+      <DockPanel LastChildFill="True">
+        <ui:Button x:Name="BasketGo" DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center" Click="BasketGo_Click"
+                   Background="{StaticResource AmberAccentBrush}" Foreground="{StaticResource BadgeTextBrush}" FontWeight="Bold">
+          <TextBlock x:Name="BasketGoText" />
+        </ui:Button>
+        <StackPanel>
+          <WrapPanel Orientation="Horizontal">
+            <TextBlock Margin="0,2,10,4" VerticalAlignment="Center" FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="Bold"
+                       Foreground="{StaticResource AmberAccentBrush}" Text="{l:Tr 'GIỎ PHỤ ĐỀ'}" />
+            <WrapPanel x:Name="Basket" Orientation="Horizontal" />
+          </WrapPanel>
+          <TextBlock x:Name="Summary" FontFamily="{StaticResource MonoFont}" FontSize="11.5" TextWrapping="Wrap" Foreground="{StaticResource PanelDarkTextBrush}" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+  </Grid>
+</UserControl>

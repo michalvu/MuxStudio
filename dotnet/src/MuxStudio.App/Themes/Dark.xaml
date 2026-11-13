@@ -1,0 +1,27 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Màu chế độ TỐI (= phần thứ hai của LEVEL_COLORS / ROW_BG / GRID_COLORS / PROGRESS_GREEN trong gui/widgets.py) -->
+  <SolidColorBrush x:Key="LogInfoBrush" Color="#E6E6E6" />
+  <SolidColorBrush x:Key="LogOkBrush" Color="#7DDC85" />
+  <SolidColorBrush x:Key="LogWarnBrush" Color="#FFCC66" />
+  <SolidColorBrush x:Key="LogErrorBrush" Color="#FF7B72" />
+  <SolidColorBrush x:Key="LogDimBrush" Color="#9AA0A6" />
+  <SolidColorBrush x:Key="LogHeadBrush" Color="#8AB4F8" />
+
+  <SolidColorBrush x:Key="RowNeedBrush" Color="#6B5500" />
+  <SolidColorBrush x:Key="RowBadBrush" Color="#5A1F1F" />
+  <SolidColorBrush x:Key="RowGoodBrush" Color="#1D3B21" />
+
+  <SolidColorBrush x:Key="GridBgBrush" Color="#2B2B2B" />
+  <SolidColorBrush x:Key="GridStripeBrush" Color="#323232" />
+  <SolidColorBrush x:Key="GridLineBrush" Color="#4A4A4A" />
+  <SolidColorBrush x:Key="GridHeadBrush" Color="#3C3C3C" />
+  <SolidColorBrush x:Key="GridHeadExtBrush" Color="#284660" />
+  <SolidColorBrush x:Key="GridChangedBrush" Color="#9C7A00" />
+  <SolidColorBrush x:Key="GridAbsentBrush" Color="#1E1E1E" />
+  <SolidColorBrush x:Key="GridAbsentFgBrush" Color="#6E6E6E" />
+
+  <SolidColorBrush x:Key="ConsoleBgBrush" Color="#090D16" />
+  <SolidColorBrush x:Key="ConsoleBorderBrush" Color="#1E293B" />
+  <SolidColorBrush x:Key="ProgressGreenBrush" Color="#3FBF5A" />
+</ResourceDictionary>

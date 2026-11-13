@@ -2,23 +2,209 @@
                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:l="clr-namespace:MuxStudio.App"
+                 xmlns:v="clr-namespace:MuxStudio.App.Views"
                  Title="MuxStudio"
-                 Width="1100" Height="720"
-                 MinWidth="800" MinHeight="520"
+                 Width="1400" Height="900"
+                 MinWidth="960" MinHeight="560"
                  WindowStartupLocation="CenterScreen"
-                 WindowBackdropType="Mica"
-                 ExtendsContentIntoTitleBar="True">
-  <Grid>
+                 ExtendsContentIntoTitleBar="True"
+                 WindowCornerPreference="Round">
+  <Grid x:Name="Root">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
-      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" MinHeight="260" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition x:Name="LogRow" Height="140" MinHeight="44" />
+      <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
-    <ui:TitleBar Grid.Row="0" Title="MuxStudio" />
-    <!-- GĐ5 sẽ thay bằng NavigationView 5 thẻ. Hiện chỉ là khung để chắc chắn app build và chạy được. -->
-    <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
-      <ui:TextBlock FontTypography="Title" Text="MuxStudio (.NET)" HorizontalAlignment="Center" />
-      <ui:TextBlock FontTypography="Body" Margin="0,8,0,0" HorizontalAlignment="Center"
-                    Text="Đang port — giao diện sẽ có ở giai đoạn 5." />
-    </StackPanel>
+
+    <!-- ROW 0: thanh tiêu đề Fluent -->
+    <ui:TitleBar x:Name="TitleBarCtl" Grid.Row="0" Title="MuxStudio" />
+
+    <!-- ROW 1: thư mục phim (chọn MỘT lần, dùng chung cho cả ba bước) + Sáng / Tối -->
+    <Border Grid.Row="1" Padding="14,8" BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="0,1,0,1">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <Border Grid.Column="0" Padding="10,5" Margin="0,0,12,0" VerticalAlignment="Center" CornerRadius="4"
+                Background="{StaticResource AmberSoftBgBrush}" BorderBrush="{StaticResource AmberAccentBrush}" BorderThickness="1">
+          <StackPanel Orientation="Horizontal">
+            <Ellipse Width="8" Height="8" Margin="0,0,8,0" Fill="{StaticResource AmberAccentBrush}" />
+            <TextBlock x:Name="VersionBadge" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold"
+                       Foreground="{StaticResource AmberAccentBrush}" Text="MUXSTUDIO" />
+          </StackPanel>
+        </Border>
+        <Grid Grid.Column="1" VerticalAlignment="Center">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Center" FontWeight="Bold" Text="{l:Tr 'Thư mục phim:'}" />
+          <ui:TextBox x:Name="FolderBox" Grid.Column="1" FontFamily="{StaticResource MonoFont}" KeyDown="FolderBox_KeyDown"
+                      PlaceholderText="{l:Tr 'Bấm &quot;Chọn…&quot; để chọn thư mục chứa phim (dùng chung cho cả ba bước)'}" />
+          <StackPanel Grid.Column="2" Orientation="Horizontal">
+            <ui:Button Margin="6,0,0,0" Appearance="Primary" Icon="{ui:SymbolIcon FolderOpen24}" Content="{l:Tr 'Chọn…'}" Click="ChooseFolder_Click" />
+            <ui:Button Margin="6,0,0,0" Icon="{ui:SymbolIcon Open24}" Content="{l:Tr 'Mở'}" Click="OpenFolder_Click" />
+            <ui:Button x:Name="UndoBtn" Margin="6,0,0,0" Icon="{ui:SymbolIcon ArrowUndo24}" Content="{l:Tr 'Hoàn tác…'}" Click="Undo_Click" />
+          </StackPanel>
+        </Grid>
+        <StackPanel Grid.Column="2" Margin="14,0,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+          <ui:Button x:Name="LightBtn" AutomationProperties.Name="{l:Tr 'Sáng'}" Margin="0,0,4,0" Icon="{ui:SymbolIcon WeatherSunny24}" ToolTip="{l:Tr 'Sáng'}" Click="Light_Click" />
+          <ui:Button x:Name="DarkBtn" AutomationProperties.Name="{l:Tr 'Tối'}" Margin="0,0,4,0" Icon="{ui:SymbolIcon WeatherMoon24}" ToolTip="{l:Tr 'Tối'}" Click="Dark_Click" />
+          <ui:Button x:Name="SystemBtn" AutomationProperties.Name="{l:Tr 'Theo Windows'}" Icon="{ui:SymbolIcon Desktop24}" ToolTip="{l:Tr 'Theo Windows'}" Click="System_Click" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- ROW 2: cột trái (5 thẻ theo thứ tự quy trình + trạng thái) + nội dung -->
+    <Grid Grid.Row="2">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="250" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <Border Grid.Column="0" Padding="12" BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="0,0,1,0">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+              <Grid Margin="6,2,6,10">
+                <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Opacity="0.6" Text="PIPELINE" />
+                <TextBlock HorizontalAlignment="Right" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold"
+                           Foreground="{StaticResource AmberAccentBrush}" Text="① → ② → ③" />
+              </Grid>
+              <ui:Button x:Name="NavFetch" Style="{StaticResource NavButton}" AutomationProperties.Name="{l:Tr '① Tải phụ đề'}" Tag="fetch" Click="Nav_Click">
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                  <ui:SymbolIcon Symbol="ArrowDownload24" Margin="0,0,10,0" Foreground="{StaticResource AmberAccentBrush}" />
+                  <StackPanel Grid.Column="1">
+                    <TextBlock FontWeight="Bold" Text="{l:Tr '① Tải phụ đề'}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock FontSize="11" Opacity="0.65" Text="SubSource · Titulky · OpenSubtitles" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="2" VerticalAlignment="Center" FontFamily="{StaticResource MonoFont}" FontSize="11" Opacity="0.5" Text="01" />
+                </Grid>
+              </ui:Button>
+              <ui:Button x:Name="NavPrep" Style="{StaticResource NavButton}" AutomationProperties.Name="{l:Tr '② Chuẩn bị phụ đề'}" Tag="prep" Click="Nav_Click">
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                  <ui:SymbolIcon Symbol="Clock24" Margin="0,0,10,0" Foreground="{StaticResource CyanAccentBrush}" />
+                  <StackPanel Grid.Column="1">
+                    <TextBlock FontWeight="Bold" Text="{l:Tr '② Chuẩn bị phụ đề'}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock FontSize="11" Opacity="0.65" Text="{l:Tr 'Đổi tên · đồng bộ (alass)'}" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="2" VerticalAlignment="Center" FontFamily="{StaticResource MonoFont}" FontSize="11" Opacity="0.5" Text="02" />
+                </Grid>
+              </ui:Button>
+              <ui:Button x:Name="NavMux" Style="{StaticResource NavButton}" AutomationProperties.Name="{l:Tr '③ Mux'}" Tag="mux" Click="Nav_Click">
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                  <ui:SymbolIcon Symbol="MoviesAndTv24" Margin="0,0,10,0" Foreground="{StaticResource EmeraldAccentBrush}" />
+                  <StackPanel Grid.Column="1">
+                    <TextBlock FontWeight="Bold" Text="{l:Tr '③ Mux'}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock FontSize="11" Opacity="0.65" Text="{l:Tr 'Dọn track · đặt tên · mkvmerge'}" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="2" VerticalAlignment="Center" FontFamily="{StaticResource MonoFont}" FontSize="11" Opacity="0.5" Text="03" />
+                </Grid>
+              </ui:Button>
+              <ui:Button x:Name="NavSettings" Style="{StaticResource NavButton}" AutomationProperties.Name="{l:Tr 'Cài đặt'}" Tag="settings" Click="Nav_Click">
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                  <ui:SymbolIcon Symbol="Settings24" Margin="0,0,10,0" Foreground="{StaticResource RoseAccentBrush}" />
+                  <StackPanel Grid.Column="1">
+                    <TextBlock FontWeight="Bold" Text="{l:Tr 'Cài đặt'}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock FontSize="11" Opacity="0.65" Text="{l:Tr 'Công cụ · API key · tuỳ chọn'}" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="2" VerticalAlignment="Center" FontFamily="{StaticResource MonoFont}" FontSize="11" Opacity="0.5" Text="04" />
+                </Grid>
+              </ui:Button>
+              <ui:Button x:Name="NavAbout" Style="{StaticResource NavButton}" AutomationProperties.Name="{l:Tr 'Giới thiệu'}" Tag="about" Click="Nav_Click">
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                  <ui:SymbolIcon Symbol="Person24" Margin="0,0,10,0" Foreground="{StaticResource IndigoAccentBrush}" />
+                  <StackPanel Grid.Column="1">
+                    <TextBlock FontWeight="Bold" Text="{l:Tr 'Giới thiệu'}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock FontSize="11" Opacity="0.65" Text="{l:Tr 'Tác giả · giấy phép'}" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="2" VerticalAlignment="Center" FontFamily="{StaticResource MonoFont}" FontSize="11" Opacity="0.5" Text="i" />
+                </Grid>
+              </ui:Button>
+            </StackPanel>
+          </ScrollViewer>
+
+          <!-- trạng thái của lượt làm việc (đọc từ cấu hình + các thẻ) -->
+          <ui:Card Grid.Row="1" Padding="12" Margin="0,8,0,0">
+            <StackPanel>
+              <Grid Margin="0,0,0,8">
+                <TextBlock FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold" Text="WORKBENCH STATE" />
+                <TextBlock x:Name="StateBusy" HorizontalAlignment="Right" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold"
+                           Foreground="{StaticResource EmeraldAccentBrush}" Text="IDLE" />
+              </Grid>
+              <TextBlock FontSize="11" Opacity="0.65" Text="{l:Tr 'Thư mục phim:'}" />
+              <TextBlock x:Name="StateFolder" Margin="0,0,0,6" FontSize="11" FontWeight="Bold"
+                         Foreground="{StaticResource AmberAccentBrush}" TextTrimming="CharacterEllipsis" Text="—" />
+              <Grid Margin="0,1">
+                <TextBlock FontSize="11" Opacity="0.65" Text="{l:Tr 'Ngôn ngữ cần tải'}" />
+                <TextBlock x:Name="StateLangs" HorizontalAlignment="Right" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="Bold"
+                           Foreground="{StaticResource AmberAccentBrush}" Text="—" />
+              </Grid>
+              <Grid Margin="0,1">
+                <TextBlock FontSize="11" Opacity="0.65" Text="{l:Tr 'Mốc đồng bộ:'}" />
+                <TextBlock x:Name="StateRef" HorizontalAlignment="Right" FontSize="11" FontWeight="Bold"
+                           Foreground="{StaticResource CyanAccentBrush}" Text="—" />
+              </Grid>
+              <Grid Margin="0,1">
+                <TextBlock FontSize="11" Opacity="0.65" Text="{l:Tr 'Đặt tên theo'}" />
+                <TextBlock x:Name="StateDb" HorizontalAlignment="Right" FontSize="11" FontWeight="Bold"
+                           Foreground="{StaticResource EmeraldAccentBrush}" Text="—" />
+              </Grid>
+              <TextBlock x:Name="StateCounts" Margin="0,6,0,0" FontSize="11" Opacity="0.75" TextWrapping="Wrap" Text="" />
+            </StackPanel>
+          </ui:Card>
+        </Grid>
+      </Border>
+      <Grid x:Name="ContentHost" Grid.Column="1" Margin="16,12,16,8" />
+    </Grid>
+
+    <!-- ROW 3: tay kéo đổi chiều cao khung nhật ký -->
+    <GridSplitter x:Name="LogSplitter" Grid.Row="3" Height="6" HorizontalAlignment="Stretch" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"
+                  Background="Transparent" ShowsPreview="False" Cursor="SizeNS" DragCompleted="LogSplitter_DragCompleted"
+                  ToolTip="{l:Tr 'Kéo lên / xuống để đổi chiều cao khung nhật ký'}" />
+
+    <!-- ROW 4: khung log màu luôn hiện -->
+    <v:LogPanel x:Name="LogView" Grid.Row="4" />
+
+    <!-- ROW 5: trạng thái + tiến độ + Dừng -->
+    <Border Grid.Row="5" Padding="14,6" Background="{DynamicResource ControlFillColorDefaultBrush}"
+            BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="0,1,0,0">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <Ellipse x:Name="StatusDot" Width="8" Height="8" Margin="0,0,8,0" Fill="{StaticResource EmeraldAccentBrush}" />
+          <TextBlock x:Name="StatusText" FontFamily="{StaticResource MonoFont}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <TextBlock x:Name="ProgPct" Grid.Column="1" MinWidth="96" Margin="8,0" VerticalAlignment="Center" TextAlignment="Right"
+                   FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource ProgressGreenBrush}" />
+        <StackPanel Grid.Column="2" Width="240" Margin="4,0,8,0" VerticalAlignment="Center">
+          <ProgressBar x:Name="Prog" Height="10" Minimum="0" Maximum="1" Foreground="{DynamicResource ProgressGreenBrush}" />
+          <ProgressBar x:Name="Cur" Height="4" Margin="0,3,0,0" Minimum="0" Maximum="1" Foreground="{DynamicResource ProgressGreenBrush}" />
+        </StackPanel>
+        <ui:Button x:Name="StopBtn" Grid.Column="3" Margin="0,0,6,0" IsEnabled="False" Content="{l:Tr 'Dừng sau file này'}" Click="StopAfter_Click" />
+        <ui:Button x:Name="StopNowBtn" Grid.Column="4" IsEnabled="False" Appearance="Danger" Content="{l:Tr '■ Dừng ngay'}" Click="StopNow_Click" />
+      </Grid>
+    </Border>
   </Grid>
 </ui:FluentWindow>
